@@ -94,7 +94,7 @@ final class InstrumentationBridge
         BootstrapStageLogger::logTrace('Entered. class: ' . $dbgClassAsString . ', function: ' . $function, __FILE__, __LINE__, __CLASS__, __FUNCTION__);
 
         // OpenTelemetry\Distro\hook function is provided by the extension
-        $retVal = OpenTelemetry\Distro\hook($class, $function, $pre, $post);
+        $retVal = hook($class, $function, $pre, $post);
         if ($retVal) {
             BootstrapStageLogger::logTrace('Successfully hooked. class: ' . $dbgClassAsString . ', function: ' . $function, __FILE__, __LINE__, __CLASS__, __FUNCTION__);
             return;
