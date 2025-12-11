@@ -1,0 +1,5 @@
+#pragma once
+
+#define OTEL_DISTRO_PRODUCT_NAME "OpenTelemetry PHP distribution"
+
+#define OTEL_DISTRO_VERSION "@_PROJECT_PROPERTIES_VERSION@"

@@ -1,0 +1,23 @@
+/* This file has been generated, do not edit it manually.
+ * If you want to make changes, edit the file LogFeature.h.in
+ * in the sources tree.
+ * Remember, every time you add a new feature to the properties,
+ * reconfigure the project and regenerate the files for PHP as well
+ */
+
+#pragma once
+
+#include <string_view>
+
+namespace opentelemetry::php {
+
+// clang-format off
+enum LogFeature {
+    @_PROJECT_PROPERTIES_LOGGER_FEATURES_ENUM_VALUES@
+};
+// clang-format on
+
+[[nodiscard]] LogFeature parseLogFeature(std::string_view featureName);
+[[nodiscard]] std::string_view getLogFeatureName(LogFeature feature);
+
+} // namespace opentelemetry::php

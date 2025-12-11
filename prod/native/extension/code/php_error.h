@@ -1,0 +1,1 @@
+const char *get_php_error_name(int code);

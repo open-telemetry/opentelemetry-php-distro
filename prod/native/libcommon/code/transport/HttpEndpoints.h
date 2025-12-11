@@ -1,0 +1,76 @@
+#pragma once
+
+#include "CommonUtils.h"
+#include "CurlSender.h"
+#include "HttpEndpoint.h"
+#include "LoggerInterface.h"
+
+#include <chrono>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+
+namespace opentelemetry::php::transport {
+
+using namespace std::literals;
+
+class HttpEndpoints {
+public:
+    using endpointUrlHash_t = std::size_t;
+
+    HttpEndpoints(std::shared_ptr<LoggerInterface> log) : log_(log) {
+    }
+
+    bool add(std::string endpointUrl, endpointUrlHash_t endpointHash, std::string contentType, HttpEndpoint::enpointHeaders_t const &endpointHeaders, std::chrono::milliseconds timeout, std::size_t maxRetries, std::chrono::milliseconds retryDelay, HttpEndpointSSLOptions sslOptions) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto result = endpoints_.try_emplace(endpointHash, std::move(endpointUrl), std::move(contentType), endpointHeaders, maxRetries, retryDelay);
+        if (connections_.try_emplace(result.first->second.getConnectionId(), log_, timeout, sslOptions).second) { // CurlSender
+            ELOG_DEBUG(log_, TRANSPORT, "HttpEndpoints::add endpointUrl '{}' endpointHash: {:X} initialize new connectionId: {:X}", result.first->second.getEndpoint(), endpointHash, result.first->second.getConnectionId());
+            return true;
+        }
+        return false;
+    }
+
+    std::tuple<std::string, curl_slist *, HttpEndpoint::connectionId_t, CurlSender &, std::size_t, std::chrono::milliseconds> getConnection(endpointUrlHash_t endpointHash) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto const &endpoint = endpoints_.find(endpointHash);
+        if (endpoint == std::end(endpoints_)) {
+            std::stringstream stream;
+            stream << "HttpEnpoints missing enpointHash:" << std::hex << endpointHash;
+            throw std::runtime_error(stream.str());
+        }
+
+        auto const &connection = connections_.find(endpoint->second.getConnectionId());
+        if (connection == std::end(connections_)) {
+            std::stringstream stream;
+            stream << "HttpEndpoints enpointHash:" << std::hex << endpointHash << " missing connectionId " << std::hex << endpoint->second.getConnectionId();
+            throw std::runtime_error(stream.str());
+        }
+
+        auto &conn = connection->second;
+        auto maxRetries = std::max(static_cast<std::size_t>(1), static_cast<std::size_t>(endpoint->second.getMaxRetries()));
+        auto retryDelay = endpoint->second.getRetryDelay();
+
+        return {endpoint->second.getEndpoint(), endpoint->second.getHeaders(), endpoint->second.getConnectionId(), conn, maxRetries, retryDelay};
+    }
+
+    void updateRetryDelay(size_t endpointHash, std::chrono::milliseconds retryDelay) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto const &endpoint = endpoints_.find(endpointHash);
+        if (endpoint == std::end(endpoints_)) {
+            std::stringstream stream;
+            stream << "HttpEnpoints can't update retryDelay for missing enpointHash:" << std::hex << endpointHash;
+            throw std::runtime_error(stream.str());
+        }
+        endpoint->second.setRetryDelay(retryDelay);
+    }
+
+protected:
+    std::shared_ptr<LoggerInterface> log_;
+    std::mutex mutex_;
+    std::unordered_map<endpointUrlHash_t, HttpEndpoint> endpoints_;
+    std::unordered_map<HttpEndpoint::connectionId_t, CurlSender> connections_;
+};
+
+} // namespace opentelemetry::php::transport
