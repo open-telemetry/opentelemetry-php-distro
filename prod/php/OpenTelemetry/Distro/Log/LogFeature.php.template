@@ -1,0 +1,12 @@
+<?php
+
+/* this file is generated, do not edit it manually */
+
+declare(strict_types=1);
+
+namespace OpenTelemetry\Distro\Log;
+
+final class LogFeature
+{
+@_PROJECT_PROPERTIES_LOGGER_FEATURES_ENUM_VALUES@
+}

@@ -1,0 +1,21 @@
+<?php
+
+/* this file is generated, do not edit it manually */
+
+declare(strict_types=1);
+
+namespace OpenTelemetry\Distro;
+
+use OpenTelemetry\Distro\Util\StaticClassTrait;
+
+/**
+ * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
+ *
+ * @internal
+ */
+final class PhpPartVersion
+{
+    use StaticClassTrait;
+
+    public const VALUE = '@_PROJECT_PROPERTIES_VERSION@';
+}
