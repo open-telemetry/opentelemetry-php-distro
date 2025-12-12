@@ -1,0 +1,42 @@
+<?php
+
+const CRED = "\033[31m";
+const CGREEN = "\033[32m";
+const CDEF = "\033[39m";
+
+echo CGREEN."Starting package smoke test\n".CDEF;
+
+echo "Checking if extension is loaded: ";
+if (array_search("opentelemetry_distro", get_loaded_extensions()) === false) {
+    echo CRED."FAILED. OpenTelemetry PHP Distro extension not found\n".CDEF;
+    exit(1);
+}
+echo CGREEN."OK\n".CDEF;
+
+echo "Looking for internal function 'OpenTelemetry\Distro\is_enabled': ";
+if (array_search("OpenTelemetry\Distro\is_enabled", get_extension_funcs("opentelemetry_distro")) === false) {
+    echo CRED."FAILED. OpenTelemetry PHP Distro extension function 'OpenTelemetry\Distro\is_enabled' not found\n".CDEF;
+    exit(1);
+}
+echo CGREEN."OK\n".CDEF;
+
+
+echo "Checking if extension is enabled: ";
+if (OpenTelemetry\Distro\is_enabled() !== true) {
+    echo CRED."FAILED. OpenTelemetry PHP Distro extension is not enabled\n".CDEF;
+    exit(1);
+}
+echo CGREEN."OK\n".CDEF;
+
+echo "Looking for PhpPartFacade class: ";
+if (array_search("OpenTelemetry\Distro\PhpPartFacade", get_declared_classes()) === false) {
+    echo CRED."FAILED. OpenTelemetry\Distro\PhpPartFacade class not found. Bootstrap failed\n".CDEF;
+    exit(1);
+}
+echo CGREEN."OK\n".CDEF;
+
+echo "Trying to log something to stderr: ";
+OpenTelemetry\Distro\BootstrapStageLogger::logCritical("This is just a message to test logger", __FILE__, __LINE__, __CLASS__, __FUNCTION__);
+echo CGREEN."OK\n".CDEF;
+
+echo CGREEN."Smoke test passed\n".CDEF;

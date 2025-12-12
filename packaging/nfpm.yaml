@@ -1,0 +1,58 @@
+name: "opentelemetry-php-distro"
+arch: "${PACKAGE_GOARCHITECTURE}"
+platform: "linux"
+
+version: ${PACKAGE_VERSION}
+version_schema: semver
+
+section: "default"
+priority: "extra"
+
+overrides:
+  rpm:
+    provides:
+    - opentelemetry-php-distro
+  deb:
+    provides:
+    - opentelemetry-php-distro
+
+depends:
+- bash
+maintainer: "Open Telemetry PHP maintainers <cncf-opentelemetry-maintainers@lists.cncf.io>"
+description: |
+  Open Telemetry PHP Distribution
+  Git Commit: ${PACKAGE_SHA}
+vendor: "Open Telemetry PHP maintainers"
+homepage: "https://github.com/open-telemetry/opentelemetry-php-distro"
+license: "Apache-2.0"
+#changelog: "changelog.yaml"
+contents:
+- src: /source/prod/native/_build/${BUILD_ARCHITECTURE}-release/loader/code/opentelemetry_php_distro_loader.so
+  dst: /opt/opentelemetry/php/distro/
+  expand: true
+- src: /source/prod/native/_build/${BUILD_ARCHITECTURE}-release/extension/code/opentelemetry_php_distro_*.so
+  dst: /opt/opentelemetry/php/distro/
+  expand: true
+- src: /source/prod/php
+  dst: /opt/opentelemetry/php/distro/php
+  type: tree
+  packager: rpm
+- src: /source/prod/php
+  dst: /opt/opentelemetry/php/distro/php
+  packager: deb
+- src: /source/prod/php
+  dst: /opt/opentelemetry/php/distro/php
+  packager: apk
+- src: /source/packaging/configs/elastic-otel-custom-template.ini
+  dst: /opt/opentelemetry/php/distro/etc/elastic-otel-custom.ini
+  type: config
+- src: /source/README.md
+  dst: /opt/opentelemetry/php/distro/docs/README.md
+- src: /source/NOTICE
+  dst: /opt/opentelemetry/php/distro/NOTICE
+- src: /source/LICENSE
+  dst: /opt/opentelemetry/php/distro/LICENSE
+
+scripts:
+  postinstall: /source/packaging/scripts/post-install.sh
+  preremove: /source/packaging/scripts/before-uninstall.sh
