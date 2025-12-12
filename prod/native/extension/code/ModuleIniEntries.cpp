@@ -13,19 +13,11 @@
 #include <Zend/zend_string.h>
 #include <Zend/zend_hash.h>
 
+#define OTEL_INI_ENTRY_IMPL(optName, isReloadableFlag) PHP_INI_ENTRY("opentelemetry_distro." optName, /* default value: */ NULL, isReloadableFlag, /* on_modify (validator): */ NULL)
 
+#define OTEL_INI_ENTRY(optName) OTEL_INI_ENTRY_IMPL(optName, PHP_INI_ALL)
 
-
-#define OTEL_INI_ENTRY_IMPL( optName, isReloadableFlag ) \
-PHP_INI_ENTRY( \
-    "opentelemetry." optName \
-    , /* default value: */ NULL \
-    , isReloadableFlag \
-    , /* on_modify (validator): */ NULL )
-
-    #define OTEL_INI_ENTRY( optName ) OTEL_INI_ENTRY_IMPL( optName, PHP_INI_ALL )
-
-    #define OTEL_NOT_RELOADABLE_INI_ENTRY( optName ) OTEL_INI_ENTRY_IMPL( optName, PHP_INI_PERDIR )
+#define OTEL_NOT_RELOADABLE_INI_ENTRY(optName) OTEL_INI_ENTRY_IMPL(optName, PHP_INI_PERDIR)
 
 PHP_INI_BEGIN() // expands to: static const zend_ini_entry_def ini_entries[] = {
 OTEL_INI_ENTRY(STRINGIFY_HELPER(OTEL_PHP_BOOTSTRAP_PHP_PART_FILE))

@@ -5,7 +5,7 @@ OTEL_PHP_LOG_LEVEL_STDERR=CRITICAL
 OTEL_PHP_ENABLED=FaLSe
 --INI--
 extension=/otel/opentelemetry_php_distro.so
-opentelemetry.bootstrap_php_part_file={PWD}/includes/bootstrap_mock.inc
+opentelemetry_distro.bootstrap_php_part_file={PWD}/includes/bootstrap_mock.inc
 --FILE--
 <?php
 declare(strict_types=1);

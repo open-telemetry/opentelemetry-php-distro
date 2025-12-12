@@ -149,8 +149,8 @@ TEST_F(CommonUtilsTest, stringPrintf) {
 }
 
 TEST_F(CommonUtilsTest, getIniName) {
-    ASSERT_EQ(getIniName("basic_option"), "opentelemetry.basic_option"s);
-    ASSERT_EQ(getIniName("OtherOption"), "opentelemetry.OtherOption"s);
+    ASSERT_EQ(getIniName("basic_option"), "opentelemetry_distro.basic_option"s);
+    ASSERT_EQ(getIniName("OtherOption"), "opentelemetry_distro.OtherOption"s);
 }
 
 TEST_F(CommonUtilsTest, getEnvName) {

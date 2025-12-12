@@ -5,10 +5,10 @@ OTEL_PHP_LOG_LEVEL_STDERR=CRITICAL
 OTEL_PHP_LOG_LEVEL=warning
 OTEL_PHP_LOG_LEVEL_WIN_SYS_DEBUG=TRaCe
 --INI--
-opentelemetry.log_level_syslog=INFO
-opentelemetry.log_level_file=dEbUg
+opentelemetry_distro.log_level_syslog=INFO
+opentelemetry_distro.log_level_file=dEbUg
 extension=/otel/opentelemetry_php_distro.so
-opentelemetry.bootstrap_php_part_file={PWD}/includes/bootstrap_mock.inc
+opentelemetry_distro.bootstrap_php_part_file={PWD}/includes/bootstrap_mock.inc
 --FILE--
 <?php
 declare(strict_types=1);

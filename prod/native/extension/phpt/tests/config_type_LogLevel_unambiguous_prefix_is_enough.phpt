@@ -7,10 +7,10 @@ OTEL_PHP_LOG_LEVEL_WIN_SYS_DEBUG=TRa
 --XFAIL--
 Expected to fail - this is a strange feature - a path to abuse and ambiguity - NOT IMPLEMENTED
 --INI--
-opentelemetry.log_level_syslog=Er
-opentelemetry.log_level_file=dEb
+opentelemetry_distro.log_level_syslog=Er
+opentelemetry_distro.log_level_file=dEb
 extension=/otel/opentelemetry_php_distro.so
-opentelemetry.bootstrap_php_part_file={PWD}/includes/bootstrap_mock.inc
+opentelemetry_distro.bootstrap_php_part_file={PWD}/includes/bootstrap_mock.inc
 --FILE--
 <?php
 declare(strict_types=1);

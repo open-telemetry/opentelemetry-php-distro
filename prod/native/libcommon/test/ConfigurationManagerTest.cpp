@@ -42,9 +42,9 @@ TEST_F(ConfigurationManagerTest, update) {
 
 TEST_F(ConfigurationManagerTest, updateSomeOption) {
     EXPECT_CALL(iniMock_, getIniValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
-    // EXPECT_CALL(iniMock_, getIniValue("opentelemetry.api_key")).Times(1).WillOnce(::testing::Return("secret_api_key"s)).RetiresOnSaturation();
-    // EXPECT_CALL(iniMock_, getIniValue("opentelemetry.server_timeout")).Times(1).WillOnce(::testing::Return("10s"s)).RetiresOnSaturation();
-    EXPECT_CALL(iniMock_, getIniValue("opentelemetry.enabled")).Times(1).WillOnce(::testing::Return("off")).RetiresOnSaturation();
+    // EXPECT_CALL(iniMock_, getIniValue("opentelemetry_distro.api_key")).Times(1).WillOnce(::testing::Return("secret_api_key"s)).RetiresOnSaturation();
+    // EXPECT_CALL(iniMock_, getIniValue("opentelemetry_distro.server_timeout")).Times(1).WillOnce(::testing::Return("10s"s)).RetiresOnSaturation();
+    EXPECT_CALL(iniMock_, getIniValue("opentelemetry_distro.enabled")).Times(1).WillOnce(::testing::Return("off")).RetiresOnSaturation();
 
     ConfigurationSnapshot snapshot;
     ASSERT_EQ(snapshot.revision, 0u);
@@ -66,16 +66,16 @@ TEST_F(ConfigurationManagerTest, updateSomeOption) {
     ASSERT_NE(snapshot.enabled, ConfigurationSnapshot().enabled); // default value
     ASSERT_FALSE(snapshot.enabled);
 
-    EXPECT_CALL(iniMock_, getIniValue("opentelemetry.enabled")).Times(1).WillOnce(::testing::Return("on")).RetiresOnSaturation();
+    EXPECT_CALL(iniMock_, getIniValue("opentelemetry_distro.enabled")).Times(1).WillOnce(::testing::Return("on")).RetiresOnSaturation();
     cfg_.update();
     cfg_.updateIfChanged(snapshot);
 }
 
 TEST_F(ConfigurationManagerTest, getOptionValue) {
     EXPECT_CALL(iniMock_, getIniValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
-    // EXPECT_CALL(iniMock_, getIniValue("opentelemetry.api_key")).Times(1).WillOnce(::testing::Return("secret_api_key"s)).RetiresOnSaturation();
-    // EXPECT_CALL(iniMock_, getIniValue("opentelemetry.server_timeout")).Times(1).WillOnce(::testing::Return("10s"s)).RetiresOnSaturation();
-    EXPECT_CALL(iniMock_, getIniValue("opentelemetry.enabled")).Times(1).WillOnce(::testing::Return("off")).RetiresOnSaturation();
+    // EXPECT_CALL(iniMock_, getIniValue("opentelemetry_distro.api_key")).Times(1).WillOnce(::testing::Return("secret_api_key"s)).RetiresOnSaturation();
+    // EXPECT_CALL(iniMock_, getIniValue("opentelemetry_distro.server_timeout")).Times(1).WillOnce(::testing::Return("10s"s)).RetiresOnSaturation();
+    EXPECT_CALL(iniMock_, getIniValue("opentelemetry_distro.enabled")).Times(1).WillOnce(::testing::Return("off")).RetiresOnSaturation();
 
     ConfigurationSnapshot snapshot;
     ASSERT_EQ(snapshot.revision, 0u);

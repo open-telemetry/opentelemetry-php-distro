@@ -4,7 +4,7 @@ instrumentation - user method in namespace - args post processing and return val
 OTEL_PHP_LOG_LEVEL_STDERR=INFO
 --INI--
 extension=/otel/opentelemetry_php_distro.so
-opentelemetry.bootstrap_php_part_file={PWD}/includes/bootstrap_mock.inc
+opentelemetry_distro.bootstrap_php_part_file={PWD}/includes/bootstrap_mock.inc
 --FILE--
 <?php
 declare(strict_types=1);

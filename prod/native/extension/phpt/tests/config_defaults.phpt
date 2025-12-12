@@ -13,7 +13,7 @@ OTEL_PHP_SERVER_URL=
 OTEL_PHP_SERVICE_NAME=
 --INI--
 extension=/otel/opentelemetry_php_distro.so
-opentelemetry.bootstrap_php_part_file={PWD}/includes/bootstrap_mock.inc
+opentelemetry_distro.bootstrap_php_part_file={PWD}/includes/bootstrap_mock.inc
 --FILE--
 <?php
 declare(strict_types=1);
@@ -24,7 +24,7 @@ require __DIR__ . '/includes/tests_util.inc';
 
 phptAssertSame("getenv('OTEL_PHP_ENABLED')", getenv('OTEL_PHP_ENABLED'), false);
 
-phptAssertEqual("ini_get('opentelemetry.enabled')", ini_get('opentelemetry.enabled'), false);
+phptAssertEqual("ini_get('opentelemetry_distro.enabled')", ini_get('opentelemetry_distro.enabled'), false);
 
 phptAssertSame("\OpenTelemetry\Distro\is_enabled()", \OpenTelemetry\Distro\is_enabled(), true);
 
@@ -35,7 +35,7 @@ phptAssertSame("OpenTelemetry\\Distro\\get_config_option_by_name('enabled')",\Op
 
 phptAssertSame("getenv('OTEL_PHP_LOG_FILE')", getenv('OTEL_PHP_LOG_FILE'), false);
 
-phptAssertEqual("ini_get('opentelemetry.log_file')", ini_get('opentelemetry.log_file'), false);
+phptAssertEqual("ini_get('opentelemetry_distro.log_file')", ini_get('opentelemetry_distro.log_file'), false);
 
 phptAssertSame("OpenTelemetry\\Distro\\get_config_option_by_name('log_file')",\OpenTelemetry\Distro\get_config_option_by_name('log_file'), "");
 
@@ -44,14 +44,14 @@ phptAssertSame("OpenTelemetry\\Distro\\get_config_option_by_name('log_file')",\O
 
 phptAssertSame("getenv('OTEL_PHP_LOG_LEVEL')", getenv('OTEL_PHP_LOG_LEVEL'), false);
 
-phptAssertEqual("ini_get('opentelemetry.log_level')", ini_get('opentelemetry.log_level'), false);
+phptAssertEqual("ini_get('opentelemetry_distro.log_level')", ini_get('opentelemetry_distro.log_level'), false);
 
 //////////////////////////////////////////////
 ///////////////  log_level_file
 
 phptAssertSame("getenv('OTEL_PHP_LOG_LEVEL_FILE')", getenv('OTEL_PHP_LOG_LEVEL_FILE'), false);
 
-phptAssertEqual("ini_get('opentelemetry.log_level_file')", ini_get('opentelemetry.log_level_file'), false);
+phptAssertEqual("ini_get('opentelemetry_distro.log_level_file')", ini_get('opentelemetry_distro.log_level_file'), false);
 
 //////////////////////////////////////////////
 ///////////////  log_level_syslog
@@ -59,7 +59,7 @@ phptAssertEqual("ini_get('opentelemetry.log_level_file')", ini_get('opentelemetr
 if ( ! phptIsOsWindows()) {
     phptAssertSame("getenv('OTEL_PHP_LOG_LEVEL_SYSLOG')", getenv('OTEL_PHP_LOG_LEVEL_SYSLOG'), false);
 
-    phptAssertEqual("ini_get('opentelemetry.log_level_syslog')", ini_get('opentelemetry.log_level_syslog'), false);
+    phptAssertEqual("ini_get('opentelemetry_distro.log_level_syslog')", ini_get('opentelemetry_distro.log_level_syslog'), false);
 
 }
 
@@ -69,7 +69,7 @@ if ( ! phptIsOsWindows()) {
 if (phptIsOsWindows()) {
     phptAssertSame("getenv('OTEL_PHP_LOG_LEVEL_WIN_SYS_DEBUG')", getenv('OTEL_PHP_LOG_LEVEL_WIN_SYS_DEBUG'), false);
 
-    phptAssertEqual("ini_get('opentelemetry.log_level_win_sys_debug')", ini_get('opentelemetry.log_level_win_sys_debug'), false);
+    phptAssertEqual("ini_get('opentelemetry_distro.log_level_win_sys_debug')", ini_get('opentelemetry_distro.log_level_win_sys_debug'), false);
 
 }
 
@@ -78,7 +78,7 @@ if (phptIsOsWindows()) {
 
 // phptAssertSame("getenv('OTEL_PHP_SECRET_TOKEN')", getenv('OTEL_PHP_SECRET_TOKEN'), false);
 
-// phptAssertEqual("ini_get('opentelemetry.secret_token')", ini_get('opentelemetry.secret_token'), false);
+// phptAssertEqual("ini_get('opentelemetry_distro.secret_token')", ini_get('opentelemetry_distro.secret_token'), false);
 
 // phptAssertSame("OpenTelemetry\\Distro\\get_config_option_by_name('secret_token')",\OpenTelemetry\Distro\get_config_option_by_name('secret_token'), "");
 
@@ -87,7 +87,7 @@ if (phptIsOsWindows()) {
 
 // phptAssertSame("getenv('OTEL_PHP_SERVER_URL')", getenv('OTEL_PHP_SERVER_URL'), false);
 
-// phptAssertEqual("ini_get('opentelemetry.server_url')", ini_get('opentelemetry.server_url'), false);
+// phptAssertEqual("ini_get('opentelemetry_distro.server_url')", ini_get('opentelemetry_distro.server_url'), false);
 
 // phptAssertSame("OpenTelemetry\\Distro\\get_config_option_by_name('server_url')",\OpenTelemetry\Distro\get_config_option_by_name('server_url'), 'http://localhost:8200');
 
@@ -96,7 +96,7 @@ if (phptIsOsWindows()) {
 
 // phptAssertSame("getenv('OTEL_PHP_SERVICE_NAME')", getenv('OTEL_PHP_SERVICE_NAME'), false);
 
-// phptAssertEqual("ini_get('opentelemetry.service_name')", ini_get('opentelemetry.service_name'), false);
+// phptAssertEqual("ini_get('opentelemetry_distro.service_name')", ini_get('opentelemetry_distro.service_name'), false);
 
 // phptAssertSame("OpenTelemetry\\Distro\\get_config_option_by_name('service_name')",\OpenTelemetry\Distro\get_config_option_by_name('service_name'), "");
 

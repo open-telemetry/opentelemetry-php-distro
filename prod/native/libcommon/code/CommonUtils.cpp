@@ -196,7 +196,7 @@ std::string stringVPrintf(const char *format, va_list args) {
 }
 
 std::string getIniName(std::string_view optionName) {
-    auto name = "opentelemetry."s;
+    auto name = "opentelemetry_distro."s;
     return name.append(optionName);
 }
 

@@ -4,7 +4,7 @@ Setting OpenTelemetry configuration option using ini file
 OTEL_PHP_LOG_LEVEL_STDERR=CRITICAL
 --INI--
 extension=/otel/opentelemetry_php_distro.so
-opentelemetry.bootstrap_php_part_file={PWD}/includes/bootstrap_mock.inc
+opentelemetry_distro.bootstrap_php_part_file={PWD}/includes/bootstrap_mock.inc
 OTEL_EXPORTER_OTLP_CERTIFICATE=/path/to/cert.pem
 --FILE--
 <?php

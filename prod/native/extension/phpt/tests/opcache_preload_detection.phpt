@@ -5,8 +5,8 @@ OTEL_PHP_LOG_LEVEL_STDERR=DEBUG
 OTEL_PHP_ENABLED=true
 --INI--
 extension=/otel/opentelemetry_php_distro.so
-opentelemetry.bootstrap_php_part_file={PWD}/includes/bootstrap_mock.inc
-opentelemetry.enabled = 1
+opentelemetry_distro.bootstrap_php_part_file={PWD}/includes/bootstrap_mock.inc
+opentelemetry_distro.enabled = 1
 opcache.enable=1
 opcache.enable_cli=1
 opcache.optimization_level=-1

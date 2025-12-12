@@ -13,7 +13,7 @@ OTEL_PHP_SERVER_URL=https://non-default_server_url:4321/some/path
 OTEL_PHP_SERVICE_NAME=Non-default Service Name
 --INI--
 extension=/otel/opentelemetry_php_distro.so
-opentelemetry.bootstrap_php_part_file={PWD}/includes/bootstrap_mock.inc
+opentelemetry_distro.bootstrap_php_part_file={PWD}/includes/bootstrap_mock.inc
 --FILE--
 <?php
 declare(strict_types=1);

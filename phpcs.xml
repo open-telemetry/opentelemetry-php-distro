@@ -26,8 +26,8 @@
 
 	<!-- other sniffs to include -->
 
-    <exclude-pattern>*/prod/php/OpenTelemety/Distro/Log/LogFeature.php</exclude-pattern>
-    <exclude-pattern>*/prod/php/OpenTelemety/Distro/PhpPartVersion.php</exclude-pattern>
+    <exclude-pattern>*/prod/php/OpenTelemetry/Distro/Log/LogFeature.php</exclude-pattern>
+    <exclude-pattern>*/prod/php/OpenTelemetry/Distro/PhpPartVersion.php</exclude-pattern>
 
     <exclude-pattern>*/tests/polyfills/AllowDynamicProperties.php</exclude-pattern>
     <exclude-pattern>*/tests/polyfills/Override.php</exclude-pattern>
