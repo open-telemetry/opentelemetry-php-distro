@@ -19,7 +19,7 @@ on:
         options:
           - all
           - x86_64
-#          - arm64
+          - arm64
 
 permissions:
   contents: read
@@ -32,7 +32,7 @@ jobs:
 
   build-packages:
     name: build-packages
-    runs-on: ${{ matrix.goarch == 'arm64' && 'observability-linux-2-arm64' || 'ubuntu-latest' }}
+    runs-on: 'ubuntu-latest'
     needs: setup-build-matrix
     timeout-minutes: 300
     strategy:
@@ -42,10 +42,10 @@ jobs:
       BUILD_ARCHITECTURE: ${{ matrix.arch }}
     steps:
       - uses: actions/checkout@v6
-      # - if: ${{ matrix.goarch == 'arm64' }}
-      #   uses: docker/setup-qemu-action@v3
-      #   with:
-      #     platforms: arm64
+      - if: ${{ matrix.goarch == 'arm64' }}
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
       - uses: actions/download-artifact@v6
         with:
           name: build-native-${{ matrix.arch }}
