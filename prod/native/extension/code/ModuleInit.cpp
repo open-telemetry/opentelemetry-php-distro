@@ -18,7 +18,6 @@
 #include "os/OsUtils.h"
 #include "transport/OpAmp.h"
 #include "coordinator/CoordinatorProcess.h"
-#include "ElasticDynamicConfigurationAdapter.h"
 
 #include <curl/curl.h>
 #include <inttypes.h> // PRIu64
@@ -78,9 +77,8 @@ void moduleInit(int moduleType, int moduleNumber) {
     }
 
     // add config update watcher in worker process
-    globals->coordinatorConfigProvider_->addConfigUpdateWatcher([globals, elasticDynamicCfg = globals->elasticDynamicConfig_](opentelemetry::php::coordinator::CoordinatorConfigurationProvider::configFiles_t const &cfgFiles) {
+    globals->coordinatorConfigProvider_->addConfigUpdateWatcher([globals](opentelemetry::php::coordinator::CoordinatorConfigurationProvider::configFiles_t const &cfgFiles) {
         ELOG_DEBUG(globals->logger_, COORDINATOR, "Received config update with {} files. Updating dynamic config and global config storage", cfgFiles.size());
-        elasticDynamicCfg->update(cfgFiles);
         configManager.update(cfgFiles);
     });
 

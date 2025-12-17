@@ -26,7 +26,6 @@
 #include "RequestScope.h"
 #include "SharedMemoryState.h"
 #include "transport/OpAmp.h"
-#include "ElasticDynamicConfigurationAdapter.h"
 
 ZEND_DECLARE_MODULE_GLOBALS( opentelemetry_distro )
 
@@ -101,8 +100,6 @@ static PHP_GINIT_FUNCTION(opentelemetry_distro) {
 
     try {
         opentelemetry_distro_globals->globals = new opentelemetry::php::AgentGlobals(logger, std::move(logSinkStdErr), std::move(logSinkSysLog), std::move(logSinkFile), std::move(phpBridge), std::move(hooksStorage), std::move(inferredSpans), [](opentelemetry::php::ConfigurationSnapshot &cfg) { return opentelemetry::php::configManager.updateIfChanged(cfg); });
-        opentelemetry::php::configManager.setReadDynamicOptionValue([elasticDynamicCfg = opentelemetry_distro_globals->globals->elasticDynamicConfig_](std::string_view optionName) -> std::optional<std::string> { return elasticDynamicCfg->getOption(std::string(optionName)); });
-
     } catch (std::exception const &e) {
         ELOGF_CRITICAL(logger, MODULE, "Unable to allocate AgentGlobals. '%s'", e.what());
     }

@@ -19,7 +19,6 @@
 #include "transport/OpAmp.h"
 #include "DependencyAutoLoaderGuard.h"
 #include "LogFeature.h"
-#include "ElasticDynamicConfigurationAdapter.h"
 #include <signal.h>
 
 namespace opentelemetry::php {
@@ -46,7 +45,6 @@ AgentGlobals::AgentGlobals(std::shared_ptr<LoggerInterface> logger,
     periodicTaskExecutor_(),
     httpTransportAsync_(std::make_shared<opentelemetry::php::transport::HttpTransportAsync<>>(logger_, config_)),
     resourceDetector_(std::make_shared<opentelemetry::php::ResourceDetector>(bridge_)),
-    elasticDynamicConfig_(std::make_shared<opentelemetry::php::config::ElasticDynamicConfigurationAdapter>(logger_)),
     opAmp_(std::make_shared<opentelemetry::php::transport::OpAmp>(logger_, config_, httpTransportAsync_, resourceDetector_)),
     sharedMemory_(std::make_shared<opentelemetry::php::SharedMemoryState>()),
     requestScope_(std::make_shared<opentelemetry::php::RequestScope>(logger_, bridge_, sapi_, sharedMemory_, dependencyAutoLoaderGuard_, inferredSpans_, config_, [hs = hooksStorage_]() { hs->clear(); }, [this]() { return getPeriodicTaskExecutor();}, [this]() { return coordinatorConfigProvider_->triggerUpdateIfChanged(); })),
