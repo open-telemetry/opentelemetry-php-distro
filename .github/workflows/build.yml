@@ -1,0 +1,64 @@
+name: build
+
+on:
+  workflow_call:
+    inputs:
+      build_arch:
+        required: true
+        type: string
+        default: 'all'
+  pull_request: ~
+  push:
+    branches:
+      - main
+  workflow_dispatch: ~
+
+permissions:
+  contents: read
+
+## Concurrency only allowed in the main branch.
+## So old builds running for old commits within the same Pull Request are cancelled
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  build-native:
+    uses: ./.github/workflows/build-native.yml
+    with:
+      build_arch: all
+
+  tests-phpt:
+    needs:
+      - build-native
+    uses: ./.github/workflows/test-phpt.yml
+    with:
+      build_arch: all
+
+  build-php-deps:
+    uses: ./.github/workflows/build-php-deps.yml
+
+  build-packages:
+    needs:
+      - build-native
+      - build-php-deps
+    uses: ./.github/workflows/build-packages.yml
+    with:
+      build_arch: all
+
+  test-packages-component-tests:
+    needs:
+      - build-packages
+    uses: ./.github/workflows/test-packages-component-tests.yml
+
+  # The very last job to report whether the Workflow passed.
+  # This will act as the Branch Protection gatekeeper
+  ci:
+    needs:
+      - tests-phpt
+      - build-packages
+      - test-packages-component-tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: report
+        run: echo "CI workflow passed"

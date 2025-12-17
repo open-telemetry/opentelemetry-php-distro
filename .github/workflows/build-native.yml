@@ -1,0 +1,66 @@
+---
+
+# Runs the build based on the provided files in test.yml
+name: build-native
+
+on:
+  workflow_call:
+    inputs:
+      build_arch:
+        required: false
+        type: string
+        default: 'x86_64'
+  workflow_dispatch:
+    inputs:
+      build_arch:
+        type: choice
+        description: Build architecture
+        default: 'x86_64'
+        options:
+          - all
+          - x86_64
+#          - arm64
+
+permissions:
+  contents: read
+
+jobs:
+  setup-build-matrix:
+    uses: ./.github/workflows/build-arch-matrix-generator.yml
+    with:
+      build_arch: ${{ inputs.build_arch }}
+
+  build-native:
+    name: build-agent-library
+    runs-on: ${{ matrix.goarch == 'arm64' && 'observability-linux-2-arm64' || 'ubuntu-latest' }}
+    needs: setup-build-matrix
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup-build-matrix.outputs.matrix-combinations) }}
+    env:
+      BUILD_ARCHITECTURE: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v6
+      # - if: ${{ matrix.goarch == 'arm64' }}
+      #   uses: docker/setup-qemu-action@v3
+      #   with:
+      #     platforms: arm64
+      - name: Build
+        run: |
+          uname -a
+          echo "Detected CPUs: $(nproc)"
+          echo "User: $(id -u):$(id -g)"
+          echo "PWD: ${PWD}"
+          echo "Arch: ${BUILD_ARCHITECTURE}"
+          ./tools/build/build_native.sh --build_architecture ${BUILD_ARCHITECTURE}
+      - uses: actions/upload-artifact@v5
+        with:
+          name: build-native-${{ matrix.arch }}
+          path: |
+            prod/native/_build/${{ matrix.arch }}-release/extension/code/opentelemetry_php_distro_*.so
+            prod/native/_build/${{ matrix.arch }}-release/extension/code/opentelemetry_php_distro_*.debug
+            prod/native/_build/${{ matrix.arch }}-release/loader/code/opentelemetry_php_distro_loader.so
+            prod/native/_build/${{ matrix.arch }}-release/loader/code/opentelemetry_php_distro_loader.debug
+            prod/native/_build/${{ matrix.arch }}-release/phpbridge_extension/code/phpbridge_*.so
+            prod/native/_build/${{ matrix.arch }}-release/phpbridge_extension/code/phpbridge_*.debug

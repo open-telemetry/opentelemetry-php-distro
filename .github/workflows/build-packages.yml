@@ -1,0 +1,66 @@
+---
+
+# Runs the build based on the provided files in test.yml
+name: build-packages
+
+on:
+  workflow_call:
+    inputs:
+      build_arch:
+        required: false
+        type: string
+        default: 'x86_64'
+  workflow_dispatch:
+    inputs:
+      build_arch:
+        type: choice
+        description: Build architecture
+        default: 'x86_64'
+        options:
+          - all
+          - x86_64
+#          - arm64
+
+permissions:
+  contents: read
+
+jobs:
+  setup-build-matrix:
+    uses: ./.github/workflows/build-arch-matrix-generator.yml
+    with:
+      build_arch: ${{ inputs.build_arch }}
+
+  build-packages:
+    name: build-packages
+    runs-on: ${{ matrix.goarch == 'arm64' && 'observability-linux-2-arm64' || 'ubuntu-latest' }}
+    needs: setup-build-matrix
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup-build-matrix.outputs.matrix-combinations) }}
+    env:
+      BUILD_ARCHITECTURE: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v6
+      # - if: ${{ matrix.goarch == 'arm64' }}
+      #   uses: docker/setup-qemu-action@v3
+      #   with:
+      #     platforms: arm64
+      - uses: actions/download-artifact@v6
+        with:
+          name: build-native-${{ matrix.arch }}
+          path: prod/native/_build/${{ matrix.arch }}-release/
+      - uses: actions/download-artifact@v6
+        with:
+            name: php-dependencies
+      - name: Build packages
+        run: |
+          source "./tools/read_properties.sh"
+          read_properties project.properties PROJECT_PROPERTIES
+
+          ./tools/build/build_packages.sh --package_version ${PROJECT_PROPERTIES_VERSION} --build_architecture ${{ matrix.arch }} --package_goarchitecture ${{ matrix.goarch }} --package_types '${{ matrix.packages }}' --package_sha '${{ github.sha }}'
+      - uses: actions/upload-artifact@v5
+        with:
+          name: packages-${{ matrix.arch }}
+          path: |
+            build/packages/*
