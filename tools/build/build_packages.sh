@@ -1,0 +1,206 @@
+#!/usr/bin/env bash
+set -e -u -o pipefail
+#set -x
+
+
+source "tools/shared.sh"
+verify_running_from_repo_root
+source "tools/helpers/array_helpers.sh"
+source "tools/read_properties.sh"
+read_properties "project.properties" _PROJECT_PROPERTIES
+
+PACKAGE_SHA="unknown"
+
+show_help() {
+    echo "Usage: $0 --package_version <version> --build_architecture <architecture> --package_goarchitecture <goarchitecture> [--package_sha <sha>] --package_types <types>"
+    echo
+    echo "Arguments:"
+    echo "  --package_version        Required. Version of the package."
+    echo "  --build_architecture     Required. Architecture of the native build. (eg. linux-x86-64)"
+    echo "  --package_goarchitecture Required. Architecture of the package in Golang convention. (eg. amd64)"
+    echo "  --package_sha            Optional. SHA of the package. Default is fetch from git commit hash or unknown if got doesn't exists."
+    echo "  --package_types          Required. List of package types separated by spaces (e.g., 'deb rpm')."
+    echo
+    echo "Example:"
+    echo "  $0 --package_version 1.0.0 --build_architecture linux-x86-64 --package_goarchitecture amd64 --package_types 'deb rpm'"
+}
+
+# Function to parse arguments
+parse_args() {
+    while [[ "$#" -gt 0 ]]; do
+        case $1 in
+            --package_version)
+                PACKAGE_VERSION="$2"
+                shift
+                ;;
+            --build_architecture)
+                BUILD_ARCHITECTURE="$2"
+                shift
+                ;;
+            --package_goarchitecture)
+                PACKAGE_GOARCHITECTURE="$2"
+                shift
+                ;;
+            --package_sha)
+                PACKAGE_SHA="$2"
+                shift
+                ;;
+            --package_types)
+                PACKAGE_TYPES=($2)
+                shift
+                ;;
+            --help)
+                show_help
+                exit 0
+                ;;
+            *)
+                echo "Unknown parameter passed: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+        shift
+    done
+}
+
+parse_args "$@"
+
+if [[ -z "${PACKAGE_VERSION+x}" ]] || [[ -z "${BUILD_ARCHITECTURE+x}" ]] || [[ -z "${PACKAGE_GOARCHITECTURE+x}" ]] || [[ -z "${PACKAGE_TYPES+x}" ]]; then
+    echo "Error: Missing required arguments."
+    show_help
+    exit 1
+fi
+
+test_package() {
+    local highest_supported_php_version_no_dot=$(get_array_max_value ${_PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS})
+    local PHP_VERSION=$(convert_no_dot_to_dot_separated_version "${highest_supported_php_version_no_dot}")
+    local PKG_TYPE=$1
+    local PKG_FILENAME=$2
+    local DOCKER_PLATFORM=$3
+
+    echo ${PKG_FILENAME}
+
+    echo "Starting ${PKG_FILENAME} smoke test"
+    echo "Running on platform ${DOCKER_PLATFORM}";
+
+    local TEST_LICENSE_FILES="echo -n 'Checking for \"copyright\" files existence: ' && test -f /opt/opentelemetry/php/distro/LICENSE && test -f /opt/opentelemetry/php/distro/NOTICE && echo -e '\033[0;32mOK\033[0;39m'"
+
+    case "${PKG_TYPE}" in
+        "apk")
+            local INSTALL_SMOKE="apk add --allow-untrusted --verbose --no-cache  /source/build/packages/${PKG_FILENAME} && php /source/packaging/test/smokeTest.php"
+            local UNINSTALL_SMOKE="apk del --verbose --no-cache opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php"
+            docker run --rm \
+                --platform ${DOCKER_PLATFORM} \
+                -v ${PWD}:/source \
+                -e OTEL_PHP_LOG_LEVEL_STDERR=error \
+                php:${PHP_VERSION}-alpine sh -c "ls /source/build/packages && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
+        ;;
+        "deb")
+            local INSTALL_SMOKE="dpkg -i  /source/build/packages/${PKG_FILENAME} && php /source/packaging/test/smokeTest.php"
+            local UNINSTALL_SMOKE="dpkg --purge opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php"
+            docker run --rm \
+                --platform ${DOCKER_PLATFORM} \
+                -v ${PWD}:/source \
+                -e OTEL_PHP_LOG_LEVEL_STDERR=error \
+                php:${PHP_VERSION} sh -c "ls /source/build/packages && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
+        ;;
+        "rpm")
+            local INSTALL_PHP="cat /etc/redhat-release \
+            && dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm \
+            && dnf install -y https://rpms.remirepo.net/enterprise/remi-release-9.rpm \
+            && for f in /etc/yum.repos.d/remi*.repo; do \
+                sed -ri 's/\\\$releasever_major/9/g' \"\$f\"; \
+                sed -ri 's|^mirrorlist=|#mirrorlist=|g' \"\$f\"; \
+                sed -ri 's|^#baseurl=|baseurl=|g' \"\$f\"; \
+                done \
+            && dnf clean all \
+            && dnf install --setopt=install_weak_deps=False -y php${PHP_VERSION//./} php${PHP_VERSION//./}-syspaths"
+
+            local INSTALL_SMOKE="rpm -ivh /source/build/packages/${PKG_FILENAME} && php /source/packaging/test/smokeTest.php"
+            local UNINSTALL_SMOKE="rpm -ve opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php"
+
+            docker run --rm \
+                --platform ${DOCKER_PLATFORM} \
+                -v ${PWD}:/source \
+                -e OTEL_PHP_LOG_LEVEL_STDERR=error \
+                redhat/ubi9 sh -c "ls /source/build/packages && ${INSTALL_PHP} && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
+        ;;
+        *)
+            echo -e "\033[0;33mPackage ${PKG_FILENAME} can't be tested because smoke test is not implemented\033[0;39m"
+        ;;
+    esac
+
+    if [ $? -ne 0 ]; then
+        echo -e "\033[0;31mPackage ${PKG_FILENAME} smoke test FAILED\033[0;39m"
+        exit 1
+    fi
+
+}
+
+if [ "${PACKAGE_SHA}" == "unknown" ]; then
+    GITCMD=$(command -v git)
+    if [ $? -eq 0 ]; then
+        PACKAGE_SHA=$( ${GITCMD} rev-parse HEAD )
+    fi
+fi
+
+echo "PACKAGE_VERSION: $PACKAGE_VERSION"
+echo "BUILD_ARCHITECTURE: $BUILD_ARCHITECTURE"
+echo "PACKAGE_GOARCHITECTURE: $PACKAGE_GOARCHITECTURE"
+echo "PACKAGE_SHA: $PACKAGE_SHA"
+echo "PACKAGE_TYPES: $PACKAGE_TYPES"
+
+export PACKAGE_VERSION="${PACKAGE_VERSION}"
+export BUILD_ARCHITECTURE="${BUILD_ARCHITECTURE}"
+export PACKAGE_GOARCHITECTURE="${PACKAGE_GOARCHITECTURE}"
+export PACKAGE_SHA="${PACKAGE_SHA}"
+
+DOCKER_PLATFORM="linux/x86_64"
+if [[ -n "${BUILD_ARCHITECTURE}" ]] && [[ "${BUILD_ARCHITECTURE}" =~ arm64$ ]]; then
+     DOCKER_PLATFORM="linux/arm64"
+fi
+echo "Running on platform ${DOCKER_PLATFORM}";
+
+mkdir -p "${PWD}/build/packages"
+envsubst <packaging/nfpm.yaml >${PWD}/build/packages/nfpm.yaml
+
+for pkg_type in "${PACKAGE_TYPES[@]}"
+do
+    echo "Building package type: ${pkg_type}"
+
+    docker run --rm \
+        --platform ${DOCKER_PLATFORM} \
+        -e PACKAGE_VERSION="${PACKAGE_VERSION}" \
+        -e BUILD_ARCHITECTURE="${BUILD_ARCHITECTURE}" \
+        -e PACKAGE_GOARCHITECTURE="${PACKAGE_GOARCHITECTURE}" \
+        -e PACKAGE_SHA="${PACKAGE_SHA}" \
+        -v ${PWD}:/source \
+        -w /source/packaging goreleaser/nfpm package -f /source/build/packages/nfpm.yaml -t "/source/build/packages" -p ${pkg_type} | tee /tmp/nfpm_output.txt
+
+    PKG_FILENAME=$(grep "created package: " /tmp/nfpm_output.txt | sed 's/^.*: \/source\/build\/packages\///')
+
+    if [ -z "${PKG_FILENAME}" ]; then
+        echo "Error creating package"
+        exit 1
+    fi
+
+    # create sha512 file
+    pushd "${PWD}/build/packages"
+    md5sum "${PKG_FILENAME}" >"${PKG_FILENAME}".sha512
+    popd
+
+    test_package ${pkg_type} "${PKG_FILENAME}" "${DOCKER_PLATFORM}"
+
+done
+
+rm ${PWD}/build/packages/nfpm.yaml
+
+echo "Creating debug symbols artifacts"
+DBGSYM="${PWD}/build/packages/opentelemetry-php-distro-debugsymbols-${BUILD_ARCHITECTURE}.tar.gz"
+pushd prod/native/_build/${BUILD_ARCHITECTURE}-release
+tar --transform 's/.*\///g' -zcvf ${DBGSYM} extension/code/*.debug loader/code/*.debug
+popd
+
+pushd "${PWD}/build/packages"
+md5sum ${DBGSYM} >${DBGSYM}.sha512
+popd
