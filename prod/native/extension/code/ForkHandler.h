@@ -1,3 +1,7 @@
 #pragma once
 
-void registerCallbacksToLogFork();
+namespace opentelemetry::php {
+
+void registerCallbacksToHandleFork();
+
+}

@@ -94,6 +94,9 @@ void moduleInit(int moduleType, int moduleNumber) {
     if (php_check_open_basedir_ex(OTEL_GL(config_)->get(&opentelemetry::php::ConfigurationSnapshot::bootstrap_php_part_file).c_str(), false) != 0) {
         ELOGF_WARNING(globals->logger_, MODULE, "OpenTelemetry PHP distro bootstrap file (%s) is located outside of paths allowed by open_basedir ini setting.", OTEL_GL(config_)->get(&opentelemetry::php::ConfigurationSnapshot::bootstrap_php_part_file).c_str());
     }
+
+    // Registering fork handlers in module init to ensure that we will handle all forks properly - even those triggered before request start (e.g. in MINIT of other extensions) or when fpm/apache spawns worker processes. We cannot be sure that some of the classes implementing ForkableInterface will not start thread before request start.
+    registerCallbacksToHandleFork();
 }
 
 void moduleShutdown( int moduleType, int moduleNumber ) {

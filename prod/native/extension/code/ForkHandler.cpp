@@ -7,42 +7,34 @@
 #include "os/OsUtils.h"
 #include "LoggerInterface.h"
 #include "ModuleGlobals.h"
-#include "PeriodicTaskExecutor.h"
-#include "transport/HttpTransportAsync.h"
+#include "ForkableRegistry.h"
 
-static void callbackToLogForkBeforeInParent() {
+namespace opentelemetry::php {
+
+static void beforeFork() {
     ELOGF_NF_DEBUG(OTEL_GL(logger_), "Before process fork (i.e., in parent context); its parent (i.e., grandparent) PID: %d", static_cast<int>(opentelemetry::osutils::getParentProcessId()));
     // TODO implement forkable registry
-    if (OTEL_G(globals) && OTEL_G(globals)->periodicTaskExecutor_) {
-        OTEL_G(globals)->periodicTaskExecutor_->prefork();
-    }
-    if (OTEL_G(globals) && OTEL_G(globals)->httpTransportAsync_) {
-        OTEL_G(globals)->httpTransportAsync_->prefork();
+    if (OTEL_G(globals) && OTEL_G(globals)->forkableRegistry_) {
+        OTEL_G(globals)->forkableRegistry_->preFork();
     }
 }
 
-static void callbackToLogForkAfterInParent() {
+static void afterForkInParent() {
     ELOGF_NF_DEBUG(OTEL_GL(logger_), "After process fork (in parent context)");
-    if (OTEL_G(globals) && OTEL_G(globals)->periodicTaskExecutor_) {
-        OTEL_G(globals)->periodicTaskExecutor_->postfork(false);
-    }
-    if (OTEL_G(globals) && OTEL_G(globals)->httpTransportAsync_) {
-        OTEL_G(globals)->httpTransportAsync_->postfork(false);
+    if (OTEL_G(globals) && OTEL_G(globals)->forkableRegistry_) {
+        OTEL_G(globals)->forkableRegistry_->postFork(false);
     }
 }
 
-static void callbackToLogForkAfterInChild() {
+static void afterForkInChild() {
     ELOGF_NF_DEBUG(OTEL_GL(logger_), "After process fork (in child context); parent PID: %d", static_cast<int>(opentelemetry::osutils::getParentProcessId()));
-    if (OTEL_G(globals) && OTEL_G(globals)->periodicTaskExecutor_) {
-        OTEL_G(globals)->periodicTaskExecutor_->postfork(true);
-    }
-    if (OTEL_G(globals) && OTEL_G(globals)->httpTransportAsync_) {
-        OTEL_G(globals)->httpTransportAsync_->postfork(true);
+    if (OTEL_G(globals) && OTEL_G(globals)->forkableRegistry_) {
+        OTEL_G(globals)->forkableRegistry_->postFork(true);
     }
 }
 
-void registerCallbacksToLogFork() {
-    int retVal = pthread_atfork(callbackToLogForkBeforeInParent, callbackToLogForkAfterInParent, callbackToLogForkAfterInChild);
+void registerCallbacksToHandleFork() {
+    int retVal = pthread_atfork(beforeFork, afterForkInParent, afterForkInChild);
     if (retVal == 0) {
         ELOGF_NF_DEBUG(OTEL_GL(logger_), "Registered callbacks to log process fork");
     } else {
@@ -51,6 +43,7 @@ void registerCallbacksToLogFork() {
 }
 
 #else
-void registerCallbacksToLogFork() {
+void registerCallbacksToHandleFork() {
 }
 #endif
+}

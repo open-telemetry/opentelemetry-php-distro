@@ -2,6 +2,7 @@
 
 #include "PhpBridgeInterface.h"
 #include "SharedMemoryState.h"
+#include "ForkableRegistry.h"
 #include "InferredSpans.h"
 #include "PeriodicTaskExecutor.h"
 #include "PeriodicTaskExecutor.h"
@@ -32,6 +33,7 @@ AgentGlobals::AgentGlobals(std::shared_ptr<LoggerInterface> logger,
         std::shared_ptr<InstrumentedFunctionHooksStorageInterface> hooksStorage,
         std::shared_ptr<InferredSpans> inferredSpans,
         ConfigurationStorage::configUpdate_t updateConfigurationSnapshot) :
+    forkableRegistry_(std::make_shared<ForkableRegistry>()),
     config_(std::make_shared<opentelemetry::php::ConfigurationStorage>(std::move(updateConfigurationSnapshot))),
     logger_(std::move(logger)),
     logSinkStdErr_(std::move(logSinkStdErr)),
@@ -52,6 +54,10 @@ AgentGlobals::AgentGlobals(std::shared_ptr<LoggerInterface> logger,
     coordinatorConfigProvider_(std::make_shared<opentelemetry::php::coordinator::CoordinatorConfigurationProvider>(logger_, opAmp_)),
     coordinatorProcess_(std::make_shared<opentelemetry::php::coordinator::CoordinatorProcess>(logger_, messagesDispatcher_, coordinatorConfigProvider_))
     {
+        forkableRegistry_->registerForkable(periodicTaskExecutor_);
+        forkableRegistry_->registerForkable(httpTransportAsync_);
+        forkableRegistry_->registerForkable(opAmp_);
+
         config_->addConfigUpdateWatcher([logger = logger_, stderrsink = logSinkStdErr_, syslogsink = logSinkSysLog_, filesink = logSinkFile_](ConfigurationSnapshot const &cfg) {
             stderrsink->setLevel(cfg.log_level_stderr);
             syslogsink->setLevel(cfg.log_level_syslog);

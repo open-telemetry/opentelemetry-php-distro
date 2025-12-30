@@ -17,6 +17,7 @@ class OpAmp;
 
 namespace opentelemetry::php {
 
+class ForkableRegistry;
 class LoggerInterface;
 class PhpBridgeInterface;
 class InferredSpans;
@@ -58,6 +59,7 @@ public:
 
     std::shared_ptr<PeriodicTaskExecutor> getPeriodicTaskExecutor();
 
+    std::shared_ptr<ForkableRegistry> forkableRegistry_;
     std::shared_ptr<ConfigurationStorage> config_;
     std::shared_ptr<LoggerInterface> logger_;
     std::shared_ptr<LoggerSinkInterface> logSinkStdErr_;
