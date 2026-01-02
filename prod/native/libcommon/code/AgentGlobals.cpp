@@ -54,7 +54,6 @@ AgentGlobals::AgentGlobals(std::shared_ptr<LoggerInterface> logger,
     coordinatorConfigProvider_(std::make_shared<opentelemetry::php::coordinator::CoordinatorConfigurationProvider>(logger_, opAmp_)),
     coordinatorProcess_(std::make_shared<opentelemetry::php::coordinator::CoordinatorProcess>(logger_, messagesDispatcher_, coordinatorConfigProvider_))
     {
-        forkableRegistry_->registerForkable(periodicTaskExecutor_);
         forkableRegistry_->registerForkable(httpTransportAsync_);
         forkableRegistry_->registerForkable(opAmp_);
 
@@ -101,8 +100,10 @@ std::shared_ptr<PeriodicTaskExecutor> AgentGlobals::getPeriodicTaskExecutor() {
                 opentelemetry::utils::blockSignal(SIGPROF); // php timeout signal
             }
         );
-        return periodicTaskExecutor_;
-    }
+    forkableRegistry_->registerForkable(periodicTaskExecutor_);
+
+    return periodicTaskExecutor_;
+}
 
 
 }

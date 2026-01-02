@@ -15,7 +15,9 @@ public:
 
     void preFork() {
         for (const auto &forkable : forkables_) {
-            forkable->prefork();
+            if (forkable) {
+                forkable->prefork();
+            }
         }
     }
 
