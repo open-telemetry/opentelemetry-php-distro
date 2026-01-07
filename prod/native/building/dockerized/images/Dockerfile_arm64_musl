@@ -1,4 +1,4 @@
-FROM arm64v8/alpine:3.10 as devtools_alpine
+FROM arm64v8/alpine:3.10@sha256:f73072b1ae04902f4d7511b834a1ea2d0475ddf6f87bd81f06e2b4590974a2e5 as devtools_alpine
 
 ARG GCC_VERSION=14.2.0
 ARG BINUTILS_VERSION=2.43
@@ -60,7 +60,7 @@ RUN cd cmake-${CMAKE_VERSION} \
  && make -j$(nproc)\
  && sudo make install
 
-FROM arm64v8/alpine:3.10
+FROM arm64v8/alpine:3.10@sha256:f73072b1ae04902f4d7511b834a1ea2d0475ddf6f87bd81f06e2b4590974a2e5
 
 COPY --from=devtools_alpine /opt /opt
 

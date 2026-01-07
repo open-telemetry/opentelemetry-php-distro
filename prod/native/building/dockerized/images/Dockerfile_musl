@@ -1,4 +1,4 @@
-FROM alpine:3.10 as devtools_alpine
+FROM alpine:3.10@sha256:451eee8bedcb2f029756dc3e9d73bab0e7943c1ac55cff3a4861c52a0fdd3e98 as devtools_alpine
 
 ARG GCC_VERSION=14.2.0
 ARG BINUTILS_VERSION=2.43
@@ -60,7 +60,7 @@ RUN cd cmake-${CMAKE_VERSION} \
  && make -j$(nproc)\
  && sudo make install
 
-FROM alpine:3.10
+FROM alpine:3.10@sha256:451eee8bedcb2f029756dc3e9d73bab0e7943c1ac55cff3a4861c52a0fdd3e98
 
 COPY --from=devtools_alpine /opt /opt
 
