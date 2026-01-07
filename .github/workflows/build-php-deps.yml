@@ -19,14 +19,14 @@ jobs:
     env:
       COMPOSER_ALLOW_SUPERUSER: 1
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
       - name: Build PHP dependencies
         run: |
           source ./tools/read_properties.sh
           read_properties project.properties PROJECT_PROPERTIES
           PHP_VERSIONS=${PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS//[()]/}
           ./tools/build/build_php_deps.sh --php_versions "${PHP_VERSIONS}"
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: php-dependencies
           path: |
