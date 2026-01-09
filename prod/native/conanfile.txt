@@ -1,7 +1,7 @@
 [requires]
 libcurl/8.10.1
-libunwind/1.8.1
-magic_enum/0.9.6
+libunwind/1.8.3
+magic_enum/0.9.7
 boost/1.86.0
 gtest/1.15.0
 protobuf-custom/5.27.0
