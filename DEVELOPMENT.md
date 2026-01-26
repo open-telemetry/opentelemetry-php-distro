@@ -107,7 +107,7 @@ To build a package, use the `./tools/build/build_packages.sh` script with the fo
 
 For the `--package_goarchitecture` parameter, we currently distinguish between two architectures: amd64 and arm64. These should correspond to the value of the `--build_architecture` argument.
 
-Remember, it's best if the package version reflects the version recorded in the `opentelemetry-php-distro.properties` file.
+Remember, it's best if the package version reflects the version recorded in the `project.properties` file.
 
 ```bash
 cd opentelemetry-php-distro
@@ -127,7 +127,7 @@ To test freshly built images, you need to udate image version in ```./tools/buil
 
 ## Adding or removing support for PHP release
 
-- Add the new version to the `supported_php_versions` list in the [elastic-otel.properties](elastic-otel.properties) file.
+- Add the new version to the `supported_php_versions` list in the [project.properties](project.properties) file.
 - Update supported PHP version detection in function `is_php_supported` in [post-install.sh](packaging/scripts/post-install.sh)
 - Add or modify the supported versions array in the loader's [phpdetection.cpp](prod/native/loader/code/phpdetection.cpp) file.
 - Add or remove metadata for the specified PHP version in [conandata.yml](prod/native/building/dependencies/php-headers/conandata.yml).
