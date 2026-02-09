@@ -10,14 +10,11 @@
 #include "Hooking.h"
 #include "InternalFunctionInstrumentation.h"
 #include "ModuleIniEntries.h"
-#include "ModuleFunctions.h"
 #include "ModuleGlobals.h"
-#include "PeriodicTaskExecutor.h"
-#include "RequestScope.h"
 #include "SigSegvHandler.h"
 #include "os/OsUtils.h"
-#include "transport/OpAmp.h"
 #include "coordinator/CoordinatorProcess.h"
+#include "VendorCustomizationsInterface.h"
 
 #include <curl/curl.h>
 #include <inttypes.h> // PRIu64
@@ -31,15 +28,20 @@
 
 namespace opentelemetry::php {
 
-extern ConfigurationManager configManager;
-
 void logStartupPreamble(opentelemetry::php::LoggerInterface *logger) {
     constexpr LogLevel level = LogLevel::logLevel_debug;
     constexpr int colWidth = 40;
 
     using namespace std::literals;
-    ELOGF_NF(logger, level, OTEL_DISTRO_PRODUCT_NAME);
-    ELOGF_NF(logger, level, "%*s%s", -colWidth, "Native part version:", OTEL_DISTRO_VERSION);
+
+    if (OTEL_G(globals)->vendorCustomizations_) {
+        ELOG_NF(logger, level, "{} version: {}", OTEL_G(globals)->vendorCustomizations_->getDistributionName(), OTEL_G(globals)->vendorCustomizations_->getDistributionVersion());
+        ELOG_NF(logger, level, "{:<{}}{}", "OpenTelemetry distro base version:", colWidth, OTEL_DISTRO_VERSION);
+    } else {
+        ELOG_NF(logger, level, OTEL_DISTRO_PRODUCT_NAME);
+        ELOGF_NF(logger, level, "%*s%s", -colWidth, "Native part version:", OTEL_DISTRO_VERSION);
+    }
+
     ELOGF_NF(logger, level, "%*s%s", -colWidth, "Process command line:", opentelemetry::utils::sanitizeKeyValueString("OTEL_EXPORTER_OTLP_HEADERS", opentelemetry::osutils::getCommandLine()).c_str());
     ELOGF_NF(logger, level, "%*s%s", -colWidth, "Process environment:", opentelemetry::utils::sanitizeKeyValueString("OTEL_EXPORTER_OTLP_HEADERS", opentelemetry::osutils::getProcessEnvironment()).c_str());
 }
@@ -49,7 +51,7 @@ void moduleInit(int moduleType, int moduleNumber) {
     auto globals = OTEL_G(globals);
 
     opentelemetry::php::registerIniEntries(OTEL_GL(logger_).get(), moduleNumber);
-    configManager.update();
+    globals->configManager_->update();
     globals->config_->update();
 
     ELOGF_DEBUG(globals->logger_, MODULE, "%s entered: moduleType: %d, moduleNumber: %d, parent PID: %d, SAPI: %s (%d) is %s", __FUNCTION__, moduleType, moduleNumber, static_cast<int>(opentelemetry::osutils::getParentProcessId()), sapi.getName().data(), static_cast<uint8_t>(sapi.getType()), sapi.isSupported() ? "supported" : "unsupported");
@@ -79,7 +81,7 @@ void moduleInit(int moduleType, int moduleNumber) {
     // add config update watcher in worker process
     globals->coordinatorConfigProvider_->addConfigUpdateWatcher([globals](opentelemetry::php::coordinator::CoordinatorConfigurationProvider::configFiles_t const &cfgFiles) {
         ELOG_DEBUG(globals->logger_, COORDINATOR, "Received config update with {} files. Updating dynamic config and global config storage", cfgFiles.size());
-        configManager.update(cfgFiles);
+        globals->configManager_->update(cfgFiles);
     });
 
     globals->coordinatorConfigProvider_->triggerUpdateIfChanged();
@@ -123,4 +125,4 @@ void moduleShutdown( int moduleType, int moduleNumber ) {
     unregisterSigSegvHandler();
 }
 
-}
+} // namespace opentelemetry::php

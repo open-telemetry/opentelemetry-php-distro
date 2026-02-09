@@ -24,12 +24,17 @@ class InferredSpans;
 class PeriodicTaskExecutor;
 class SharedMemoryState;
 class RequestScope;
+class ConfigurationManager;
 class ConfigurationStorage;
 class ConfigurationSnapshot;
 class LoggerSinkInterface;
 class LogSinkFile;
 class InstrumentedFunctionHooksStorageInterface;
 class DependencyAutoLoaderGuard;
+class VendorCustomizationsInterface;
+namespace config {
+class OptionValueProviderInterface;
+}
 namespace coordinator {
 class CoordinatorMessagesDispatcher;
 class CoordinatorProcess;
@@ -53,13 +58,15 @@ public:
         std::shared_ptr<PhpBridgeInterface> bridge,
         std::shared_ptr<InstrumentedFunctionHooksStorageInterface> hooksStorage,
         std::shared_ptr<InferredSpans> inferredSpans,
-        std::function<bool(ConfigurationSnapshot &)> updateConfigurationSnapshot);
+        std::shared_ptr<config::OptionValueProviderInterface> optionValueProvider);
 
     ~AgentGlobals();
 
     std::shared_ptr<PeriodicTaskExecutor> getPeriodicTaskExecutor();
 
+    std::shared_ptr<VendorCustomizationsInterface> vendorCustomizations_;
     std::shared_ptr<ForkableRegistry> forkableRegistry_;
+    std::shared_ptr<ConfigurationManager> configManager_;
     std::shared_ptr<ConfigurationStorage> config_;
     std::shared_ptr<LoggerInterface> logger_;
     std::shared_ptr<LoggerSinkInterface> logSinkStdErr_;

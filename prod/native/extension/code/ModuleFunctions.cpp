@@ -1,15 +1,12 @@
 
 #include "ModuleFunctions.h"
-#include "ConfigurationStorage.h"
 #include "LoggerInterface.h"
 #include "LogFeature.h"
-#include "RequestScope.h"
 #include "ModuleGlobals.h"
 #include "ModuleFunctionsImpl.h"
 #include "InternalFunctionInstrumentation.h"
 #undef snprintf
 #include "coordinator/CoordinatorProcess.h"
-#include "transport/OpAmp.h"
 #include "PhpBridge.h"
 #include "OtlpExporter/LogsConverter.h"
 #include "OtlpExporter/MetricConverter.h"
@@ -226,7 +223,7 @@ PHP_FUNCTION(initialize) {
     OTEL_GL(coordinatorProcess_)->getCoordinatorSender().initializeConnection(std::string(ZSTR_VAL(endpoint), ZSTR_LEN(endpoint)), ZSTR_HASH(endpoint), std::string(ZSTR_VAL(contentType), ZSTR_LEN(contentType)), endpointHeaders, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration<double>(timeout)), static_cast<std::size_t>(maxRetries), std::chrono::milliseconds(retryDelay), sslOptions);
 }
 
-ZEND_BEGIN_ARG_INFO_EX(ArgInfoSend, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(enqueue_arginfo, 0, 0, 2)
 ZEND_ARG_TYPE_INFO(0, endpoint, IS_STRING, 1)
 ZEND_ARG_TYPE_INFO(0, payload, IS_STRING, 1)
 ZEND_END_ARG_INFO()
@@ -376,7 +373,7 @@ const zend_function_entry opentelemetry_distro_functions[] = {
     ZEND_NS_FE( "OpenTelemetry\\Distro", hook, hook_arginfo)
 
     ZEND_NS_FE( "OpenTelemetry\\Distro\\HttpTransport", initialize, ArgInfoInitialize)
-    ZEND_NS_FE( "OpenTelemetry\\Distro\\HttpTransport", enqueue, no_params_arginfo)
+    ZEND_NS_FE( "OpenTelemetry\\Distro\\HttpTransport", enqueue, enqueue_arginfo)
     ZEND_NS_FE( "OpenTelemetry\\Distro\\InferredSpans", force_set_object_property_value, set_object_property_value_arginfo)
 
     ZEND_NS_FE( "OpenTelemetry\\Distro\\OtlpExporters", convert_spans, arginfo_convert_spans)

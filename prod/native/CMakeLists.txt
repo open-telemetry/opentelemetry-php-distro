@@ -39,6 +39,8 @@ project("opentelemetry-php-distro"
     LANGUAGES C CXX
 )
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(RELEASE_BUILD false)
 set(DEBUG_BUILD false)
 if(CMAKE_BUILD_TYPE STREQUAL "Release")

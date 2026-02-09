@@ -1,5 +1,6 @@
 
 #include "ModuleIniEntries.h"
+#include "ModuleGlobals.h"
 #include "ConfigurationManager.h"
 #include "ConfigurationSnapshot.h"
 #include "CommonUtils.h"
@@ -42,8 +43,6 @@ OTEL_INI_ENTRY(STRINGIFY_HELPER(OTEL_PHP_INFERRED_SPANS_MIN_DURATION))
 PHP_INI_END()
 
 namespace opentelemetry::php {
-extern opentelemetry::php::ConfigurationManager configManager;
-
 
 constexpr const zend_string *iniEntryValue(zend_ini_entry *iniEntry, int type) {
     return (type == ZEND_INI_DISPLAY_ORIG) ? (iniEntry->modified ? iniEntry->orig_value : iniEntry->value) : iniEntry->value;
@@ -62,7 +61,7 @@ bool registerIniEntries(opentelemetry::php::LoggerInterface *log, int module_num
     }
 
     // register custom displayer for secret options
-    auto options = configManager.getOptionMetadata();
+    auto options = OTEL_G(globals)->configManager_->getOptionMetadata();
     for (auto const &option : options) {
         if (!option.second.secret) {
             continue;
@@ -78,4 +77,4 @@ bool registerIniEntries(opentelemetry::php::LoggerInterface *log, int module_num
     return true;
 }
 
-}
+} // namespace opentelemetry::php

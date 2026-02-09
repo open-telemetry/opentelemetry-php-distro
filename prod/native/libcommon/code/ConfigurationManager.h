@@ -1,34 +1,27 @@
 
 #pragma once
 
+#include "config/OptionValueProviderInterface.h"
 #include "ConfigurationSnapshot.h"
 #include "LoggerInterface.h"
 #include "basic_macros.h"
 
 #include <atomic>
 #include <chrono>
-#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
 #include <string>
-#include <unordered_map>
 #include <variant>
-
-
 
 namespace opentelemetry::php {
 
 using namespace std::string_literals;
 
-//TODO default unit?
-//TODO sign
-
 class ConfigurationManager {
 public:
-    using configFiles_t = std::unordered_map<std::string, std::string>; // filename->content
+    using configFiles_t = config::OptionValueProviderInterface::configFiles_t;
 
-    using optionValueProvider_t = std::function<std::optional<std::string>(std::string_view)>;
     struct OptionMetadata  {
         enum type { boolean, string, duration, loglevel, bytes } type;
         size_t offset;
@@ -38,7 +31,7 @@ public:
 
     using optionValue_t = std::variant<std::chrono::milliseconds, LogLevel, bool, std::string, std::size_t, std::nullopt_t>;
 
-    ConfigurationManager(optionValueProvider_t readIniValue) : readIniValue_(readIniValue) {
+    ConfigurationManager(std::shared_ptr<config::OptionValueProviderInterface> optionValueProvider) : optionValueProvider_(std::move(optionValueProvider)) {
         current_.revision = getNextRevision();
     }
 
@@ -47,10 +40,8 @@ public:
         logger_ = std::move(logger);
     }
 
-//TODO lock
     void update(configFiles_t configFiles = {});
 
-    // TODO lock
     bool updateIfChanged(ConfigurationSnapshot &snapshot) {
         if (snapshot.revision != current_.revision) {
             snapshot = current_;
@@ -65,24 +56,17 @@ public:
 
     optionValue_t getOptionValue(std::string_view optionName, ConfigurationSnapshot const &snapshot) const;
 
-    void setReadDynamicOptionValue(optionValueProvider_t readDynamicOptionValue) {
-        readDynamicOptionValue_ = readDynamicOptionValue;
-    }
-
-//TODO test
     static std::string accessOptionStringValueByMetadata(OptionMetadata const &metadata, ConfigurationSnapshot const &snapshot);
 
 private:
     std::optional<std::string> fetchStringValue(std::string_view name, bool isOtelNativeOption);
     uint64_t getNextRevision();
 
-
 private:
-    optionValueProvider_t readIniValue_;
-    // TODO implement prioritized list of config data providers
-    optionValueProvider_t readDynamicOptionValue_;
     std::atomic_uint64_t upcomingConfigRevision_ = 0;
     ConfigurationSnapshot current_;
+
+    std::shared_ptr<config::OptionValueProviderInterface> optionValueProvider_;
     std::shared_ptr<LoggerInterface> logger_;
 
     // Custom offset calculation for non-standard-layout types

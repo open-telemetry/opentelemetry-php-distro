@@ -6,10 +6,9 @@
 #include "ModuleGlobals.h"
 
 namespace opentelemetry::php {
-extern opentelemetry::php::ConfigurationManager configManager;
 
 void getConfigOptionbyName(std::string_view optionName, zval *return_value) {
-    auto value = opentelemetry::php::configManager.getOptionValue(optionName, OTEL_GL(config_)->get());
+    auto value = OTEL_GL(configManager_)->getOptionValue(optionName, OTEL_GL(config_)->get());
 
     std::visit([return_value](auto &&arg) {
         using T = std::decay_t<decltype(arg)>;
@@ -38,4 +37,4 @@ void getConfigOptionbyName(std::string_view optionName, zval *return_value) {
     }, value);
 }
 
-}
+} // namespace opentelemetry::php

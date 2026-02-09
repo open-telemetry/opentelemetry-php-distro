@@ -1,4 +1,3 @@
-
 #include "ConfigurationManager.h"
 
 #include <string_view>
@@ -9,122 +8,163 @@ using namespace std::literals;
 
 namespace opentelemetry::php {
 
-class MockIniReader {
+class MockOptionValueProvider : public config::OptionValueProviderInterface {
 public:
-    MOCK_METHOD(std::optional<std::string>, getIniValue, (std::string_view));
+    MOCK_METHOD(std::optional<std::string>, getIniOptionValue, (std::string_view));
+    MOCK_METHOD(std::optional<std::string>, getEnvironmentOptionValue, (std::string_view));
+    MOCK_METHOD(std::optional<std::string>, getDynamicOptionValue, (std::string_view));
+    MOCK_METHOD(void, update, (configFiles_t const &));
 };
 
 class ConfigurationManagerTest : public ::testing::Test {
 public:
-    MockIniReader iniMock_;
-    ConfigurationManager cfg_{[&](std::string_view name) {
-        return iniMock_.getIniValue(name);
-    }};
+    std::shared_ptr<MockOptionValueProvider> optionValueProviderMock_ = std::make_shared<MockOptionValueProvider>();
+    ConfigurationManager cfg_{optionValueProviderMock_};
 };
 
 TEST_F(ConfigurationManagerTest, update) {
-    ON_CALL(iniMock_, getIniValue(::testing::_)).WillByDefault(::testing::Return(std::nullopt));
-    EXPECT_CALL(iniMock_, getIniValue(::testing::_)).Times(::testing::AtLeast(1));
-    //.WillRepeatedly(::testing::Return("Category 5"));
-
+    EXPECT_CALL(*optionValueProviderMock_, getIniOptionValue(::testing::_)).Times(::testing::AtLeast(1)).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getEnvironmentOptionValue(::testing::_)).Times(::testing::AtLeast(1)).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getDynamicOptionValue(::testing::_)).Times(::testing::AtLeast(1)).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, update(::testing::_)).Times(::testing::Exactly(3));
 
     ConfigurationSnapshot snapshot;
     cfg_.updateIfChanged(snapshot);
     ASSERT_EQ(snapshot.revision, 1u);
-    cfg_.update();
+    cfg_.update({});
     ASSERT_EQ(snapshot.revision, 1u);
-    cfg_.update();
+    cfg_.update({});
     ASSERT_EQ(snapshot.revision, 1u);
-    cfg_.update();
+    cfg_.update({});
     cfg_.updateIfChanged(snapshot);
     ASSERT_EQ(snapshot.revision, 4u);
 }
 
 TEST_F(ConfigurationManagerTest, updateSomeOption) {
-    EXPECT_CALL(iniMock_, getIniValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
-    // EXPECT_CALL(iniMock_, getIniValue("opentelemetry_distro.api_key")).Times(1).WillOnce(::testing::Return("secret_api_key"s)).RetiresOnSaturation();
-    // EXPECT_CALL(iniMock_, getIniValue("opentelemetry_distro.server_timeout")).Times(1).WillOnce(::testing::Return("10s"s)).RetiresOnSaturation();
-    EXPECT_CALL(iniMock_, getIniValue("opentelemetry_distro.enabled")).Times(1).WillOnce(::testing::Return("off")).RetiresOnSaturation();
+    EXPECT_CALL(*optionValueProviderMock_, getEnvironmentOptionValue(::testing::_)).Times(::testing::AtLeast(1)).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getDynamicOptionValue(::testing::_)).Times(::testing::AtLeast(1)).WillRepeatedly(::testing::Return(std::nullopt));
+
+    EXPECT_CALL(*optionValueProviderMock_, getIniOptionValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getIniOptionValue("opentelemetry_distro.enabled")).Times(1).WillOnce(::testing::Return("off")).RetiresOnSaturation();
+    EXPECT_CALL(*optionValueProviderMock_, update(::testing::_)).Times(::testing::Exactly(2));
 
     ConfigurationSnapshot snapshot;
     ASSERT_EQ(snapshot.revision, 0u);
 
     cfg_.updateIfChanged(snapshot);
 
-    // ASSERT_TRUE(snapshot.api_key.empty());
-    // ASSERT_EQ(snapshot.server_timeout, ConfigurationSnapshot().server_timeout); // default value
     ASSERT_EQ(snapshot.enabled, ConfigurationSnapshot().enabled); // default value
     ASSERT_EQ(snapshot.revision, 1u);
 
-    cfg_.update();
+    cfg_.update({});
     cfg_.updateIfChanged(snapshot);
 
     ASSERT_EQ(snapshot.revision, 2u);
-    // ASSERT_EQ(snapshot.api_key, "secret_api_key"s);
     ASSERT_NE(snapshot.enabled, ConfigurationSnapshot().enabled); // default value
-    // ASSERT_EQ(snapshot.server_timeout.count(), 10000ul);
     ASSERT_NE(snapshot.enabled, ConfigurationSnapshot().enabled); // default value
     ASSERT_FALSE(snapshot.enabled);
 
-    EXPECT_CALL(iniMock_, getIniValue("opentelemetry_distro.enabled")).Times(1).WillOnce(::testing::Return("on")).RetiresOnSaturation();
-    cfg_.update();
+    EXPECT_CALL(*optionValueProviderMock_, getIniOptionValue("opentelemetry_distro.enabled")).Times(1).WillOnce(::testing::Return("on")).RetiresOnSaturation();
+    cfg_.update({});
     cfg_.updateIfChanged(snapshot);
 }
 
 TEST_F(ConfigurationManagerTest, getOptionValue) {
-    EXPECT_CALL(iniMock_, getIniValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
-    // EXPECT_CALL(iniMock_, getIniValue("opentelemetry_distro.api_key")).Times(1).WillOnce(::testing::Return("secret_api_key"s)).RetiresOnSaturation();
-    // EXPECT_CALL(iniMock_, getIniValue("opentelemetry_distro.server_timeout")).Times(1).WillOnce(::testing::Return("10s"s)).RetiresOnSaturation();
-    EXPECT_CALL(iniMock_, getIniValue("opentelemetry_distro.enabled")).Times(1).WillOnce(::testing::Return("off")).RetiresOnSaturation();
+    EXPECT_CALL(*optionValueProviderMock_, getIniOptionValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getIniOptionValue("opentelemetry_distro.enabled")).Times(1).WillOnce(::testing::Return("off")).RetiresOnSaturation();
+    EXPECT_CALL(*optionValueProviderMock_, getEnvironmentOptionValue(::testing::_)).Times(::testing::AtLeast(1)).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getDynamicOptionValue(::testing::_)).Times(::testing::AtLeast(1)).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, update(::testing::_)).Times(::testing::Exactly(1));
 
     ConfigurationSnapshot snapshot;
     ASSERT_EQ(snapshot.revision, 0u);
 
-    cfg_.update();
+    cfg_.update({});
     cfg_.updateIfChanged(snapshot);
 
-    // ASSERT_EQ(std::get<std::string>(cfg_.getOptionValue("api_key"sv, snapshot)), "secret_api_key"s);
-    // ASSERT_EQ(std::get<std::chrono::milliseconds>(cfg_.getOptionValue("server_timeout"sv, snapshot)), std::chrono::milliseconds(10000));
     ASSERT_EQ(std::get<bool>(cfg_.getOptionValue("enabled"sv, snapshot)), false);
     ASSERT_TRUE(std::holds_alternative<std::nullopt_t>(cfg_.getOptionValue("unknown"sv, snapshot)));
 }
 
 TEST_F(ConfigurationManagerTest, getConfigFromEnvVar_NativeOtelOptions) {
-    EXPECT_CALL(iniMock_, getIniValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getDynamicOptionValue(::testing::_)).Times(::testing::AtLeast(1)).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getIniOptionValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getEnvironmentOptionValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getEnvironmentOptionValue("OTEL_EXPORTER_OTLP_INSECURE")).Times(::testing::Exactly(2)).WillOnce(::testing::Return("true")).WillOnce(::testing::Return("false")).RetiresOnSaturation();
+    EXPECT_CALL(*optionValueProviderMock_, update(::testing::_)).Times(::testing::Exactly(2));
 
     ConfigurationSnapshot snapshot;
     ASSERT_EQ(snapshot.revision, 0u);
 
-    setenv("OTEL_EXPORTER_OTLP_INSECURE", "true", 1);
-
-    cfg_.update();
+    cfg_.update({});
     cfg_.updateIfChanged(snapshot);
 
     ASSERT_EQ(snapshot.OTEL_EXPORTER_OTLP_INSECURE, true);
 
-    setenv("OTEL_EXPORTER_OTLP_INSECURE", "false", 1);
-    cfg_.update();
+    cfg_.update({});
     cfg_.updateIfChanged(snapshot);
     ASSERT_EQ(snapshot.OTEL_EXPORTER_OTLP_INSECURE, false);
 }
 
 TEST_F(ConfigurationManagerTest, getConfigFromEnvVar_RegularOptions) {
-    EXPECT_CALL(iniMock_, getIniValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, update(::testing::_)).Times(::testing::Exactly(2));
+    EXPECT_CALL(*optionValueProviderMock_, getDynamicOptionValue(::testing::_)).Times(::testing::AtLeast(1)).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getIniOptionValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getEnvironmentOptionValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getEnvironmentOptionValue("OTEL_PHP_BOOTSTRAP_PHP_PART_FILE")).Times(::testing::Exactly(2)).WillOnce(::testing::Return("some_value")).WillOnce(::testing::Return("some other value")).RetiresOnSaturation();
 
     ConfigurationSnapshot snapshot;
     ASSERT_EQ(snapshot.revision, 0u);
 
-    setenv("OTEL_PHP_BOOTSTRAP_PHP_PART_FILE", "some_value", 1);
-
-    cfg_.update();
+    cfg_.update({});
     cfg_.updateIfChanged(snapshot);
 
     ASSERT_EQ(snapshot.OTEL_PHP_BOOTSTRAP_PHP_PART_FILE, "some_value");
 
-    setenv("OTEL_PHP_BOOTSTRAP_PHP_PART_FILE", "some other value", 1);
-    cfg_.update();
+    cfg_.update({});
     cfg_.updateIfChanged(snapshot);
     ASSERT_EQ(snapshot.OTEL_PHP_BOOTSTRAP_PHP_PART_FILE, "some other value");
+}
+
+TEST_F(ConfigurationManagerTest, dynamicOptionTakesPrecedenceOverEnvVarAndIni) {
+    EXPECT_CALL(*optionValueProviderMock_, getDynamicOptionValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getDynamicOptionValue("bootstrap_php_part_file")).Times(::testing::Exactly(1)).WillRepeatedly(::testing::Return("some_value")).RetiresOnSaturation();
+
+    EXPECT_CALL(*optionValueProviderMock_, getIniOptionValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getIniOptionValue("opentelemetry_distro.bootstrap_php_part_file")).Times(::testing::Exactly(0));
+
+    EXPECT_CALL(*optionValueProviderMock_, getEnvironmentOptionValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getEnvironmentOptionValue("OTEL_PHP_BOOTSTRAP_PHP_PART_FILE")).Times(::testing::Exactly(0));
+
+    EXPECT_CALL(*optionValueProviderMock_, update(::testing::_)).Times(::testing::Exactly(1));
+
+    ConfigurationSnapshot snapshot;
+    ASSERT_EQ(snapshot.revision, 0u);
+
+    cfg_.update({});
+    cfg_.updateIfChanged(snapshot);
+
+    ASSERT_EQ(snapshot.OTEL_PHP_BOOTSTRAP_PHP_PART_FILE, "some_value");
+}
+
+TEST_F(ConfigurationManagerTest, iniOptionTakesPrecedenceOverEnvVar) {
+    EXPECT_CALL(*optionValueProviderMock_, getDynamicOptionValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
+
+    EXPECT_CALL(*optionValueProviderMock_, getIniOptionValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getIniOptionValue("opentelemetry_distro.bootstrap_php_part_file")).Times(::testing::Exactly(1)).WillOnce(::testing::Return("some_value")).RetiresOnSaturation();
+
+    EXPECT_CALL(*optionValueProviderMock_, getEnvironmentOptionValue(::testing::_)).Times(::testing::AnyNumber()).WillRepeatedly(::testing::Return(std::nullopt));
+    EXPECT_CALL(*optionValueProviderMock_, getEnvironmentOptionValue("OTEL_PHP_BOOTSTRAP_PHP_PART_FILE")).Times(::testing::Exactly(0));
+
+    EXPECT_CALL(*optionValueProviderMock_, update(::testing::_)).Times(::testing::Exactly(1));
+
+    ConfigurationSnapshot snapshot;
+    ASSERT_EQ(snapshot.revision, 0u);
+
+    cfg_.update({});
+    cfg_.updateIfChanged(snapshot);
+
+    ASSERT_EQ(snapshot.OTEL_PHP_BOOTSTRAP_PHP_PART_FILE, "some_value");
 }
 
 } // namespace opentelemetry::php

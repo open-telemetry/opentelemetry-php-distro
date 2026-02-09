@@ -12,6 +12,8 @@
 
 #include "AutoZval.h"
 #include "os/OsUtils.h"
+#include "config/OptionValueProvider.h"
+
 #include "CallOnScopeExit.h"
 #include "ConfigurationManager.h"
 #include "InferredSpans.h"
@@ -28,20 +30,6 @@
 #include "transport/OpAmp.h"
 
 ZEND_DECLARE_MODULE_GLOBALS( opentelemetry_distro )
-
-namespace opentelemetry::php {
-opentelemetry::php::ConfigurationManager configManager([](std::string_view iniName) -> std::optional<std::string> {
-    auto val = cfg_get_entry(iniName.data(), iniName.length());
-
-    opentelemetry::php::AutoZval autoZval(val);
-    auto optStringView = autoZval.getOptStringView();
-    if (!optStringView.has_value()) {
-        return std::nullopt;
-    }
-
-    return std::string(*optStringView);
-});
-}
 
 #ifndef ZEND_PARSE_PARAMETERS_NONE
 #   define ZEND_PARSE_PARAMETERS_NONE() \
@@ -65,7 +53,7 @@ ZEND_RESULT_CODE  opentelemetry_distro_request_postdeactivate(void) {
 }
 
 PHP_MINFO_FUNCTION(opentelemetry_distro) {
-    printPhpInfo(zend_module);
+    opentelemetry::php::printPhpInfo(zend_module);
 }
 
 
@@ -78,8 +66,6 @@ static PHP_GINIT_FUNCTION(opentelemetry_distro) {
     auto logSinkFile = std::make_shared<opentelemetry::php::LoggerSinkFile>();
 
     auto logger = std::make_shared<opentelemetry::php::Logger>(std::vector<std::shared_ptr<opentelemetry::php::LoggerSinkInterface>>{logSinkStdErr, logSinkSysLog, logSinkFile});
-
-    opentelemetry::php::configManager.attachLogger(logger);
 
     ELOGF_DEBUG(logger, MODULE, "%s: GINIT called; parent PID: %d", __FUNCTION__, static_cast<int>(opentelemetry::osutils::getParentProcessId()));
     opentelemetry_distro_globals->globals = nullptr;
@@ -99,7 +85,19 @@ static PHP_GINIT_FUNCTION(opentelemetry_distro) {
     });
 
     try {
-        opentelemetry_distro_globals->globals = new opentelemetry::php::AgentGlobals(logger, std::move(logSinkStdErr), std::move(logSinkSysLog), std::move(logSinkFile), std::move(phpBridge), std::move(hooksStorage), std::move(inferredSpans), [](opentelemetry::php::ConfigurationSnapshot &cfg) { return opentelemetry::php::configManager.updateIfChanged(cfg); });
+        auto optionValueProvider = std::make_shared<opentelemetry::php::config::OptionValueProvider>([](std::string_view iniName) -> std::optional<std::string> {
+            auto val = cfg_get_entry(iniName.data(), iniName.length());
+
+            opentelemetry::php::AutoZval autoZval(val);
+            auto optStringView = autoZval.getOptStringView();
+            if (!optStringView.has_value()) {
+                return std::nullopt;
+            }
+
+            return std::string(*optStringView);
+        });
+
+        opentelemetry_distro_globals->globals = new opentelemetry::php::AgentGlobals(logger, std::move(logSinkStdErr), std::move(logSinkSysLog), std::move(logSinkFile), std::move(phpBridge), std::move(hooksStorage), std::move(inferredSpans), std::move(optionValueProvider));
     } catch (std::exception const &e) {
         ELOGF_CRITICAL(logger, MODULE, "Unable to allocate AgentGlobals. '%s'", e.what());
     }
