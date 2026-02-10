@@ -32,7 +32,7 @@ jobs:
 
   build-native:
     name: build-agent-library
-    runs-on: ${{ matrix.goarch == 'arm64' && 'oracle-4cpu-16gb-arm64' || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.goarch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     needs: setup-build-matrix
     timeout-minutes: 300
     strategy:

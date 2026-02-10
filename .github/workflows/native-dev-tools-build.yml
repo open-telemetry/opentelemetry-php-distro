@@ -32,7 +32,7 @@ jobs:
       build_arch: ${{ inputs.build_arch }}
 
   build-compiler-image:
-    runs-on: ${{ matrix.goarch == 'arm64' && 'oracle-4cpu-16gb-arm64' || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.goarch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     needs: setup-build-matrix
     env:
       DOCKER_BUILDKIT: 1
