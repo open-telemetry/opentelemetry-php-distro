@@ -89,9 +89,3 @@ public:
 };
 
 } // namespace opentelemetry::php
-// std::shared_ptr<opentelemetry::php::ResourceDetector> resourceDetector_;
-// std::shared_ptr<coordinator::CoordinatorProcess> coordinatorProcess_;
-// std::shared_ptr<opentelemetry::php::transport::OpAmp> opAmp_;
-// std::shared_ptr<coordinator::WorkerRegistry> workerRegistry_;
-// std::shared_ptr<coordinator::CoordinatorMessagesDispatcher> messagesDispatcher_;
-// std::shared_ptr<transport::HttpTransportAsync<transport::CurlSender, transport::HttpEndpoints> > httpTransportAsync_;
