@@ -1,7 +1,6 @@
 #pragma once
 
 #include "LoggerInterface.h"
-#include "transport/OpAmp.h"
 
 #include <memory>
 #include <string>
@@ -16,20 +15,25 @@
 #include <boost/interprocess/sync/sharable_lock.hpp>
 #include <boost/container/map.hpp>
 #include <boost/container/string.hpp>
+#undef snprintf
+#include <boost/signals2.hpp>
+#undef snprintf
 
 namespace opentelemetry::php::coordinator {
+
+struct CoordinatorSharedConfig {};
 
 class CoordinatorConfigurationProvider {
 public:
     using configFiles_t = std::unordered_map<std::string, std::string>; // filename->content
     using configUpdated_t = boost::signals2::signal<void(configFiles_t const &)>;
 
-    using SegmentManager = boost::interprocess::managed_external_buffer::segment_manager;
-    using ShmemString = boost::container::basic_string<char, std::char_traits<char>, boost::interprocess::allocator<char, SegmentManager>>;
-    using ShmemAllocator = boost::interprocess::allocator<std::pair<const ShmemString, ShmemString>, SegmentManager>;
-    using ConfigFilesMap = boost::container::map<ShmemString, ShmemString, std::less<ShmemString>, ShmemAllocator>;
-
     struct SharedData {
+        using SegmentManager = boost::interprocess::managed_external_buffer::segment_manager;
+        using ShmemString = boost::container::basic_string<char, std::char_traits<char>, boost::interprocess::allocator<char, SegmentManager>>;
+        using ShmemAllocator = boost::interprocess::allocator<std::pair<const ShmemString, ShmemString>, SegmentManager>;
+        using ConfigFilesMap = boost::container::map<ShmemString, ShmemString, std::less<ShmemString>, ShmemAllocator>;
+
         boost::interprocess::interprocess_upgradable_mutex mutex;
         uint64_t configRevision;
         ConfigFilesMap configFiles;
@@ -38,19 +42,14 @@ public:
         }
     };
 
-    CoordinatorConfigurationProvider(std::shared_ptr<LoggerInterface> logger, std::shared_ptr<opentelemetry::php::transport::OpAmp> opAmp) : logger_(std::move(logger)), opAmp_(std::move(opAmp)), region_(boost::interprocess::anonymous_shared_memory(1024 * 1024)), managedRegion_(boost::interprocess::create_only, region_.get_address(), region_.get_size()) {
+    CoordinatorConfigurationProvider(std::shared_ptr<LoggerInterface> logger) : logger_(std::move(logger)), region_(boost::interprocess::anonymous_shared_memory(1024 * 1024)), managedRegion_(boost::interprocess::create_only, region_.get_address(), region_.get_size()) {
         sharedData_ = managedRegion_.construct<SharedData>("SharedData")(managedRegion_.get_segment_manager());
 
         ELOG_DEBUG(logger_, COORDINATOR, "CoordinatorConfigurationProvider initialized with shared memory region of size {}", region_.get_size());
         ELOG_DEBUG(logger_, COORDINATOR, "CoordinatorConfigurationProvider initialized with managed memory region of size {}", managedRegion_.get_size());
-
-        opAmp_->addConfigUpdateWatcher([this](opentelemetry::php::transport::OpAmp::configFiles_t const &configFiles) {
-            this->storeConfigFiles(configFiles);
-        });
     }
 
     ~CoordinatorConfigurationProvider() {
-        opAmp_->removeAllConfigUpdateWatchers();
     }
 
     bool triggerUpdateIfChanged() {
@@ -81,7 +80,6 @@ public:
     }
 
     void beginConfigurationFetching() {
-        opAmp_->startCommunication();
     }
 
     std::unordered_map<std::string, std::string> getConfiguration() {
@@ -89,8 +87,20 @@ public:
         return getConfigurationNoLock();
     }
 
-private:
+    // stores config files on coordinator process side
+    void storeConfigFiles(std::unordered_map<std::string, std::string> const &configFiles) {
+        boost::interprocess::scoped_lock<boost::interprocess::interprocess_upgradable_mutex> lock(sharedData_->mutex);
+        sharedData_->configRevision++;
+        for (const auto &pair : configFiles) {
+            SharedData::ShmemAllocator alloc = managedRegion_.get_segment_manager();
+            SharedData::ShmemString shmemFileName(std::string_view(pair.first), alloc);
+            SharedData::ShmemString shmemFileContent(std::string_view(pair.second), alloc);
+            sharedData_->configFiles.insert_or_assign(std::move(shmemFileName), std::move(shmemFileContent));
+        }
+        ELOG_DEBUG(logger_, COORDINATOR, "CoordinatorConfigurationProvider: stored {} config files, revision: {}", configFiles.size(), sharedData_->configRevision);
+    }
 
+private:
     std::unordered_map<std::string, std::string> getConfigurationNoLock() {
         std::unordered_map<std::string, std::string> result;
         for (const auto &pair : sharedData_->configFiles) {
@@ -99,22 +109,7 @@ private:
         return result;
     }
 
-    // store config files on coordinator process side
-    void storeConfigFiles(std::unordered_map<std::string, std::string> const &configFiles) {
-        boost::interprocess::scoped_lock<boost::interprocess::interprocess_upgradable_mutex> lock(sharedData_->mutex);
-        sharedData_->configRevision++;
-        for (const auto &pair : configFiles) {
-            ShmemAllocator alloc = managedRegion_.get_segment_manager();
-            ShmemString shmemFileName(std::string_view(pair.first), alloc);
-            ShmemString shmemFileContent(std::string_view(pair.second), alloc);
-            sharedData_->configFiles.insert_or_assign(std::move(shmemFileName), std::move(shmemFileContent));
-        }
-        ELOG_DEBUG(logger_, COORDINATOR, "CoordinatorConfigurationProvider: stored {} config files, revision: {}", configFiles.size(), sharedData_->configRevision);
-    }
-
-
     std::shared_ptr<LoggerInterface> logger_;
-    std::shared_ptr<opentelemetry::php::transport::OpAmp> opAmp_;
 
     boost::interprocess::mapped_region region_;
     boost::interprocess::managed_external_buffer managedRegion_;

@@ -11,23 +11,22 @@
 #include "ModuleInit.h"
 
 #include "AutoZval.h"
-#include "os/OsUtils.h"
 #include "config/OptionValueProvider.h"
-
-#include "CallOnScopeExit.h"
-#include "ConfigurationManager.h"
+#include "coordinator/CoordinatorSharedDataQueue.h"
+#include "coordinator/CoordinatorProcess.h"
+#include "CommonUtils.h"
+#include "os/OsUtils.h"
 #include "InferredSpans.h"
-#include "InstrumentedFunctionHooksStorage.h"
 #include "InternalFunctionInstrumentation.h"
 #include "Logger.h"
 #include "ModuleInfo.h"
 #include "ModuleFunctions.h"
-#include "PeriodicTaskExecutor.h"
 #include "PhpBridge.h"
 #include "PhpBridgeInterface.h"
 #include "RequestScope.h"
-#include "SharedMemoryState.h"
-#include "transport/OpAmp.h"
+#include "ResourceDetector.h"
+#include "SigSegvHandler.h"
+#include "VendorCustomizationsInterface.h"
 
 ZEND_DECLARE_MODULE_GLOBALS( opentelemetry_distro )
 
@@ -56,21 +55,78 @@ PHP_MINFO_FUNCTION(opentelemetry_distro) {
     opentelemetry::php::printPhpInfo(zend_module);
 }
 
+namespace opentelemetry::php {
+
+void forkCoordinatorProcess(std::shared_ptr<opentelemetry::php::LoggerInterface> logger, std::function<void(opentelemetry::php::ConfigurationSnapshot const &)> loggerConfigUpdateFunc, std::shared_ptr<coordinator::CoordinatorSharedDataQueue> shareDataQueue, std::shared_ptr<opentelemetry::php::config::OptionValueProvider> optionValueProvider, std::shared_ptr<coordinator::CoordinatorConfigurationProvider> coordinatorConfigProvider, std::shared_ptr<PhpBridgeInterface> phpBridge) {
+    auto parentProcessId = getpid();
+    auto processId = fork();
+    if (processId < 0) {
+        if (logger) {
+            ELOG_DEBUG(logger, COORDINATOR, "CoordinatorProcess: fork() failed: {} ({})", strerror(errno), errno);
+        }
+    } else if (processId == 0) {
+        ELOG_DEBUG(logger, COORDINATOR, "CoordinatorProcess starting collector process");
+        registerSigSegvHandler(logger.get());
+
+        auto resourceDetector = std::make_shared<opentelemetry::php::ResourceDetector>(std::move(phpBridge));
+
+        opentelemetry::php::coordinator::CoordinatorProcess(parentProcessId, processId, logger, loggerConfigUpdateFunc, ::getVendorCustomizations ? ::getVendorCustomizations() : nullptr, optionValueProvider, std::move(shareDataQueue), coordinatorConfigProvider, std::move(resourceDetector)).start();
+        ELOG_DEBUG(logger, COORDINATOR, "CoordinatorProcess: collector process is going to finish");
+        std::exit(0);
+    } else {
+        if (logger) {
+            ELOG_DEBUG(logger, COORDINATOR, "CoordinatorProcess parent process continues initialization");
+        }
+    }
+}
+
+} // namespace opentelemetry::php
 
 static PHP_GINIT_FUNCTION(opentelemetry_distro) {
     //TODO for ZTS logger must be initialized in MINIT! (share fd between threads) - different lifecycle
 
-    //TODO store in globals and allow watch for config change (change of level)
     auto logSinkStdErr = std::make_shared<opentelemetry::php::LoggerSinkStdErr>();
     auto logSinkSysLog = std::make_shared<opentelemetry::php::LoggerSinkSysLog>();
     auto logSinkFile = std::make_shared<opentelemetry::php::LoggerSinkFile>();
 
     auto logger = std::make_shared<opentelemetry::php::Logger>(std::vector<std::shared_ptr<opentelemetry::php::LoggerSinkInterface>>{logSinkStdErr, logSinkSysLog, logSinkFile});
 
+    auto loggerConfigUpdateFunc = [logger = logger, stderrsink = logSinkStdErr, syslogsink = logSinkSysLog, filesink = logSinkFile](opentelemetry::php::ConfigurationSnapshot const &cfg) {
+        stderrsink->setLevel(cfg.log_level_stderr);
+        syslogsink->setLevel(cfg.log_level_syslog);
+        if (filesink) {
+            if (cfg.log_file.empty()) {
+                filesink->setLevel(LogLevel::logLevel_off);
+            } else {
+                filesink->setLevel(cfg.log_level_file);
+                filesink->reopen(opentelemetry::utils::getParameterizedString(cfg.log_file));
+            }
+        }
+
+        logger->setLogFeatures(opentelemetry::utils::parseLogFeatures(logger, cfg.log_features));
+    };
+
     ELOGF_DEBUG(logger, MODULE, "%s: GINIT called; parent PID: %d", __FUNCTION__, static_cast<int>(opentelemetry::osutils::getParentProcessId()));
     opentelemetry_distro_globals->globals = nullptr;
 
+    auto shareDataQueue = std::make_shared<opentelemetry::php::coordinator::CoordinatorSharedDataQueue>(logger);
+    auto coordinatorConfigProvider = std::make_shared<opentelemetry::php::coordinator::CoordinatorConfigurationProvider>(logger);
+
     auto phpBridge = std::make_shared<opentelemetry::php::PhpBridge>(logger);
+
+    auto optionValueProvider = std::make_shared<opentelemetry::php::config::OptionValueProvider>([](std::string_view iniName) -> std::optional<std::string> {
+        auto val = cfg_get_entry(iniName.data(), iniName.length());
+
+        opentelemetry::php::AutoZval autoZval(val);
+        auto optStringView = autoZval.getOptStringView();
+        if (!optStringView.has_value()) {
+            return std::nullopt;
+        }
+
+        return std::string(*optStringView);
+    });
+
+    forkCoordinatorProcess(logger, loggerConfigUpdateFunc, shareDataQueue, optionValueProvider, coordinatorConfigProvider, phpBridge);
 
     auto hooksStorage = std::make_shared<opentelemetry::php::InstrumentedFunctionHooksStorage_t>();
 
@@ -85,19 +141,7 @@ static PHP_GINIT_FUNCTION(opentelemetry_distro) {
     });
 
     try {
-        auto optionValueProvider = std::make_shared<opentelemetry::php::config::OptionValueProvider>([](std::string_view iniName) -> std::optional<std::string> {
-            auto val = cfg_get_entry(iniName.data(), iniName.length());
-
-            opentelemetry::php::AutoZval autoZval(val);
-            auto optStringView = autoZval.getOptStringView();
-            if (!optStringView.has_value()) {
-                return std::nullopt;
-            }
-
-            return std::string(*optStringView);
-        });
-
-        opentelemetry_distro_globals->globals = new opentelemetry::php::AgentGlobals(logger, std::move(logSinkStdErr), std::move(logSinkSysLog), std::move(logSinkFile), std::move(phpBridge), std::move(hooksStorage), std::move(inferredSpans), std::move(optionValueProvider));
+        opentelemetry_distro_globals->globals = new opentelemetry::php::AgentGlobals(logger, loggerConfigUpdateFunc, std::move(phpBridge), std::move(hooksStorage), std::move(inferredSpans), std::move(shareDataQueue), std::move(coordinatorConfigProvider), std::move(optionValueProvider));
     } catch (std::exception const &e) {
         ELOGF_CRITICAL(logger, MODULE, "Unable to allocate AgentGlobals. '%s'", e.what());
     }

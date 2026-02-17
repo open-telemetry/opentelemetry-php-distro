@@ -7,6 +7,8 @@
 
 #include <signal.h>
 
+namespace opentelemetry::php {
+
 namespace signalHandlerData {
 typedef void (*OsSignalHandler)(int);
 static OsSignalHandler oldSigSegvHandler = nullptr;
@@ -49,3 +51,5 @@ void unregisterSigSegvHandler() {
         signalHandlerData::oldSigSegvHandler = nullptr;
     }
 }
+
+} // namespace opentelemetry::php

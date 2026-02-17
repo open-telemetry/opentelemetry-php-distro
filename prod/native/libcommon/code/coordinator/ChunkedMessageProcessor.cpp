@@ -1,4 +1,5 @@
 #include "ChunkedMessageProcessor.h"
+#include "os/OsUtils.h"
 
 namespace opentelemetry::php::coordinator {
 
@@ -7,7 +8,7 @@ bool ChunkedMessageProcessor::sendPayload(const std::string &payload) {
     std::size_t dataPayloadSize = sizeof(CoordinatorPayload::payload);
 
     CoordinatorPayload chunk;
-    chunk.senderProcessId = senderProcessId_;
+    chunk.senderProcessId = opentelemetry::osutils::getCurrentProcessId();
     chunk.msgId = msgId_;
     chunk.payloadTotalSize = payload.size();
     chunk.payloadOffset = 0;
@@ -19,7 +20,7 @@ bool ChunkedMessageProcessor::sendPayload(const std::string &payload) {
 
         std::memcpy(chunk.payload.data(), payload.data() + chunk.payloadOffset, chunkSize);
 
-        if (!sendBuffer_(&chunk, chunkSize + offsetof(CoordinatorPayload, payload))) {
+        if (!sharedDataQueue_->enqueueMessage(&chunk, chunkSize + offsetof(CoordinatorPayload, payload))) {
             ELOG_WARNING(logger_, COORDINATOR, "ChunkedMessageProcessor: failed to send chunked message. msgId: {}, offset: {}", msgId_, chunk.payloadOffset);
             return false;
         }
@@ -46,7 +47,7 @@ void ChunkedMessageProcessor::processReceivedChunk(const CoordinatorPayload *chu
 
     // Validate offset
     if (message.getCurrentSize() != chunk->payloadOffset) {
-        throw std::runtime_error(std::format("ChunkedMessageProcessor: received chunk with unexpected offset: {}, expected: {}", chunk->payloadOffset, message.getCurrentSize()));
+        throw std::runtime_error(std::format("ChunkedMessageProcessor: received chunk with unexpected offset: {}, expected: {}. pid: {}, msgId: {}", chunk->payloadOffset, message.getCurrentSize(), chunk->senderProcessId, chunk->msgId));
     }
 
     // Validate offset + size does not exceed total size
@@ -92,6 +93,15 @@ void ChunkedMessageProcessor::cleanupAbandonedMessages(std::chrono::steady_clock
             ++senderIt;
         }
     }
+}
+
+bool ChunkedMessageProcessor::tryReceiveMessage(char *buffer, size_t bufferSize) {
+    size_t receivedSize = 0;
+    if (sharedDataQueue_->tryReceiveMessage(buffer, bufferSize, receivedSize)) {
+        processReceivedChunk(reinterpret_cast<const CoordinatorPayload *>(buffer), receivedSize);
+        return true;
+    }
+    return false;
 }
 
 } // namespace opentelemetry::php::coordinator

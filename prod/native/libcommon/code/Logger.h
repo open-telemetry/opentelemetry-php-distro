@@ -3,7 +3,6 @@
 #include "LoggerInterface.h"
 #include "LoggerSinkInterface.h"
 #include "LogFeature.h"
-#include "CommonUtils.h"
 #include "SpinLock.h"
 
 #include <atomic>

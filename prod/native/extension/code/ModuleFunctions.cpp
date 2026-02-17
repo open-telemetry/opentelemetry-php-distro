@@ -1,5 +1,6 @@
 
 #include "ModuleFunctions.h"
+#include "ConfigurationStorage.h"
 #include "LoggerInterface.h"
 #include "LogFeature.h"
 #include "ModuleGlobals.h"
@@ -220,7 +221,7 @@ PHP_FUNCTION(initialize) {
     ZEND_HASH_FOREACH_END();
 
     opentelemetry::php::transport::HttpEndpointSSLOptions sslOptions = getSSLOptionsForSignalsEndpoint(std::string_view(ZSTR_VAL(endpoint), ZSTR_LEN(endpoint)));
-    OTEL_GL(coordinatorProcess_)->getCoordinatorSender().initializeConnection(std::string(ZSTR_VAL(endpoint), ZSTR_LEN(endpoint)), ZSTR_HASH(endpoint), std::string(ZSTR_VAL(contentType), ZSTR_LEN(contentType)), endpointHeaders, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration<double>(timeout)), static_cast<std::size_t>(maxRetries), std::chrono::milliseconds(retryDelay), sslOptions);
+    OTEL_GL(httpTransportAsync_)->initializeConnection(std::string(ZSTR_VAL(endpoint), ZSTR_LEN(endpoint)), ZSTR_HASH(endpoint), std::string(ZSTR_VAL(contentType), ZSTR_LEN(contentType)), endpointHeaders, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration<double>(timeout)), static_cast<std::size_t>(maxRetries), std::chrono::milliseconds(retryDelay), sslOptions);
 }
 
 ZEND_BEGIN_ARG_INFO_EX(enqueue_arginfo, 0, 0, 2)
@@ -236,7 +237,7 @@ PHP_FUNCTION(enqueue) {
     Z_PARAM_STR(payload)
     ZEND_PARSE_PARAMETERS_END();
 
-    OTEL_GL(coordinatorProcess_)->getCoordinatorSender().enqueue(ZSTR_HASH(endpoint), std::span<std::byte>(reinterpret_cast<std::byte *>(ZSTR_VAL(payload)), ZSTR_LEN(payload)));
+    OTEL_GL(httpTransportAsync_)->enqueue(ZSTR_HASH(endpoint), std::span<std::byte>(reinterpret_cast<std::byte *>(ZSTR_VAL(payload)), ZSTR_LEN(payload)));
 }
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(set_object_property_value_arginfo, 0, 3, _IS_BOOL, 0)

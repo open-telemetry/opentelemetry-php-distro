@@ -1,6 +1,7 @@
 #pragma once
 
-#include <functional>
+#include "PhpBridgeInterface.h"
+
 #include <memory>
 #include <set>
 

@@ -5,7 +5,9 @@
 #include "otel_distro_version.h"
 #include "CommonUtils.h"
 #include "ConfigurationManager.h"
+#include "ConfigurationStorage.h"
 #include "ConfigurationSnapshot.h"
+#include "coordinator/CoordinatorConfigurationProvider.h"
 #include "ForkHandler.h"
 #include "Hooking.h"
 #include "InternalFunctionInstrumentation.h"
@@ -13,7 +15,6 @@
 #include "ModuleGlobals.h"
 #include "SigSegvHandler.h"
 #include "os/OsUtils.h"
-#include "coordinator/CoordinatorProcess.h"
 #include "VendorCustomizationsInterface.h"
 
 #include <curl/curl.h>
@@ -71,11 +72,6 @@ void moduleInit(int moduleType, int moduleNumber) {
     if (EAPM_CFG(bootstrap_php_part_file).empty()) {
         ELOGF_WARNING(globals->logger_, MODULE, "bootstrap_php_part_file configuration option is not set - extension will be disabled");
         return;
-    }
-
-    if (globals->coordinatorProcess_->start()) {
-        delete globals;
-        std::exit(0);
     }
 
     // add config update watcher in worker process

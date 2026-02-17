@@ -6,7 +6,6 @@
 #include "ConfigurationStorage.h"
 #include "CurlSender.h"
 #include "HttpEndpoints.h"
-#include "SpinLock.h"
 #include "CommonUtils.h"
 
 #include <algorithm>
@@ -22,7 +21,6 @@
 #include <vector>
 #include <boost/container_hash/hash.hpp>
 #include <curl/curl.h>
-#include <iostream>
 
 using namespace std::literals;
 using namespace std::string_view_literals;
@@ -93,7 +91,7 @@ public:
         pauseCondition_.notify_all();
     }
 
-    void updateRetryDelay(endpointUrlHash_t endpointHash, std::chrono::milliseconds retryDelay) {
+    void updateRetryDelay(endpointUrlHash_t endpointHash, std::chrono::milliseconds retryDelay) override {
         try {
             endpoints_.updateRetryDelay(endpointHash, retryDelay);
         } catch (std::runtime_error const &error) {

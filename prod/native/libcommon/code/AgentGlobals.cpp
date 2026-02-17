@@ -19,77 +19,59 @@
 #include "coordinator/CoordinatorProcess.h"
 #include "coordinator/CoordinatorMessagesDispatcher.h"
 #include "coordinator/CoordinatorConfigurationProvider.h"
+#include "coordinator/CoordinatorSharedDataQueue.h"
+#include "coordinator/CoordinatorTelemetrySignalsSender.h"
+#include "coordinator/WorkerRegistrar.h"
 #include "transport/HttpTransportAsync.h"
 #include "transport/OpAmp.h"
 #include "DependencyAutoLoaderGuard.h"
 #include "VendorCustomizationsInterface.h"
+#include <memory>
 #include <signal.h>
 
 namespace opentelemetry::php {
 // clang-format off
 
 AgentGlobals::AgentGlobals(std::shared_ptr<LoggerInterface> logger,
-        std::shared_ptr<LoggerSinkInterface> logSinkStdErr,
-        std::shared_ptr<LoggerSinkInterface> logSinkSysLog,
-        std::shared_ptr<LoggerSinkFile> logSinkFile,
+        std::function<void(opentelemetry::php::ConfigurationSnapshot const &)> loggerConfigUpdateFunc,
         std::shared_ptr<PhpBridgeInterface> bridge,
         std::shared_ptr<InstrumentedFunctionHooksStorageInterface> hooksStorage,
         std::shared_ptr<InferredSpans> inferredSpans,
+        std::shared_ptr<coordinator::CoordinatorSharedDataQueue> sharedDataQueue,
+        std::shared_ptr<coordinator::CoordinatorConfigurationProvider> sharedCoordinatorConfigProvider,
         std::shared_ptr<config::OptionValueProviderInterface> defaultOptionValueProvider) :
     vendorCustomizations_(::getVendorCustomizations ? ::getVendorCustomizations() : nullptr),
     forkableRegistry_(std::make_shared<ForkableRegistry>()),
-    configManager_(std::make_shared<ConfigurationManager>(
+    configManager_(std::make_shared<ConfigurationManager>(logger,
         std::make_shared<config::PrioritizedOptionValueProviderChain>(std::initializer_list<std::pair<int, std::shared_ptr<config::OptionValueProviderInterface>>>{
             {0, defaultOptionValueProvider},
             vendorCustomizations_ ? vendorCustomizations_->getOptionValueProvider() : std::pair<int, std::shared_ptr<opentelemetry::php::config::OptionValueProviderInterface>>{0, nullptr} // create dummy pair if vendor customizations or its option provider is not available, to avoid checks in PrioritizedOptionValueProviderChain
     }))),
     config_(std::make_shared<opentelemetry::php::ConfigurationStorage>([this](ConfigurationSnapshot &cfg) { return configManager_->updateIfChanged(cfg); })),
     logger_(std::move(logger)),
-    logSinkStdErr_(std::move(logSinkStdErr)),
-    logSinkSysLog_(std::move(logSinkSysLog)),
-    logSinkFile_(std::move(logSinkFile)),
     bridge_(std::move(bridge)),
+    sharedMemory_(std::make_shared<opentelemetry::php::SharedMemoryState>()),
+    coordinatorConfigProvider_(std::move(sharedCoordinatorConfigProvider)),
+    processor_(std::make_shared<opentelemetry::php::coordinator::ChunkedMessageProcessor>(logger_, sharedDataQueue, [](const std::span<const std::byte> data) { })),
+    httpTransportAsync_(std::make_shared<opentelemetry::php::coordinator::CoordinatorTelemetrySignalsSender>(logger_, [this](std::string const &payload) { return processor_->sendPayload(payload); })),
     dependencyAutoLoaderGuard_(std::make_shared<DependencyAutoLoaderGuard>(bridge_, logger_)),
     hooksStorage_(std::move(hooksStorage)),
     sapi_(std::make_shared<opentelemetry::php::PhpSapi>(bridge_->getPhpSapiName())),
     inferredSpans_(std::move(inferredSpans)),
     periodicTaskExecutor_(),
-    httpTransportAsync_(std::make_shared<opentelemetry::php::transport::HttpTransportAsync<>>(logger_, config_)),
-    resourceDetector_(std::make_shared<opentelemetry::php::ResourceDetector>(bridge_)),
-    opAmp_(std::make_shared<opentelemetry::php::transport::OpAmp>(logger_, config_, httpTransportAsync_, resourceDetector_)),
-    sharedMemory_(std::make_shared<opentelemetry::php::SharedMemoryState>()),
     requestScope_(std::make_shared<opentelemetry::php::RequestScope>(logger_, bridge_, sapi_, sharedMemory_, dependencyAutoLoaderGuard_, inferredSpans_, config_, [hs = hooksStorage_]() { hs->clear(); }, [this]() { return getPeriodicTaskExecutor();}, [this]() { return coordinatorConfigProvider_->triggerUpdateIfChanged(); })),
-    workerRegistry_(std::make_shared<opentelemetry::php::coordinator::WorkerRegistry>(logger_)),
-    messagesDispatcher_(std::make_shared<opentelemetry::php::coordinator::CoordinatorMessagesDispatcher>(logger_, httpTransportAsync_, workerRegistry_)),
-    coordinatorConfigProvider_(std::make_shared<opentelemetry::php::coordinator::CoordinatorConfigurationProvider>(logger_, opAmp_)),
-    coordinatorProcess_(std::make_shared<opentelemetry::php::coordinator::CoordinatorProcess>(logger_, messagesDispatcher_, coordinatorConfigProvider_, workerRegistry_))
+    workerRegistrar_(std::make_shared<opentelemetry::php::coordinator::WorkerRegistrar>(logger_, [this](const std::string &payload) { return processor_->sendPayload(payload); }))
     {
-        // forkableRegistry_->registerForkable(httpTransportAsync_);
-        // forkableRegistry_->registerForkable(opAmp_);
+        forkableRegistry_->registerForkable(workerRegistrar_);
 
-        configManager_->attachLogger(logger_);
-
-        config_->addConfigUpdateWatcher([logger = logger_, stderrsink = logSinkStdErr_, syslogsink = logSinkSysLog_, filesink = logSinkFile_](ConfigurationSnapshot const &cfg) {
-            stderrsink->setLevel(cfg.log_level_stderr);
-            syslogsink->setLevel(cfg.log_level_syslog);
-            if (filesink) {
-                if (cfg.log_file.empty()) {
-                    filesink->setLevel(LogLevel::logLevel_off);
-                } else {
-                    filesink->setLevel(cfg.log_level_file);
-                    filesink->reopen(utils::getParameterizedString(cfg.log_file));
-                }
-            }
-
-            logger->setLogFeatures(utils::parseLogFeatures(logger, cfg.log_features));
-        });
-    }
+        config_->addConfigUpdateWatcher(loggerConfigUpdateFunc);
+}
 
 
 AgentGlobals::~AgentGlobals() {
     ELOG_DEBUG(logger_, MODULE, "AgentGlobals shutdown");
     config_->removeAllConfigUpdateWatchers();
-    opAmp_->removeAllConfigUpdateWatchers();
+    forkableRegistry_->clear();
 }
 
 std::shared_ptr<PeriodicTaskExecutor> AgentGlobals::getPeriodicTaskExecutor() {

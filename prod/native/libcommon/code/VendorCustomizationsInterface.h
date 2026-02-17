@@ -1,7 +1,8 @@
 #pragma once
 
+#include "config/OptionValueProviderInterface.h"
+
 #include <string>
-#include <optional>
 #include <memory>
 #include <utility>
 
@@ -34,4 +35,3 @@ extern "C" {
     // Weak symbol - may or may not be provided by vendor's static library
     __attribute__((weak)) std::shared_ptr<opentelemetry::php::VendorCustomizationsInterface> getVendorCustomizations();
 }
-

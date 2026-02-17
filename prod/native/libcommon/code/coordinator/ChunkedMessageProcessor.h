@@ -2,7 +2,6 @@
 
 #include "LoggerInterface.h"
 
-#include <array>
 #include <chrono>
 #include <cstring>
 #include <functional>
@@ -12,7 +11,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "CoordinatorMessagesDispatcher.h"
+#include "CoordinatorSharedDataQueue.h"
 
 namespace opentelemetry::php::coordinator {
 
@@ -59,14 +58,6 @@ private:
     std::chrono::steady_clock::time_point lastUpdated_;
 };
 
-struct CoordinatorPayload {
-    pid_t senderProcessId;
-    uint64_t msgId;
-    std::size_t payloadTotalSize;
-    std::size_t payloadOffset;
-    std::array<std::byte, 4064> payload; // it must be last field in the struct. sizeof(CoordinatorPayload) = 4096 bytes with current payload size
-};
-
 class ChunkedMessageProcessor {
 public:
     using sendBuffer_t = std::function<bool(const void *, size_t)>;
@@ -74,21 +65,25 @@ public:
 
     using msgId_t = uint64_t;
 
-    ChunkedMessageProcessor(std::shared_ptr<LoggerInterface> logger, sendBuffer_t sendBuffer, processMessage_t processMessage) : logger_(logger), sendBuffer_(std::move(sendBuffer)), processMessage_(std::move(processMessage)) {
+    ChunkedMessageProcessor(std::shared_ptr<LoggerInterface> logger, std::shared_ptr<CoordinatorSharedDataQueue> sharedDataQueue, processMessage_t processMessage) : logger_(logger), sharedDataQueue_(std::move(sharedDataQueue)), processMessage_(std::move(processMessage)) {
     }
 
     bool sendPayload(const std::string &payload);
     void processReceivedChunk(const CoordinatorPayload *chunk, size_t chunkSize);
     void cleanupAbandonedMessages(std::chrono::steady_clock::time_point now, std::chrono::milliseconds maxAge);
 
+    bool tryReceiveMessage(char *buffer, size_t bufferSize);
+
+private:
+    bool sendBuffer(const void *data, size_t size);
+
 protected:
     std::mutex mutex_;
     std::shared_ptr<LoggerInterface> logger_;
-    pid_t senderProcessId_ = getpid();
-    sendBuffer_t sendBuffer_;
+    std::shared_ptr<CoordinatorSharedDataQueue> sharedDataQueue_;
     processMessage_t processMessage_;
     std::unordered_map<pid_t, std::unordered_map<msgId_t, ChunkedMessage>> recievedMessages_;
-    msgId_t msgId_ = 0;
+    msgId_t msgId_ = 0; // it is not protected by mutex, because it is only used for sending messages and sending is single-threaded in current implementation
 };
 
 } // namespace opentelemetry::php::coordinator

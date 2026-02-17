@@ -1,9 +1,7 @@
 #pragma once
 
 #include "AutoZval.h"
-#include "PhpBridgeInterface.h"
 #include "LoggerInterface.h"
-#include "InternalFunctionInstrumentationStorage.h"
 #include "InstrumentedFunctionHooksStorage.h"
 #include <string_view>
 #include <Zend/zend_observer.h>

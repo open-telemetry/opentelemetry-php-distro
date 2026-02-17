@@ -55,6 +55,10 @@ public:
         }
     }
 
+    void clear() {
+        forkables_.clear();
+    }
+
 private:
     std::vector<std::shared_ptr<ForkableInterface>> forkables_;
 };

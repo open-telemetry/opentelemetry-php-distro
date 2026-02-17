@@ -4,7 +4,6 @@
 #include "HttpEndpointSSLOptions.h"
 
 #include <chrono>
-#include <memory>
 #include <string>
 #include <string_view>
 #include <curl/curl.h>

@@ -1,7 +1,6 @@
 #include "CoordinatorTelemetrySignalsSender.h"
 
 #include <functional>
-#include <memory>
 #include <string>
 
 #include "coordinator/proto/CoordinatorCommands.pb.h"

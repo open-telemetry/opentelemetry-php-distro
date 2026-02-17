@@ -1,6 +1,5 @@
 #include "DependencyAutoLoaderGuard.h"
 #include "LoggerInterface.h"
-#include "PhpBridgeInterface.h"
 
 #include <functional>
 #include <filesystem>

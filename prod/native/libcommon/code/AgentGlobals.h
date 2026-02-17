@@ -2,7 +2,8 @@
 
 #include "PhpSapi.h"
 #include "Logger.h"
-#include "coordinator/WorkerRegistry.h"
+#include "transport/HttpTransportAsyncInterface.h"
+
 #include <functional>
 #include <memory>
 
@@ -27,7 +28,7 @@ class SharedMemoryState;
 class RequestScope;
 class ConfigurationManager;
 class ConfigurationStorage;
-class ConfigurationSnapshot;
+struct ConfigurationSnapshot;
 class LoggerSinkInterface;
 class LogSinkFile;
 class InstrumentedFunctionHooksStorageInterface;
@@ -37,16 +38,14 @@ namespace config {
 class OptionValueProviderInterface;
 }
 namespace coordinator {
-class CoordinatorMessagesDispatcher;
-class CoordinatorProcess;
 class CoordinatorConfigurationProvider;
-class WorkerRegistry;
+class CoordinatorSharedDataQueue;
+class ChunkedMessageProcessor;
+class WorkerRegistrar;
+
 } // namespace coordinator
 namespace transport {
-class CurlSender;
-class HttpEndpoints;
-template <typename Sender, typename Endpoints>
-class HttpTransportAsync;
+class HttpTransportAsyncInterface;
 } // namespace transport
 
 // clang-format off
@@ -54,12 +53,12 @@ class HttpTransportAsync;
 class AgentGlobals {
 public:
     AgentGlobals(std::shared_ptr<LoggerInterface> logger,
-        std::shared_ptr<LoggerSinkInterface> logSinkStdErr,
-        std::shared_ptr<LoggerSinkInterface> logSinkSysLog,
-        std::shared_ptr<LoggerSinkFile> logSinkFile,
+        std::function<void(opentelemetry::php::ConfigurationSnapshot const &)> loggerConfigUpdateFunc,
         std::shared_ptr<PhpBridgeInterface> bridge,
         std::shared_ptr<InstrumentedFunctionHooksStorageInterface> hooksStorage,
         std::shared_ptr<InferredSpans> inferredSpans,
+        std::shared_ptr<coordinator::CoordinatorSharedDataQueue> sharedDataQueue,
+        std::shared_ptr<coordinator::CoordinatorConfigurationProvider> sharedCoordinatorConfigProvider,
         std::shared_ptr<config::OptionValueProviderInterface> optionValueProvider);
 
     ~AgentGlobals();
@@ -75,20 +74,24 @@ public:
     std::shared_ptr<LoggerSinkInterface> logSinkSysLog_;
     std::shared_ptr<LoggerSinkFile> logSinkFile_;
     std::shared_ptr<PhpBridgeInterface> bridge_;
+    std::shared_ptr<SharedMemoryState> sharedMemory_;
+    std::shared_ptr<coordinator::CoordinatorConfigurationProvider> coordinatorConfigProvider_;
+    std::shared_ptr<coordinator::ChunkedMessageProcessor> processor_;
+    std::shared_ptr<transport::HttpTransportAsyncInterface> httpTransportAsync_;
     std::shared_ptr<DependencyAutoLoaderGuard> dependencyAutoLoaderGuard_;
     std::shared_ptr<InstrumentedFunctionHooksStorageInterface> hooksStorage_;
     std::shared_ptr<PhpSapi> sapi_;
     std::shared_ptr<InferredSpans> inferredSpans_;
     std::shared_ptr<PeriodicTaskExecutor> periodicTaskExecutor_;
-    std::shared_ptr<transport::HttpTransportAsync<transport::CurlSender, transport::HttpEndpoints> > httpTransportAsync_;
-    std::shared_ptr<opentelemetry::php::ResourceDetector> resourceDetector_;
-    std::shared_ptr<opentelemetry::php::transport::OpAmp> opAmp_;
-    std::shared_ptr<SharedMemoryState> sharedMemory_;
     std::shared_ptr<RequestScope> requestScope_;
-    std::shared_ptr<coordinator::WorkerRegistry> workerRegistry_;
-    std::shared_ptr<coordinator::CoordinatorMessagesDispatcher> messagesDispatcher_;
-    std::shared_ptr<coordinator::CoordinatorConfigurationProvider> coordinatorConfigProvider_;
-    std::shared_ptr<coordinator::CoordinatorProcess> coordinatorProcess_;
+
+    std::shared_ptr<coordinator::WorkerRegistrar> workerRegistrar_;
 };
 
 } // namespace opentelemetry::php
+// std::shared_ptr<opentelemetry::php::ResourceDetector> resourceDetector_;
+// std::shared_ptr<coordinator::CoordinatorProcess> coordinatorProcess_;
+// std::shared_ptr<opentelemetry::php::transport::OpAmp> opAmp_;
+// std::shared_ptr<coordinator::WorkerRegistry> workerRegistry_;
+// std::shared_ptr<coordinator::CoordinatorMessagesDispatcher> messagesDispatcher_;
+// std::shared_ptr<transport::HttpTransportAsync<transport::CurlSender, transport::HttpEndpoints> > httpTransportAsync_;

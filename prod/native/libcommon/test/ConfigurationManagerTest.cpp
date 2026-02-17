@@ -1,5 +1,6 @@
 #include "ConfigurationManager.h"
 
+#include "Logger.h"
 #include <string_view>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -18,8 +19,19 @@ public:
 
 class ConfigurationManagerTest : public ::testing::Test {
 public:
+    ConfigurationManagerTest() {
+
+        if (std::getenv("OTEL_PHP_DEBUG_LOG_TESTS")) {
+            auto serr = std::make_shared<opentelemetry::php::LoggerSinkStdErr>();
+            serr->setLevel(logLevel_trace);
+            reinterpret_cast<opentelemetry::php::Logger *>(log_.get())->attachSink(serr);
+        }
+    }
+
+protected:
+    std::shared_ptr<opentelemetry::php::LoggerInterface> log_ = std::make_shared<opentelemetry::php::Logger>(std::vector<std::shared_ptr<opentelemetry::php::LoggerSinkInterface>>());
     std::shared_ptr<MockOptionValueProvider> optionValueProviderMock_ = std::make_shared<MockOptionValueProvider>();
-    ConfigurationManager cfg_{optionValueProviderMock_};
+    ConfigurationManager cfg_{log_, optionValueProviderMock_};
 };
 
 TEST_F(ConfigurationManagerTest, update) {

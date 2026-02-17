@@ -1,5 +1,7 @@
 #include "coordinator/ChunkedMessageProcessor.h"
 #include "Logger.h"
+#include "coordinator/CoordinatorSharedDataQueue.h"
+#include "gmock/gmock.h"
 #include <algorithm>
 
 #include <gtest/gtest.h>
@@ -9,7 +11,6 @@ namespace opentelemetry::php::coordinator {
 
 class ChunkedMessageProcessorActionsMock {
 public:
-    MOCK_METHOD(bool, sendBuffer, (const void *buffer, size_t size));
     MOCK_METHOD(void, processReceivedMessage, (const std::span<const std::byte> data));
 };
 
@@ -18,7 +19,6 @@ public:
     template <typename... Args>
         TestableChunkedMessageProcessor(Args&&... args)
             : ChunkedMessageProcessor(std::forward<Args>(args)...) {}
-
 
     FRIEND_TEST(ChunkedMessageProcessorTest, ShortPayloadIsImmediatelyProcessedUponReception);
     FRIEND_TEST(ChunkedMessageProcessorTest, LongerPayloadIsStoredUntilCompleteUponReception);
@@ -37,205 +37,85 @@ public:
     }
 
 protected:
-    ::testing::StrictMock<ChunkedMessageProcessorActionsMock> actionsMock_;
+    ::testing::StrictMock<ChunkedMessageProcessorActionsMock> mock_;
     std::shared_ptr<LoggerInterface> log_ = std::make_shared<opentelemetry::php::Logger>(std::vector<std::shared_ptr<LoggerSinkInterface>>());
-    std::shared_ptr<TestableChunkedMessageProcessor> processor_{std::make_shared<TestableChunkedMessageProcessor>(
-        log_,
-        [this](const void *buffer, size_t size) { return actionsMock_.sendBuffer(buffer, size); }, [this](const std::span<const std::byte> data) { actionsMock_.processReceivedMessage(data); })};
+    std::shared_ptr<CoordinatorSharedDataQueue> sharedDataQueue_ = std::make_shared<CoordinatorSharedDataQueue>(log_);
+    std::shared_ptr<TestableChunkedMessageProcessor> processor_{std::make_shared<TestableChunkedMessageProcessor>(log_, sharedDataQueue_, [&](const std::span<const std::byte> data) { mock_.processReceivedMessage(data); })};
 };
-
-
 
 TEST_F(ChunkedMessageProcessorTest, sendPayload) {
     std::string testPayload(17000, 'A');
 
-    ::testing::InSequence seq;
-    EXPECT_CALL(actionsMock_, sendBuffer(testing::_, sizeof(CoordinatorPayload)))
-        .Times(4)
-        .WillRepeatedly(testing::Return(true));
-    EXPECT_CALL(actionsMock_, sendBuffer(testing::_, sizeof(CoordinatorPayload) - (4064 - (17000 % 4064))))
-        .Times(1)
-        .WillRepeatedly(testing::Return(true));
-
-
+    ASSERT_GT(testPayload.size(), CoordinatorSharedDataQueue::maxMqPayloadSize);
     EXPECT_TRUE(processor_->sendPayload(testPayload));
-}
 
-TEST_F(ChunkedMessageProcessorTest, sendPayloadExactSize) {
-    std::string testPayload(12192, 'A');
-
-    ::testing::InSequence seq;
-    EXPECT_CALL(actionsMock_, sendBuffer(testing::_, sizeof(CoordinatorPayload)))
-        .Times(3)
-        .WillRepeatedly(testing::Return(true));
-
-    EXPECT_TRUE(processor_->sendPayload(testPayload));
-}
-
-TEST_F(ChunkedMessageProcessorTest, sendPayloadExceedSizeByOneByte) {
-    std::string testPayload(12193, 'A');
-
-    ::testing::InSequence seq;
-    EXPECT_CALL(actionsMock_, sendBuffer(testing::_, sizeof(CoordinatorPayload)))
-        .Times(3)
-        .WillRepeatedly(testing::Return(true));
-    EXPECT_CALL(actionsMock_, sendBuffer(testing::_, offsetof(CoordinatorPayload, payload) + 1))
-        .Times(1)
-        .WillRepeatedly(testing::Return(true));
-
-    EXPECT_TRUE(processor_->sendPayload(testPayload));
-}
-
-TEST_F(ChunkedMessageProcessorTest, processReceivedChunk) {
-    std::array<std::byte, 10000> randomData;
-    std::generate(randomData.begin(), randomData.end(), []() { return std::byte(std::rand() % 256); });
-    randomData.fill(std::byte{0});
-
-    CoordinatorPayload chunk;
-    chunk.senderProcessId = getpid();
-    chunk.msgId = 1;
-    chunk.payloadTotalSize = randomData.size();
-
-    chunk.payloadOffset = 0;
-    std::memcpy(chunk.payload.data() + chunk.payloadOffset, randomData.data() + chunk.payloadOffset, sizeof(CoordinatorPayload::payload));
-    processor_->processReceivedChunk(&chunk, sizeof(CoordinatorPayload));
-
-    chunk.payloadOffset += sizeof(CoordinatorPayload::payload);
-    std::memcpy(chunk.payload.data() + chunk.payloadOffset, randomData.data() + chunk.payloadOffset, sizeof(CoordinatorPayload::payload));
-    processor_->processReceivedChunk(&chunk, sizeof(CoordinatorPayload));
-
-    EXPECT_CALL(actionsMock_, processReceivedMessage(::testing::_)).Times(1).WillOnce(::testing::WithArgs<0>(::testing::Invoke([&](std::span<const std::byte> data) {
-        EXPECT_EQ(data.size(), randomData.size());
-        ASSERT_TRUE(std::ranges::equal(data, randomData));
+    EXPECT_CALL(mock_, processReceivedMessage(::testing::_)).Times(1).WillOnce(::testing::WithArgs<0>(::testing::Invoke([&](std::span<const std::byte> data) {
+        EXPECT_EQ(data.size(), testPayload.size());
+        ASSERT_TRUE(std::ranges::equal(data, std::as_bytes(std::span<const char>(testPayload.data(), testPayload.size()))));
     })));
 
-    chunk.payloadOffset += sizeof(CoordinatorPayload::payload);
-    std::memcpy(chunk.payload.data() + chunk.payloadOffset, randomData.data() + chunk.payloadOffset, 10000 % sizeof(CoordinatorPayload::payload));
-    processor_->processReceivedChunk(&chunk, (randomData.size() % sizeof(CoordinatorPayload::payload)) + offsetof(CoordinatorPayload, payload));
+    char buffer[CoordinatorSharedDataQueue::maxMqPayloadSize];
+    while (processor_->tryReceiveMessage(buffer, CoordinatorSharedDataQueue::maxMqPayloadSize))
+        ;
 }
 
-TEST_F(ChunkedMessageProcessorTest, processReceivedChunkExceedSize) {
-    CoordinatorPayload chunk;
-    chunk.senderProcessId = getpid();
-    chunk.msgId = 1;
-    chunk.payloadTotalSize = 10000;
-    chunk.payloadOffset = 0;
-    chunk.payload.fill(std::byte{'A'});
+TEST_F(ChunkedMessageProcessorTest, sendPayload_maxPayloadDataSize) {
+    std::string testPayload(sizeof(CoordinatorPayload::payload), 'A');
 
-    processor_->processReceivedChunk(&chunk, 4096);
-    chunk.payloadOffset += 4064;
-    processor_->processReceivedChunk(&chunk, 4096);
-    chunk.payloadOffset += 4064;
-
-    EXPECT_THROW(processor_->processReceivedChunk(&chunk, 4096), std::runtime_error);
-}
-
-
-TEST_F(ChunkedMessageProcessorTest, DontSendEmptyPayload) {
-    ::testing::InSequence seq;
-    EXPECT_CALL(actionsMock_, sendBuffer(::testing::_, ::testing::_)).Times(0);
-    EXPECT_TRUE(processor_->sendPayload(""));
-}
-
-TEST_F(ChunkedMessageProcessorTest, sendPayloadSmallSingleChunk) {
-    std::string testPayload(1, 'Z');
-    size_t expectedSize = offsetof(CoordinatorPayload, payload) + testPayload.size();
-    EXPECT_CALL(actionsMock_, sendBuffer(::testing::_, expectedSize))
-        .Times(1)
-        .WillOnce(::testing::Return(true));
+    ASSERT_EQ(testPayload.size(), sizeof(CoordinatorPayload::payload));
     EXPECT_TRUE(processor_->sendPayload(testPayload));
+
+    EXPECT_CALL(mock_, processReceivedMessage(::testing::_)).Times(1).WillOnce(::testing::WithArgs<0>(::testing::Invoke([&](std::span<const std::byte> data) {
+        EXPECT_EQ(data.size(), testPayload.size());
+        ASSERT_TRUE(std::ranges::equal(data, std::as_bytes(std::span<const char>(testPayload.data(), testPayload.size()))));
+    })));
+
+    char buffer[CoordinatorSharedDataQueue::maxMqPayloadSize];
+    while (processor_->tryReceiveMessage(buffer, CoordinatorSharedDataQueue::maxMqPayloadSize))
+        ;
 }
 
-TEST_F(ChunkedMessageProcessorTest, ShortPayloadIsImmediatelyProcessedUponReception) {
+TEST_F(ChunkedMessageProcessorTest, sendPayload_maxPayloadDataSizePlusOne) {
+    std::string testPayload(sizeof(CoordinatorPayload::payload) + 1, 'A');
 
-    EXPECT_CALL(actionsMock_, sendBuffer(testing::_, testing::_)).Times(2).WillRepeatedly(::testing::Invoke([&](const void *buffer, size_t size) {
-        processor_->processReceivedChunk(static_cast<const CoordinatorPayload *>(buffer), size);
-        return true;
-    }));
+    ASSERT_EQ(testPayload.size(), sizeof(CoordinatorPayload::payload) + 1);
+    EXPECT_TRUE(processor_->sendPayload(testPayload));
 
+    EXPECT_CALL(mock_, processReceivedMessage(::testing::_)).Times(1).WillOnce(::testing::WithArgs<0>(::testing::Invoke([&](std::span<const std::byte> data) {
+        EXPECT_EQ(data.size(), testPayload.size());
+        ASSERT_TRUE(std::ranges::equal(data, std::as_bytes(std::span<const char>(testPayload.data(), testPayload.size()))));
+    })));
 
-    {
-    ::testing::InSequence seq;
-    EXPECT_CALL(actionsMock_, processReceivedMessage(testing::_))
-        .Times(1)
-        .WillOnce(::testing::Invoke([&](std::span<const std::byte> data) {
-            ASSERT_EQ(processor_->recievedMessages_.size(), 0u);
-        }));
-
-    EXPECT_CALL(actionsMock_, processReceivedMessage(testing::_))
-        .Times(1)
-        .WillOnce(::testing::Invoke([&](std::span<const std::byte> data) {
-            ASSERT_EQ(processor_->recievedMessages_.size(), 0u);
-        }));
-
-    }
-
-    ASSERT_EQ(processor_->msgId_, 0u);
-    EXPECT_TRUE(processor_->sendPayload("A"));
-    ASSERT_EQ(processor_->msgId_, 1u);
-    EXPECT_TRUE(processor_->sendPayload(std::string(10, 'B')));
-    ASSERT_EQ(processor_->msgId_, 2u);
-
+    char buffer[CoordinatorSharedDataQueue::maxMqPayloadSize];
+    while (processor_->tryReceiveMessage(buffer, CoordinatorSharedDataQueue::maxMqPayloadSize))
+        ;
 }
 
-TEST_F(ChunkedMessageProcessorTest, LongerPayloadIsStoredUntilCompleteUponReception) {
+TEST_F(ChunkedMessageProcessorTest, sendPayload_smallSingleChunk) {
+    std::string testPayload = "ABCDEF";
 
-    size_t expectedMessagesCount[6] = {1, 1, 0, 1, 1, 0}; // expected number of stored messages after each chunk reception, 0 means message is complete and it is removed before processing
-    size_t expectedStoredChunkSize[6] = {sizeof(CoordinatorPayload::payload), sizeof(CoordinatorPayload::payload) * 2, 0, sizeof(CoordinatorPayload::payload), sizeof(CoordinatorPayload::payload) * 2, 0}; // expected chunk size after each chunk reception, 0 means message is complete and it is removed before processing
-    size_t invocationCnt = 0;
+    EXPECT_TRUE(processor_->sendPayload(testPayload));
 
-    EXPECT_CALL(actionsMock_, sendBuffer(testing::_, testing::_)).Times(6).WillRepeatedly(::testing::Invoke([&](const void *buffer, size_t size) -> bool {
-        processor_->processReceivedChunk(static_cast<const CoordinatorPayload *>(buffer), size);
-        EXPECT_EQ(expectedMessagesCount[invocationCnt], processor_->recievedMessages_.size());
+    EXPECT_CALL(mock_, processReceivedMessage(::testing::_)).Times(1).WillOnce(::testing::WithArgs<0>(::testing::Invoke([&](std::span<const std::byte> data) {
+        EXPECT_EQ(data.size(), testPayload.size());
+        ASSERT_TRUE(std::ranges::equal(data, std::as_bytes(std::span<const char>(testPayload.data(), testPayload.size()))));
+    })));
 
-        if (expectedMessagesCount[invocationCnt] == 0) {
-            // message should be removed after processing
-            invocationCnt++;
-            return true;
-        }
+    char buffer[CoordinatorSharedDataQueue::maxMqPayloadSize];
+    while (processor_->tryReceiveMessage(buffer, CoordinatorSharedDataQueue::maxMqPayloadSize))
+        ;
+}
 
-        auto messagesForPid = processor_->recievedMessages_.find(getpid());
-        EXPECT_NE(messagesForPid, processor_->recievedMessages_.end());
-        if (messagesForPid == processor_->recievedMessages_.end()) {
-            return false;
-        }
+TEST_F(ChunkedMessageProcessorTest, sendPayload_emptyPayload) {
+    std::string testPayload = "";
 
-        auto chMsg = messagesForPid->second.find(processor_->msgId_);
-        EXPECT_NE(chMsg, messagesForPid->second.end());
-        if (chMsg == messagesForPid->second.end()) {
-            return false;
-        }
+    EXPECT_TRUE(processor_->sendPayload(testPayload));
 
+    EXPECT_CALL(mock_, processReceivedMessage(::testing::_)).Times(0);
 
-        auto currentChunkSize = chMsg->second.getData().size();
-        EXPECT_EQ(expectedStoredChunkSize[invocationCnt], currentChunkSize);
-        if (currentChunkSize != expectedStoredChunkSize[invocationCnt]) {
-            return false;
-        }
-
-        invocationCnt++;
-        return true;
-    }));
-
-    constexpr size_t payloadSize = 10000u;
-
-    ::testing::InSequence seq;
-    EXPECT_CALL(actionsMock_, processReceivedMessage(testing::_))
-        .Times(2)
-        .WillRepeatedly(::testing::Invoke([&](std::span<const std::byte> data) {
-            ASSERT_EQ(data.size(), payloadSize);
-            ASSERT_EQ(processor_->recievedMessages_.size(), 0u); // test if processed message is removed
-        }));
-
-
-    std::string data(payloadSize, 'C');
-
-    ASSERT_EQ(processor_->msgId_, 0u);
-    EXPECT_TRUE(processor_->sendPayload(data));
-    ASSERT_EQ(processor_->msgId_, 1u);
-    EXPECT_TRUE(processor_->sendPayload(data));
-    ASSERT_EQ(processor_->msgId_, 2u);
-
+    char buffer[CoordinatorSharedDataQueue::maxMqPayloadSize];
+    while (processor_->tryReceiveMessage(buffer, CoordinatorSharedDataQueue::maxMqPayloadSize))
+        ;
 }
 
 TEST_F(ChunkedMessageProcessorTest, cleanupAbandonedMessagesRemovesPartialMessage) {
@@ -271,37 +151,6 @@ TEST_F(ChunkedMessageProcessorTest, cleanupAbandonedMessagesRemovesPartialMessag
     ASSERT_TRUE(processor_->recievedMessages_.empty());
 }
 
-
-TEST_F(ChunkedMessageProcessorTest, sendPayloadLargeSingleFailureNoFurtherCalls) {
-    std::string payload(10000, 'X'); // requires 3 chunks (2 full + last partial)
-    {
-        ::testing::InSequence seq;
-        EXPECT_CALL(actionsMock_, sendBuffer(testing::_, sizeof(CoordinatorPayload)))
-            .Times(1)
-            .WillOnce(testing::Return(false));
-        EXPECT_FALSE(processor_->sendPayload(payload));
-    }
-}
-
-TEST_F(ChunkedMessageProcessorTest, sendPayloadMsgIdSequenceWithDifferentSizes) {
-    std::vector<size_t> ids;
-    EXPECT_CALL(actionsMock_, sendBuffer(testing::_, testing::_))
-        .Times(4)
-        .WillRepeatedly(::testing::Invoke([&](const void *buffer, size_t) {
-            auto *p = static_cast<const CoordinatorPayload *>(buffer);
-            ids.push_back(p->msgId);
-            return true;
-        }));
-    EXPECT_TRUE(processor_->sendPayload(std::string(1, 'A')));          // single chunk
-    EXPECT_TRUE(processor_->sendPayload(std::string(5000, 'B')));       // two chunks (first captured)
-    EXPECT_TRUE(processor_->sendPayload(std::string(10, 'C')));         // single chunk
-    ASSERT_EQ(ids.size(), 4u);
-    EXPECT_EQ(ids[0], 1u);
-    EXPECT_EQ(ids[1], 2u);
-    EXPECT_EQ(ids[2], 2u);
-    EXPECT_EQ(ids[3], 3u);
-}
-
 TEST_F(ChunkedMessageProcessorTest, processReceivedChunkWithInvalidSize) {
     CoordinatorPayload chunk;
     chunk.senderProcessId = getpid();
@@ -326,5 +175,4 @@ TEST_F(ChunkedMessageProcessorTest, processReceivedChunkWithMismatchedOffset) {
     chunk.payloadOffset = 8000; // skipping chunks
     EXPECT_THROW(processor_->processReceivedChunk(&chunk, sizeof(CoordinatorPayload)), std::runtime_error);
 }
-
 }

@@ -31,13 +31,8 @@ public:
 
     using optionValue_t = std::variant<std::chrono::milliseconds, LogLevel, bool, std::string, std::size_t, std::nullopt_t>;
 
-    ConfigurationManager(std::shared_ptr<config::OptionValueProviderInterface> optionValueProvider) : optionValueProvider_(std::move(optionValueProvider)) {
+    ConfigurationManager(std::shared_ptr<LoggerInterface> logger, std::shared_ptr<config::OptionValueProviderInterface> optionValueProvider) : logger_(std::move(logger)), optionValueProvider_(std::move(optionValueProvider)) {
         current_.revision = getNextRevision();
-    }
-
-    //TODO class might be used in different threads, right now it is pretty safe as log is attached on globals init (for zts it should be in minit)
-    void attachLogger(std::shared_ptr<LoggerInterface> logger) {
-        logger_ = std::move(logger);
     }
 
     void update(configFiles_t configFiles = {});
@@ -66,8 +61,8 @@ private:
     std::atomic_uint64_t upcomingConfigRevision_ = 0;
     ConfigurationSnapshot current_;
 
-    std::shared_ptr<config::OptionValueProviderInterface> optionValueProvider_;
     std::shared_ptr<LoggerInterface> logger_;
+    std::shared_ptr<config::OptionValueProviderInterface> optionValueProvider_;
 
     // Custom offset calculation for non-standard-layout types
     template <typename T, typename M>
