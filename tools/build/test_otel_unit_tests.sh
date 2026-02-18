@@ -197,15 +197,24 @@ for package in "${MATCHED_PACKAGES[@]}"; do
 
     cd $vendor_dir
     echo "::group::Installing $package dependencies"
+    rm composer.lock
+
     composer ${OPT_QUIET} config --no-plugins allow-plugins.php-http/discovery false
     composer ${OPT_QUIET} config allow-plugins.tbachert/spi true
+
+    echo "Removing static analysis tools to avoid conflicts with tests"
+
+    composer ${OPT_QUIET} require php:^8.1 --no-update
+    composer ${OPT_QUIET} remove --dev -n --no-update phan/phan phpstan/phpstan phpstan/phpstan-phpunit psalm/plugin-phpunit vimeo/psalm friendsofphp/php-cs-fixer
+    composer ${OPT_QUIET} require -n --no-update "$semconv_package" "$sdk_package"
+
     echo "Installing $package with version constraints from composer.json"
-    composer ${OPT_QUIET} require -n --ignore-platform-req php "$semconv_package" "$sdk_package"
-    composer ${OPT_QUIET} install --dev --ignore-platform-req php
+    composer ${OPT_QUIET} install
+
     echo "::endgroup::"
 
     echo "::group::🚀 Running $package tests 🚀"
-    ./vendor/bin/phpunit --debug --log-junit ${OPT_REPORTS_DESTINATION_PATH}/$package.xml
+    ./vendor/bin/phpunit --verbose --debug --log-junit ${OPT_REPORTS_DESTINATION_PATH}/$package.xml
 
     if [[ $? -ne 0 ]]; then
         echo "::error::PHPUnit tests failed for package $package"
