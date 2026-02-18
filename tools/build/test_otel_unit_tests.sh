@@ -99,6 +99,18 @@ match_packages() {
     done
 }
 
+get_package_version() {
+    local pkg_name=$1
+    local version=$(jq -r --arg pkg "$pkg_name" '.require[$pkg]' "$OPT_COMPOSER_FILE")
+
+    if [[ -z "$version" || "$version" == "null" ]]; then
+        echo "::error::Package $pkg_name not found in composer.json" >&2
+        return 1
+    fi
+
+    echo "$pkg_name:$version"
+}
+
 setup_composer_project() {
     echo "::group::Installing composer project"
     composer ${OPT_QUIET} init -n --name "opentelemetry-php-distro/otel-tests"
@@ -175,6 +187,9 @@ echo "::endgroup::"
 
 FAILURE=false
 
+semconv_package=$(get_package_version "open-telemetry/sem-conv")
+sdk_package=$(get_package_version "open-telemetry/sdk")
+
 for package in "${MATCHED_PACKAGES[@]}"; do
     vendor_dir="${OPT_WORKINGDIR}/vendor/$package"
 
@@ -184,6 +199,8 @@ for package in "${MATCHED_PACKAGES[@]}"; do
     echo "::group::Installing $package dependencies"
     composer ${OPT_QUIET} config --no-plugins allow-plugins.php-http/discovery false
     composer ${OPT_QUIET} config allow-plugins.tbachert/spi true
+    echo "Installing $package with version constraints from composer.json"
+    composer ${OPT_QUIET} require -n --ignore-platform-req php "$semconv_package" "$sdk_package"
     composer ${OPT_QUIET} install --dev --ignore-platform-req php
     echo "::endgroup::"
 
