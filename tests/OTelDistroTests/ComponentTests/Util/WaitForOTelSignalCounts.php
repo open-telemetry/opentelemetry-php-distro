@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\ComponentTests\Util;
 
+use OTelDistroTests\ComponentTests\Util\OtlpData\Span;
 use OTelDistroTests\Util\AmbientContextForTests;
 use OTelDistroTests\Util\IterableUtil;
 use OTelDistroTests\Util\Log\LogCategoryForTests;
@@ -59,11 +60,20 @@ final class WaitForOTelSignalCounts implements IsEnoughAgentBackendCommsInterfac
         $spansCount = IterableUtil::count($comms->spans());
         Assert::assertLessThanOrEqual($this->maxSpanCount, $spansCount);
 
-        $result = $spansCount >= $this->minSpanCount;
+        // If minSpanCount !== 0 then check that there is at least one root span
+        $result = ($spansCount >= $this->minSpanCount) && (($this->minSpanCount === 0) || self::isThereAtLeastOneRootSpan($comms->spans()));
 
         ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
         && $loggerProxy->log('Checked if exported data events counts reached the waited for values', compact('result', 'spansCount', 'this'));
 
         return $result;
+    }
+
+    /**
+     * @param iterable<Span> $spans
+     */
+    private static function isThereAtLeastOneRootSpan(iterable $spans): bool
+    {
+        return !IterableUtil::isEmpty(IterableUtil::findByPredicateOnValue($spans, fn($span) => $span->parentId === null));
     }
 }

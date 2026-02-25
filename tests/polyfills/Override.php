@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @noinspection PhpElementIsNotAvailableInCurrentPhpVersionInspection, PhpIllegalPsrClassPathInspection
+ * @noinspection PhpElementIsNotAvailableInCurrentPhpVersionInspection, PhpIllegalPsrClassPathInspection, PhpMultipleClassDeclarationsInspection
  */
 
 declare(strict_types=1);
