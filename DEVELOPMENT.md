@@ -171,3 +171,28 @@ instead of the usual `composer update`
 
 3) Commit the changes to the composer's lock files
 
+## Making a release
+
+Release process:
+
+1. Prepare and merge a PR that:
+  - updates project version in [project.properties](project.properties) (`version=...`),
+  - updates release notes in [docs/release-notes/index.md](docs/release-notes/index.md).
+
+  To make release notes preparation easier, you can generate a draft with:
+
+```bash
+./tools/prerelease/generate_changelog_draft.sh
+```
+
+2. After PR is merged to `main`, create a release tag and push it to upstream:
+
+```bash
+VERSION=$(grep '^version=' project.properties | cut -d'=' -f2)
+git tag "v${VERSION}"
+git push upstream "v${VERSION}"
+```
+
+Notes:
+- Tag must match `project.properties` version exactly in `v<version>` format (for example `v1.2.3`).
+- Pushing the tag triggers the release workflow.
