@@ -21,14 +21,26 @@ parse_args() {
     while [[ "$#" -gt 0 ]]; do
         case $1 in
             --previous-release-tag)
+                if [[ -z "$2" || "$2" == -* ]]; then
+                    echo "Error: --previous-release-tag requires a non-empty value."
+                    show_help
+                fi
                 PREVIOUS_TAG="$2"
                 shift 2
                 ;;
             --target)
+                if [[ -z "$2" || "$2" == -* ]]; then
+                    echo "Error: --target requires a non-empty value."
+                    show_help
+                fi
                 TARGET="$2"
                 shift 2
                 ;;
             --github-token)
+                if [[ -z "$2" || "$2" == -* ]]; then
+                    echo "Error: --github-token requires a non-empty value."
+                    show_help
+                fi
                 GITHUB_TOKEN="$2"
                 shift 2
                 ;;

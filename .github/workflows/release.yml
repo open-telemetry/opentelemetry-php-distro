@@ -57,7 +57,7 @@ jobs:
       GITHUB_TOKEN: ${{ github.token }}
       TAG_NAME: ${{ needs.verify-tag.outputs.tag_name }}
     steps:
-      - name: Validate Github token
+      - name: Validate GitHub token
         run: |
           if [ -z "${GITHUB_TOKEN}" ]; then
             echo "Please set GITHUB_TOKEN in the environment to perform a release"

@@ -15,10 +15,20 @@ parse_arguments() {
     while [[ "$#" -gt 0 ]]; do
         case $1 in
             --release-tag)
+                if [[ -z "$2" ]]; then
+                    echo "Error: --release-tag requires a value."
+                    show_help
+                    exit 1
+                fi
                 RELEASE_TAG="$2"
                 shift 2
                 ;;
             --changelog-file)
+                if [[ -z "$2" ]]; then
+                    echo "Error: --changelog-file requires a value."
+                    show_help
+                    exit 1
+                fi
                 CHANGELOG_FILE="$2"
                 shift 2
                 ;;

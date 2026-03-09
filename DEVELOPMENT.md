@@ -182,7 +182,7 @@ Release process:
   To make release notes preparation easier, you can generate a draft with:
 
 ```bash
-./tools/prerelease/generate_changelog_draft.sh
+./tools/prerelease/generate_changelog_draft.sh --previous-release-tag <previous-release-tag>
 ```
 
 2. After PR is merged to `main`, create a release tag and push it to upstream:
