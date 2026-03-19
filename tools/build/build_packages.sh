@@ -71,6 +71,21 @@ if [[ -z "${PACKAGE_VERSION+x}" ]] || [[ -z "${BUILD_ARCHITECTURE+x}" ]] || [[ -
     exit 1
 fi
 
+sanitize_package_version_for_type() {
+    local version="${1:?}"
+    local pkg_type="${2:?}"
+
+    case "${pkg_type}" in
+        "deb")
+            # Debian version field does not allow underscore characters.
+            echo "${version//_/.}"
+            ;;
+        *)
+            echo "${version}"
+            ;;
+    esac
+}
+
 test_package() {
     local highest_supported_php_version_no_dot=$(get_array_max_value ${_PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS})
     local PHP_VERSION=$(convert_no_dot_to_dot_separated_version "${highest_supported_php_version_no_dot}")
@@ -162,15 +177,19 @@ fi
 echo "Running on platform ${DOCKER_PLATFORM}";
 
 mkdir -p "${PWD}/build/packages"
-envsubst <packaging/nfpm.yaml >${PWD}/build/packages/nfpm.yaml
 
 for pkg_type in "${PACKAGE_TYPES[@]}"
 do
+    EFFECTIVE_PACKAGE_VERSION="$(sanitize_package_version_for_type "${PACKAGE_VERSION}" "${pkg_type}")"
+
     echo "Building package type: ${pkg_type}"
+    echo "Effective package version for ${pkg_type}: ${EFFECTIVE_PACKAGE_VERSION}"
+
+    PACKAGE_VERSION="${EFFECTIVE_PACKAGE_VERSION}" envsubst <packaging/nfpm.yaml >${PWD}/build/packages/nfpm.yaml
 
     docker run --rm \
         --platform ${DOCKER_PLATFORM} \
-        -e PACKAGE_VERSION="${PACKAGE_VERSION}" \
+        -e PACKAGE_VERSION="${EFFECTIVE_PACKAGE_VERSION}" \
         -e BUILD_ARCHITECTURE="${BUILD_ARCHITECTURE}" \
         -e PACKAGE_GOARCHITECTURE="${PACKAGE_GOARCHITECTURE}" \
         -e PACKAGE_SHA="${PACKAGE_SHA}" \
