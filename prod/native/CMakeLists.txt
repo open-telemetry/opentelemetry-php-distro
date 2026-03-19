@@ -18,7 +18,12 @@ endforeach()
 include(otel_read_properties)
 otel_read_properties("../../project.properties" "_PROJECT_PROPERTIES_")
 
-set(_PROJECT_PROPERTIES_VERSION_SHORT ${_PROJECT_PROPERTIES_VERSION})
+# Keep only the numeric prefix for project(VERSION ...), e.g. 1.2.3 from 1.2.3~tech_preview.
+string(REGEX MATCH "^[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?(\\.[0-9]+)?" _PROJECT_PROPERTIES_VERSION_SHORT "${_PROJECT_PROPERTIES_VERSION}")
+
+if(NOT _PROJECT_PROPERTIES_VERSION_SHORT)
+    message(FATAL_ERROR "Invalid project version for CMake project(VERSION ...): ${_PROJECT_PROPERTIES_VERSION}")
+endif()
 
 if(NOT DEFINED ENV{BUILDING_CONAN_DEPENDENCIES_ONLY})
     if(DEFINED ENV{GITHUB_SHA})

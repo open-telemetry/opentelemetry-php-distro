@@ -58,8 +58,8 @@ find_previous_release_tag() {
     local release_tag="$1"
     local changelog_file="$2"
 
-    # Extract version numbers, ignoring the anchor tags
-    grep -E "^## [0-9]+\.[0-9]+\.[0-9]+" "$changelog_file" | sed 's/^## \([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/' | sort -rV | grep -A 1 "^$release_tag" | tail -n 1
+    # Extract the first token after "## " as the release version.
+    grep -E "^## " "$changelog_file" | sed 's/^##[[:space:]]\+\([^[:space:]]\+\).*/\1/' | sort -rV | grep -A 1 "^$release_tag$" | tail -n 1
 }
 
 extract_release_notes() {
@@ -70,8 +70,8 @@ extract_release_notes() {
     local next_section_found=0
 
     while IFS= read -r line; do
-        # Check if we've found a new version section with anchor
-        if [[ "$line" =~ ^##\ ([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+        # Check if we've found a new version section and read version token.
+        if [[ "$line" =~ ^##[[:space:]]+([^[:space:]]+) ]]; then
             current_version="${BASH_REMATCH[1]}"
 
             # If we found our target version
