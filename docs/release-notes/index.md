@@ -1,4 +1,4 @@
-## 0.1.0~tech_preview
+## 0.1.0-tech_preview
 
 Initial technical preview release.
 
