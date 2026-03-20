@@ -215,11 +215,13 @@ done
 rm ${PWD}/build/packages/nfpm.yaml
 
 echo "Creating debug symbols artifacts"
-DBGSYM="${PWD}/build/packages/opentelemetry-php-distro-debugsymbols-${BUILD_ARCHITECTURE}.tar.gz"
+DBGSYM_FILE="opentelemetry-php-distro-debugsymbols-${BUILD_ARCHITECTURE}.tar.gz"
+DBGSYM_PATH="${PWD}/build/packages/${DBGSYM_FILE}"
+
 pushd prod/native/_build/${BUILD_ARCHITECTURE}-release
-tar --transform 's/.*\///g' -zcvf ${DBGSYM} extension/code/*.debug loader/code/*.debug
+tar --transform 's/.*\///g' -zcvf ${DBGSYM_PATH} extension/code/*.debug loader/code/*.debug
 popd
 
 pushd "${PWD}/build/packages"
-sha512sum ${DBGSYM} >${DBGSYM}.sha512
+sha512sum ${DBGSYM_FILE} >${DBGSYM_FILE}.sha512
 popd
