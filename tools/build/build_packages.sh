@@ -205,7 +205,7 @@ do
 
     # create sha512 file
     pushd "${PWD}/build/packages"
-    md5sum "${PKG_FILENAME}" >"${PKG_FILENAME}".sha512
+    sha512sum "${PKG_FILENAME}" >"${PKG_FILENAME}".sha512
     popd
 
     test_package ${pkg_type} "${PKG_FILENAME}" "${DOCKER_PLATFORM}"
@@ -221,5 +221,5 @@ tar --transform 's/.*\///g' -zcvf ${DBGSYM} extension/code/*.debug loader/code/*
 popd
 
 pushd "${PWD}/build/packages"
-md5sum ${DBGSYM} >${DBGSYM}.sha512
+sha512sum ${DBGSYM} >${DBGSYM}.sha512
 popd
