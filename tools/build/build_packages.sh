@@ -78,7 +78,7 @@ sanitize_package_version_for_type() {
     case "${pkg_type}" in
         "deb")
             # Debian version field does not allow underscore characters.
-            echo "${version//_/.}"
+            echo "${version//_/-}"
             ;;
         *)
             echo "${version}"
