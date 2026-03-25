@@ -105,6 +105,8 @@ function configure_from_template() {
 
 _PROJECT_PROPERTIES_LOGGER_FEATURES_ENUM_VALUES=$(transform_comma_separated_values_into_php_const_members "${_PROJECT_PROPERTIES_LOGGER_FEATURES_ENUM_VALUES}")
 _PROJECT_PROPERTIES_VERSION="${_PROJECT_PROPERTIES_VERSION}$(get_git_hash)"
+_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX_LOWER=$(echo "${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX}" | tr '[:upper:]' '[:lower:]')
 
 configure_from_template "prod/php/OpenTelemetry/Distro/Log/LogFeature.php.template"
 configure_from_template "prod/php/OpenTelemetry/Distro/PhpPartVersion.php.template"
+configure_from_template "prod/php/ScoperConfig.php.template"

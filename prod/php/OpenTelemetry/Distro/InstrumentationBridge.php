@@ -11,10 +11,6 @@ use OpenTelemetry\Distro\Log\LogLevel;
 use Throwable;
 use OpenTelemetry\Distro\Util\SingletonInstanceTrait;
 
-use function OpenTelemetry\Distro\get_config_option_by_name;
-use function OpenTelemetry\Distro\hook;
-use function OpenTelemetry\Distro\log_feature;
-
 /**
  * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
  *
@@ -44,9 +40,9 @@ final class InstrumentationBridge
     {
         self::nativeHook(null, 'spl_autoload_register', null, $this->retryDelayedHooks(...));
 
-        require ProdPhpDir::$fullPath . DIRECTORY_SEPARATOR . 'OpenTelemetry' . DIRECTORY_SEPARATOR . 'Instrumentation' . DIRECTORY_SEPARATOR . 'hook.php';
+        require ProdPhpDir::getOpenTelemetryRootPath() . DIRECTORY_SEPARATOR . 'Instrumentation' . DIRECTORY_SEPARATOR . 'hook.php';
 
-        $this->enableDebugHooks = (bool)get_config_option_by_name('debug_php_hooks_enabled');
+        $this->enableDebugHooks = (bool)\OpenTelemetry\Distro\get_config_option_by_name('debug_php_hooks_enabled');
 
         BootstrapStageLogger::logDebug('Finished successfully', __FILE__, __LINE__, __CLASS__, __FUNCTION__);
     }
@@ -94,7 +90,7 @@ final class InstrumentationBridge
         BootstrapStageLogger::logTrace('Entered. class: ' . $dbgClassAsString . ', function: ' . $function, __FILE__, __LINE__, __CLASS__, __FUNCTION__);
 
         // OpenTelemetry\Distro\hook function is provided by the extension
-        $retVal = hook($class, $function, $pre, $post);
+        $retVal = \OpenTelemetry\Distro\hook($class, $function, $pre, $post);
         if ($retVal) {
             BootstrapStageLogger::logTrace('Successfully hooked. class: ' . $dbgClassAsString . ', function: ' . $function, __FILE__, __LINE__, __CLASS__, __FUNCTION__);
             return;
@@ -160,7 +156,7 @@ final class InstrumentationBridge
             $class,
             $function,
             function () use ($func) {
-                log_feature(
+                \OpenTelemetry\Distro\log_feature(
                     0 /* <- isForced */,
                     LogLevel::debug->value,
                     Log\LogFeature::INSTRUMENTATION,
@@ -171,7 +167,7 @@ final class InstrumentationBridge
                 );
             },
             function () use ($func) {
-                log_feature(
+                \OpenTelemetry\Distro\log_feature(
                     0 /* <- isForced */,
                     LogLevel::debug->value,
                     Log\LogFeature::INSTRUMENTATION,

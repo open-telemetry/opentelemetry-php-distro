@@ -36,6 +36,7 @@ target_link_libraries(${_Target}
 
 configure_file("otel_distro_version.h.in" "${CMAKE_CURRENT_BINARY_DIR}/generated/otel_distro_version.h")
 configure_file("LogFeature.h.in" "${CMAKE_CURRENT_BINARY_DIR}/generated/LogFeature.h")
+configure_file("PhpScoper.h.in" "${CMAKE_CURRENT_BINARY_DIR}/generated/PhpScoper.h")
 
 target_include_directories(${_Target} PUBLIC "./"
                                             "${Boost_INCLUDE_DIRS}"

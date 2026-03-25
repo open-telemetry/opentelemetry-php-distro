@@ -30,7 +30,7 @@ final class RemoteConfigHandler
             return;
         }
 
-        $fileNameToContent = get_remote_configuration(); // This function is implemented by the extension
+        $fileNameToContent = \OpenTelemetry\Distro\get_remote_configuration(); // This function is implemented by the extension
         if ($fileNameToContent === null) {
             self::logDebug('extension\'s get_remote_configuration() returned null', __LINE__, __FUNCTION__);
             return;

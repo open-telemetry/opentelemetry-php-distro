@@ -9,8 +9,6 @@ namespace OpenTelemetry\Distro;
 use Closure;
 use Throwable;
 
-use function OpenTelemetry\Distro\log_feature;
-
 /**
  * @phpstan-type WriteToSink Closure(int $level, int $feature, string $file, int $line, string $func, string $message): void
  */
@@ -204,7 +202,7 @@ final class BootstrapStageLogger
         }
 
         if (self::$writeToSink === null) {
-            log_feature(
+            \OpenTelemetry\Distro\log_feature(
                 0 /* $isForced */,
                 $statementLevel,
                 $feature,

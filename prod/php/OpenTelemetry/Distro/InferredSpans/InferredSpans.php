@@ -267,7 +267,7 @@ class InferredSpans
                     ['new', $lastSpanParent, 'old', $span->getParentContext()]
                 );
 
-                $forceParentChangeFailed = !force_set_object_property_value($span, "parentSpanContext", $lastSpanParent);
+                $forceParentChangeFailed = !\OpenTelemetry\Distro\InferredSpans\force_set_object_property_value($span, "parentSpanContext", $lastSpanParent);
             }
         }
 

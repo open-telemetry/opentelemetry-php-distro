@@ -23,8 +23,6 @@ use OpenTelemetry\SemConv\Version;
 use RuntimeException;
 use Throwable;
 
-use function OpenTelemetry\Distro\get_config_option_by_name;
-
 /**
  * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
  *
@@ -127,11 +125,11 @@ final class PhpPartFacade
 
             self::$singletonInstance = new self();
 
-            if (get_config_option_by_name('inferred_spans_enabled')) {
+            if (\OpenTelemetry\Distro\get_config_option_by_name('inferred_spans_enabled')) {
                 self::$singletonInstance->inferredSpans = new InferredSpans(
-                    (bool)get_config_option_by_name('inferred_spans_reduction_enabled'),
-                    (bool)get_config_option_by_name('inferred_spans_stacktrace_enabled'),
-                    get_config_option_by_name('inferred_spans_min_duration') // @phpstan-ignore argument.type
+                    (bool)\OpenTelemetry\Distro\get_config_option_by_name('inferred_spans_reduction_enabled'),
+                    (bool)\OpenTelemetry\Distro\get_config_option_by_name('inferred_spans_stacktrace_enabled'),
+                    \OpenTelemetry\Distro\get_config_option_by_name('inferred_spans_min_duration') // @phpstan-ignore argument.type
                 );
             }
         } catch (Throwable $throwable) {
@@ -209,6 +207,12 @@ final class PhpPartFacade
 
     private static function registerAutoloaderForVendorDir(): void
     {
+        $instrumentationHookPhp = ProdPhpDir::getOpenTelemetryRootPath() . DIRECTORY_SEPARATOR . 'Instrumentation' . DIRECTORY_SEPARATOR . 'hook.php';
+        if (!file_exists($instrumentationHookPhp)) {
+            throw new RuntimeException("File $instrumentationHookPhp does not exist");
+        }
+        require_once $instrumentationHookPhp;
+
         $vendorAutoloadPhp = self::getVendorDirPath() . '/autoload.php';
         if (!file_exists($vendorAutoloadPhp)) {
             throw new RuntimeException("File $vendorAutoloadPhp does not exist");
@@ -221,7 +225,7 @@ final class PhpPartFacade
 
     private static function registerAsyncTransportFactory(): void
     {
-        if (get_config_option_by_name('async_transport') === false) {
+        if (\OpenTelemetry\Distro\get_config_option_by_name('async_transport') === false) {
             BootstrapStageLogger::logDebug('OTEL_PHP_ASYNC_TRANSPORT set to false', __FILE__, __LINE__, __CLASS__, __FUNCTION__);
             return;
         }
@@ -236,11 +240,11 @@ final class PhpPartFacade
 
     private static function registerNativeOtlpSerializer(): void
     {
-        if (get_config_option_by_name('native_otlp_serializer_enabled') === false) {
+        if (\OpenTelemetry\Distro\get_config_option_by_name('native_otlp_serializer_enabled') === false) {
             BootstrapStageLogger::logDebug('OTEL_PHP_NATIVE_OTLP_SERIALIZER_ENABLED set to false', __FILE__, __LINE__, __CLASS__, __FUNCTION__);
         } else {
             // Load classes such as \OpenTelemetry\Contrib\Otlp\SpanExporter to shadow the ones in SDK
-            $otelOtlpDir = ProdPhpDir::$fullPath . DIRECTORY_SEPARATOR . 'OpenTelemetry' . DIRECTORY_SEPARATOR . 'Contrib' . DIRECTORY_SEPARATOR . 'Otlp';
+            $otelOtlpDir = ProdPhpDir::getOpenTelemetryRootPath() . DIRECTORY_SEPARATOR . 'Contrib' . DIRECTORY_SEPARATOR . 'Otlp';
             foreach (['SpanExporter', 'LogsExporter', 'MetricExporter'] as $exporter) {
                 require $otelOtlpDir . DIRECTORY_SEPARATOR . $exporter . '.php';
             }

@@ -1,0 +1,48 @@
+/* This file has been generated, do not edit it manually.
+ * If you want to make changes, edit the file PhpNamespace.h.in
+ * in the sources tree.
+ * Remember, every time you add a new feature to the properties,
+ * reconfigure the project and regenerate the files for PHP as well
+ */
+
+#pragma once
+
+#include <array>
+#include <string_view>
+
+namespace opentelemetry::php::scoper {
+
+using namespace std::string_view_literals;
+
+constexpr char toLowerAscii(char c) noexcept
+{
+	return (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;
+}
+
+template <size_t N>
+constexpr std::array<char, N> toLowerAsciiArray(std::string_view input) noexcept
+{
+	std::array<char, N> output{};
+	for (size_t i = 0; i + 1 < N; ++i)
+	{
+		output[i] = toLowerAscii(input[i]);
+	}
+	output[N - 1] = '\0';
+
+	return output;
+}
+
+#if @_PROJECT_PROPERTIES_PHP_SCOPER_ENABLED@
+constexpr std::string_view php_scoper_prefix = "@_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX@\\"sv;
+#define PHP_SCOPER_PREFIX "@_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX@\\"
+#else
+constexpr std::string_view php_scoper_prefix = ""sv;
+#define PHP_SCOPER_PREFIX ""
+#endif
+
+constexpr auto php_scoper_prefix_lc_array = toLowerAsciiArray<php_scoper_prefix.size() + 1>(php_scoper_prefix);
+constexpr std::string_view php_scoper_prefix_lc = {php_scoper_prefix_lc_array.data(), php_scoper_prefix.size()};
+
+
+
+} // namespace opentelemetry::php::scoper

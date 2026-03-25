@@ -43,7 +43,7 @@ final class NativeHttpTransport implements TransportInterface
         $this->contentType = $contentType;
 
         // \OpenTelemetry\Distro\HttpTransport\initialize is provided by the extension
-        initialize($endpoint, $contentType, $headers, $timeout, $retryDelay, $maxRetries);
+        \OpenTelemetry\Distro\HttpTransport\initialize($endpoint, $contentType, $headers, $timeout, $retryDelay, $maxRetries);
     }
 
     public function contentType(): string
@@ -57,7 +57,7 @@ final class NativeHttpTransport implements TransportInterface
     public function send(string $payload, ?CancellationInterface $cancellation = null): FutureInterface
     {
         // \OpenTelemetry\Distro\HttpTransport\enqueue is provided by the extension
-        enqueue($this->endpoint, $payload);
+        \OpenTelemetry\Distro\HttpTransport\enqueue($this->endpoint, $payload);
 
         return new CompletedFuture(null);
     }

@@ -12,8 +12,6 @@ use OpenTelemetry\SDK\Common\Future\FutureInterface;
 use OpenTelemetry\SDK\Trace\SpanExporterInterface;
 use Throwable;
 
-use function OpenTelemetry\Distro\OtlpExporters\convert_spans;
-
 /**
  * @psalm-import-type SUPPORTED_CONTENT_TYPES from ProtobufSerializer
  */
@@ -33,7 +31,7 @@ final class SpanExporter implements SpanExporterInterface
     public function export(iterable $batch, ?CancellationInterface $cancellation = null): FutureInterface
     {
         return $this->transport
-            ->send(convert_spans($batch), $cancellation)
+            ->send(\OpenTelemetry\Distro\OtlpExporters\convert_spans($batch), $cancellation)
             ->map(
                 static function (mixed $payload): bool {
                     if ($payload === null) {

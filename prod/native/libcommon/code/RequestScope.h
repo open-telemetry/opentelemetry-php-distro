@@ -150,10 +150,13 @@ protected:
     bool bootstrapPHPSideInstrumentation(std::chrono::system_clock::time_point requestStartTime) {
         using namespace std::string_view_literals;
         try {
-			ELOGF_DEBUG(log_, REQUEST, "Loading bootstrap_php_part_file: '%s' ...", (*config_)->bootstrap_php_part_file.c_str());
+            ELOGF_DEBUG(log_, REQUEST, "Loading bootstrap_php_part_file: '%s' ...", (*config_)->bootstrap_php_part_file.c_str());
             bridge_->compileAndExecuteFile((*config_)->bootstrap_php_part_file);
-			ELOGF_DEBUG(log_, REQUEST, "Executing entry point in bootstrap_php_part_file: '%s' ...", (*config_)->bootstrap_php_part_file.c_str());
-            bridge_->callPHPSideEntryPoint(log_->getMaxLogLevel(), requestStartTime);
+            ELOGF_DEBUG(log_, REQUEST, "Executing entry point in bootstrap_php_part_file: '%s' ...", (*config_)->bootstrap_php_part_file.c_str());
+            if (!bridge_->callPHPSideEntryPoint(log_->getMaxLogLevel(), requestStartTime)) {
+                ELOGF_CRITICAL(log_, REQUEST, "Unable to bootstrap PHP-side instrumentation: callPHPSideEntryPoint returned false (PhpPartFacade class or bootstrap method not available)");
+                return false;
+            }
         } catch (std::exception const &e) {
             ELOGF_CRITICAL(log_, REQUEST, "Unable to bootstrap PHP-side instrumentation '%s'", e.what());
             return false;

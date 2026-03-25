@@ -9,6 +9,7 @@
 #include "AutoZval.h"
 #include "AttributesConverter.h"
 #include "CiCharTraits.h"
+#include "PhpScoper.h"
 
 #include <boost/algorithm/hex.hpp>
 
@@ -99,11 +100,11 @@ private:
 void convertMetricData(AutoZval const &data, opentelemetry::proto::metrics::v1::Metric *out) {
         using namespace opentelemetry::proto::metrics::v1;
 
-        if (data.instanceOf("OpenTelemetry\\SDK\\Metrics\\Data\\Gauge"sv)) {
+        if (data.instanceOf(PHP_SCOPER_PREFIX "OpenTelemetry\\SDK\\Metrics\\Data\\Gauge"sv)) {
             convertGauge(data, out->mutable_gauge());
-        } else if (data.instanceOf("OpenTelemetry\\SDK\\Metrics\\Data\\Sum"sv)) {
+        } else if (data.instanceOf(PHP_SCOPER_PREFIX "OpenTelemetry\\SDK\\Metrics\\Data\\Sum"sv)) {
             convertSum(data, out->mutable_sum());
-        } else if (data.instanceOf("OpenTelemetry\\SDK\\Metrics\\Data\\Histogram"sv)) {
+        } else if (data.instanceOf(PHP_SCOPER_PREFIX "OpenTelemetry\\SDK\\Metrics\\Data\\Histogram"sv)) {
             convertHistogram(data, out->mutable_histogram());
         } else {
             //  ("Unsupported Metric data type");

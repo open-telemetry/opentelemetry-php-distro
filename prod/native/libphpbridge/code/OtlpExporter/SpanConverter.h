@@ -7,6 +7,7 @@
 #include "ConverterHelpers.h"
 #include "AutoZval.h"
 #include "CiCharTraits.h"
+#include "PhpScoper.h"
 
 #include <string>
 #include <string_view>
@@ -37,7 +38,7 @@ public:
             // auto resourceInfo = internalSpan.readProperty("resource");
             // auto instrumentationScope = internalSpan.readProperty("instrumentationScope");
 
-            auto resourceInfo = span.assertObjectType("OpenTelemetry\\SDK\\Trace\\ImmutableSpan"sv).callMethod("getResource"sv); // ResourceInfo
+            auto resourceInfo = span.assertObjectType(PHP_SCOPER_PREFIX "OpenTelemetry\\SDK\\Trace\\ImmutableSpan"sv).callMethod("getResource"sv); // ResourceInfo
             auto instrumentationScope = span.callMethod("getInstrumentationScope"sv);                                            // InstrumentationScopeInterface
 
             std::string resourceId = ConverterHelpers::getResourceId(resourceInfo);

@@ -3,6 +3,7 @@
 #include "AutoZval.h"
 #include "AutoZendString.h"
 #include "CallOnScopeExit.h"
+#include "PhpScoper.h"
 
 #include <Zend/zend_API.h>
 #include <Zend/zend_alloc.h>
@@ -29,6 +30,30 @@ namespace opentelemetry::php {
 using namespace std::string_view_literals;
 using namespace std::string_literals;
 
+namespace {
+
+std::string getFacadeClassName() {
+    return std::string{scoper::php_scoper_prefix_lc} + "opentelemetry\\distro\\phppartfacade";
+}
+
+std::string getFacadeInferredSpansMethodName() {
+    return "\\"s + std::string{scoper::php_scoper_prefix} + "OpenTelemetry\\Distro\\PhpPartFacade::inferredSpans";
+}
+
+std::string getFacadeBootstrapMethodName() {
+    return "\\"s + std::string{scoper::php_scoper_prefix} + "OpenTelemetry\\Distro\\PhpPartFacade::bootstrap";
+}
+
+std::string getFacadeShutdownMethodName() {
+    return "\\"s + std::string{scoper::php_scoper_prefix} + "OpenTelemetry\\Distro\\PhpPartFacade::shutdown";
+}
+
+std::string getFacadeErrorHandlerMethodName() {
+    return "\\"s + std::string{scoper::php_scoper_prefix} + "OpenTelemetry\\Distro\\PhpPartFacade::handleError";
+}
+
+} // namespace
+
 std::optional<std::string_view> PhpBridge::getCurrentExceptionMessage() const {
     if (!EG(exception)) {
         return std::nullopt;
@@ -37,7 +62,7 @@ std::optional<std::string_view> PhpBridge::getCurrentExceptionMessage() const {
 }
 
 bool PhpBridge::callInferredSpans(std::chrono::milliseconds duration) const {
-    auto phpPartFacadeClass = findClassEntry("opentelemetry\\distro\\phppartfacade"sv);
+    auto phpPartFacadeClass = findClassEntry(getFacadeClassName());
     if (!phpPartFacadeClass) {
         return false;
     }
@@ -46,7 +71,7 @@ bool PhpBridge::callInferredSpans(std::chrono::milliseconds duration) const {
 
     AutoZval rv;
     std::array<AutoZval, 2> params{duration.count(), internal};
-    return callMethod(nullptr, "\\OpenTelemetry\\Distro\\PhpPartFacade::inferredSpans"sv, params.data()->get(), params.size(), rv.get());
+    return callMethod(nullptr, getFacadeInferredSpansMethodName(), params.data()->get(), params.size(), rv.get());
 }
 
 std::string_view PhpBridge::getPhpSapiName() const {
@@ -142,28 +167,28 @@ void PhpBridge::compileAndExecuteFile(std::string_view fileName) const {
 }
 
 bool PhpBridge::callPHPSideEntryPoint(LogLevel logLevel, std::chrono::time_point<std::chrono::system_clock> requestInitStart) const {
-    auto phpPartFacadeClass = findClassEntry("opentelemetry\\distro\\phppartfacade"sv);
+    auto phpPartFacadeClass = findClassEntry(getFacadeClassName());
     if (!phpPartFacadeClass) {
         return false;
     }
 
     std::array<AutoZval, 3> arguments{std::string_view(OTEL_DISTRO_VERSION), logLevel, (double)std::chrono::duration_cast<std::chrono::microseconds>(requestInitStart.time_since_epoch()).count()};
     AutoZval rv;
-    return callMethod(nullptr, "\\OpenTelemetry\\Distro\\PhpPartFacade::bootstrap"sv, arguments.data()->get(), arguments.size(), rv.get());
+    return callMethod(nullptr, getFacadeBootstrapMethodName(), arguments.data()->get(), arguments.size(), rv.get());
 }
 
 bool PhpBridge::callPHPSideExitPoint() const {
-    auto phpPartFacadeClass = findClassEntry("opentelemetry\\distro\\phppartfacade"sv);
+    auto phpPartFacadeClass = findClassEntry(getFacadeClassName());
     if (!phpPartFacadeClass) {
         return false;
     }
 
     AutoZval rv;
-    return callMethod(nullptr, "OpenTelemetry\\Distro\\PhpPartFacade::shutdown"sv, nullptr, 0, rv.get());
+    return callMethod(nullptr, getFacadeShutdownMethodName(), nullptr, 0, rv.get());
 }
 
 bool PhpBridge::callPHPSideErrorHandler(int type, std::string_view errorFilename, uint32_t errorLineno, std::string_view message) const {
-    auto phpPartFacadeClass = findClassEntry("opentelemetry\\distro\\phppartfacade"sv);
+    auto phpPartFacadeClass = findClassEntry(getFacadeClassName());
     if (!phpPartFacadeClass) {
         return false;
     }
@@ -171,7 +196,7 @@ bool PhpBridge::callPHPSideErrorHandler(int type, std::string_view errorFilename
     std::array<AutoZval, 4> arguments{type, errorFilename, errorLineno, message};
 
     AutoZval rv;
-    return callMethod(nullptr, "\\OpenTelemetry\\Distro\\PhpPartFacade::handleError"sv, arguments.data()->get(), arguments.size(), rv.get());
+    return callMethod(nullptr, getFacadeErrorHandlerMethodName(), arguments.data()->get(), arguments.size(), rv.get());
 }
 
 
