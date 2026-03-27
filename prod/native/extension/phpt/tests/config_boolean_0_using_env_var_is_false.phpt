@@ -1,5 +1,5 @@
 --TEST--
-Boolean configuration option value 0 (in this case using environment variable) should be interpreted as false
+Boolean configuration option value 0 (in this case using environment variable) should be interpreted as  false
 --ENV--
 OTEL_PHP_ENABLED=0
 OTEL_PHP_LOG_LEVEL_STDERR=CRITICAL
