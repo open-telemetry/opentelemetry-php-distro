@@ -37,7 +37,7 @@ $selectFirstExistingDistroDir = static function (array $candidates): ?string {
 };
 
 $isScopedRuntime = OpenTelemetry\Distro\OTelDistroScoperConfig::ENABLED;
-$otelRootDir = $isScopedRuntime
+$otelRootDir = $isScopedRuntime // @phpstan-ignore ternary.alwaysTrue (ENABLED is a generated constant that can be true or false)
     ? $selectFirstExistingDistroDir($scopedOtelDirCandidates)
     : $selectFirstExistingDistroDir($unscopedOtelDirCandidates);
 
@@ -53,7 +53,7 @@ if ($otelRootDir === null) {
 
     throw new RuntimeException(
         'Cannot locate distro sources. '
-        . 'scoper enabled: ' . ($isScopedRuntime ? 'true' : 'false')
+        . 'scoper enabled: ' . ($isScopedRuntime ? 'true' : 'false') // @phpstan-ignore ternary.alwaysTrue
         . '; scoped candidates: ' . $scopedExpected
         . '; unscoped candidates: ' . $unscopedExpected
     );
@@ -91,8 +91,8 @@ $syncScopedAlias($unscopedProdPhpDirClass, $scopedProdPhpDirClass);
 $syncScopedAlias($unscopedPhpPartFacadeClass, $scopedPhpPartFacadeClass);
 $syncScopedAlias($unscopedInstrumentationBridgeClass, $scopedInstrumentationBridgeClass);
 
-$prodPhpDirClass = $isScopedRuntime ? $scopedProdPhpDirClass : $unscopedProdPhpDirClass;
+$prodPhpDirClass = $isScopedRuntime ? $scopedProdPhpDirClass : $unscopedProdPhpDirClass; // @phpstan-ignore ternary.alwaysTrue
 $prodPhpDirClass::$fullPath = __DIR__;
 if (property_exists($prodPhpDirClass, 'shadowOtelRootPath')) {
-   $prodPhpDirClass::$shadowOtelRootPath = $isScopedRuntime ? $otelRootDir : null;
+    $prodPhpDirClass::$shadowOtelRootPath = $isScopedRuntime ? $otelRootDir : null; // @phpstan-ignore ternary.alwaysTrue
 }
