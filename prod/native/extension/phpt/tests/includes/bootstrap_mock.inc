@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace OpenTelemetry\Distro;
+namespace OTelDistroScoped\OpenTelemetry\Distro;
 
 final class PhpPartFacade
 {
