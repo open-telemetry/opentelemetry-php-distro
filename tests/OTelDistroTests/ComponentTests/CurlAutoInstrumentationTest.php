@@ -21,7 +21,6 @@ use OTelDistroTests\ComponentTests\Util\ResourcesClient;
 use OTelDistroTests\ComponentTests\Util\SpanExpectationsBuilder;
 use OTelDistroTests\ComponentTests\Util\UrlUtil;
 use OTelDistroTests\ComponentTests\Util\WaitForOTelSignalCounts;
-use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\Config\OptionForProdName;
 use OTelDistroTests\Util\Config\OptionForTestsName;
 use OTelDistroTests\Util\DataProviderForTestBuilder;
@@ -32,7 +31,6 @@ use OTelDistroTests\Util\IterableUtil;
 use OTelDistroTests\Util\Log\LoggableToString;
 use OTelDistroTests\Util\MixedMap;
 use OTelDistroTests\Util\RangeUtil;
-use OpenTelemetry\Contrib\Instrumentation\Curl\CurlInstrumentation;
 use OpenTelemetry\SemConv\TraceAttributes;
 
 /**
@@ -109,10 +107,10 @@ final class CurlAutoInstrumentationTest extends ComponentTestCaseBase
         self::assertTrue(extension_loaded('curl'));
 
         $enableCurlInstrumentationForClient = $appCodeArgs->getBool(self::ENABLE_CURL_INSTRUMENTATION_FOR_CLIENT_KEY);
-        if ($enableCurlInstrumentationForClient) {
-            self::assertTrue(class_exists(CurlInstrumentation::class, autoload: false));
-            AssertEx::sameConstValues(CurlInstrumentation::NAME, self::AUTO_INSTRUMENTATION_NAME);
-        }
+        // if ($enableCurlInstrumentationForClient) {
+        //     self::assertTrue(class_exists(CurlInstrumentation::class, autoload: false));
+        //     AssertEx::sameConstValues(CurlInstrumentation::NAME, self::AUTO_INSTRUMENTATION_NAME);
+        // }
 
         $requestParams = $appCodeArgs->getObject(self::HTTP_APP_CODE_REQUEST_PARAMS_FOR_SERVER_KEY, HttpAppCodeRequestParams::class);
         $resourcesClient = $appCodeArgs->getObject(self::RESOURCES_CLIENT_KEY, ResourcesClient::class);

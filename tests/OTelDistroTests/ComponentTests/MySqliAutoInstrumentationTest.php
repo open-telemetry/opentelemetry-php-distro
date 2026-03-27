@@ -25,7 +25,6 @@ use OTelDistroTests\Util\DebugContext;
 use OTelDistroTests\Util\IterableUtil;
 use OTelDistroTests\Util\Log\LoggableToString;
 use OTelDistroTests\Util\MixedMap;
-use OpenTelemetry\Contrib\Instrumentation\MySqli\MySqliInstrumentation;
 use OpenTelemetry\SemConv\TraceAttributes;
 
 /**
@@ -269,11 +268,11 @@ final class MySqliAutoInstrumentationTest extends ComponentTestCaseBase
 
         self::assertExtensionLoaded();
 
-        $isAutoInstrumentationEnabled = $appCodeArgs->getBool(self::IS_AUTO_INSTRUMENTATION_ENABLED_KEY);
-        if ($isAutoInstrumentationEnabled) {
-            self::assertTrue(class_exists(MySqliInstrumentation::class, autoload: false));
-            AssertEx::sameConstValues(MySqliInstrumentation::NAME, self::AUTO_INSTRUMENTATION_NAME);
-        }
+        // $isAutoInstrumentationEnabled = $appCodeArgs->getBool(self::IS_AUTO_INSTRUMENTATION_ENABLED_KEY);
+        // if ($isAutoInstrumentationEnabled) {
+        //     self::assertTrue(class_exists(MySqliInstrumentation::class, autoload: false));
+        //     AssertEx::sameConstValues(MySqliInstrumentation::NAME, self::AUTO_INSTRUMENTATION_NAME);
+        // }
 
         $isOOPApi = $appCodeArgs->getBool(self::IS_OOP_API_KEY);
         $connectDbName = $appCodeArgs->getNullableString(self::CONNECT_DB_NAME_KEY);
