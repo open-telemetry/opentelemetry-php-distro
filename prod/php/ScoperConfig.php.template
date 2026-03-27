@@ -4,9 +4,12 @@
 
 declare(strict_types=1);
 
+namespace OpenTelemetry\Distro;
+
 final class OTelDistroScoperConfig
 {
     public const ENABLED = @_PROJECT_PROPERTIES_PHP_SCOPER_ENABLED@;
     public const PREFIX = '@_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX@';
     public const PREFIX_LOWER = '@_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX_LOWER@';
+    public const DISTRO_PATH = '@_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX@';
 }

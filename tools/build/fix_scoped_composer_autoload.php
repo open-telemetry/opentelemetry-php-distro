@@ -26,34 +26,46 @@ if (!is_string($content)) {
     exit(1);
 }
 
+$replaceOrFail = static function (string $pattern, string $replacement, string $subject, string $errorMessage): string {
+    $result = preg_replace($pattern, $replacement, $subject);
+    if (!is_string($result)) {
+        fwrite(STDERR, $errorMessage);
+        exit(1);
+    }
+
+    return $result;
+};
+
+$replaceCallbackOrFail = static function (string $pattern, callable $callback, string $subject, string $errorMessage): string {
+    $result = preg_replace_callback($pattern, $callback, $subject, 1);
+    if (!is_string($result)) {
+        fwrite(STDERR, $errorMessage);
+        exit(1);
+    }
+
+    return $result;
+};
+
 $prefixedClassLoader = $prefix . '\\\\Composer\\\\Autoload\\\\ClassLoader';
-$content = preg_replace_callback(
+$content = $replaceCallbackOrFail(
     "/if \\\('[^']*ClassLoader' === \\\$class\\\) \\\{/",
-    static fn() => "if ('" . $prefixedClassLoader . "' === \\$class) {",
+    static fn (): string => "if ('{$prefixedClassLoader}' === " . '$class' . ') {',
     $content,
-    1
+    "Failed to patch loadClassLoader condition in $autoloadRealPath\n"
 );
 
-if (!is_string($content)) {
-    fwrite(STDERR, "Failed to patch loadClassLoader condition in $autoloadRealPath\\n");
-    exit(1);
-}
-
-$content = preg_replace(
+$content = $replaceOrFail(
     "/'Composer\\\\+Autoload\\\\+ClassLoader'/",
     "'{$prefixedClassLoader}'",
-    $content
+    $content,
+    "Failed to patch ClassLoader name in $autoloadRealPath\n"
 );
-$content = preg_replace(
+$content = $replaceOrFail(
     "/spl_autoload_unregister\\(array\\('ComposerAutoloaderInit/",
     "spl_autoload_unregister(array('{$prefix}\\\\ComposerAutoloaderInit",
-    $content
+    $content,
+    "Failed to patch autoload unregister callback in $autoloadRealPath\n"
 );
-
-if (!is_string($content)) {
-    fwrite(STDERR, "Failed to patch $autoloadRealPath\n");
-    exit(1);
-}
 
 if (!str_contains($content, 'OTEL scoped autoload fix begin')) {
     if (!preg_match('/ComposerStaticInit([a-f0-9]+)/', $content, $matches)) {
@@ -96,10 +108,6 @@ PHP_BLOCK;
     );
 
     $content = str_replace($autoloadStaticRequire, $autoloadStaticPatch, $content);
-    if (!is_string($content)) {
-        fwrite(STDERR, "Failed to inject autoload static patch into $autoloadRealPath\\n");
-        exit(1);
-    }
 }
 
 if (file_put_contents($autoloadRealPath, $content) === false) {

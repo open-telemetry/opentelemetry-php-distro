@@ -202,6 +202,7 @@ main() {
         local SCOPER_CMD=""
         if [ "${_PROJECT_PROPERTIES_PHP_SCOPER_ENABLED:-false}" = "true" ]; then
             local _SCOPER_PREFIX="${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX:?}"
+            local _DISTRO_PATH="${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX:?}"
             local _PHP_SCOPER_VERSION="0.18.19"
             if [ "${_PHP_VERSION_WITHOUT_DOT}" = "81" ]; then
                 _PHP_SCOPER_VERSION="0.17.7"
@@ -214,9 +215,9 @@ main() {
                 && rm -rf /tmp/repo/vendor \
                 && cd /tmp/repo \
                 && php ./tools/build/fix_scoped_composer_autoload.php '${_SCOPER_PREFIX}' /tmp/repo/vendor-scoped \
-                && OTEL_PHP_SCOPER_PREFIX='${_SCOPER_PREFIX}' php -d error_reporting='E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED' /usr/local/bin/php-scoper.phar add-prefix --force --config=/tmp/repo/tools/build/php-scoper.inc.php --output-dir=/tmp/repo/.otel_scoped_distro_scoped /tmp/repo/prod/php/OpenTelemetry \
-                && mkdir -p /tmp/repo/vendor-scoped/.otel_scoped_distro \
-                && cp -r /tmp/repo/.otel_scoped_distro_scoped/. /tmp/repo/vendor-scoped/.otel_scoped_distro/ \
+                && OTEL_PHP_SCOPER_PREFIX='${_SCOPER_PREFIX}' php -d error_reporting='E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED' /usr/local/bin/php-scoper.phar add-prefix --force --config=/tmp/repo/tools/build/php-scoper.inc.php --output-dir=/tmp/repo/${_DISTRO_PATH}_scoped /tmp/repo/prod/php/OpenTelemetry \
+                && mkdir -p /tmp/repo/vendor-scoped/${_DISTRO_PATH} \
+                && cp -r /tmp/repo/${_DISTRO_PATH}_scoped/. /tmp/repo/vendor-scoped/${_DISTRO_PATH}/ \
                 && mv /tmp/repo/vendor-scoped /tmp/repo/vendor \
             "
         fi

@@ -1,6 +1,7 @@
 # Generated files
 prod/php/OpenTelemetry/Distro/PhpPartVersion.php
 prod/php/OpenTelemetry/Distro/Log/LogFeature.php
+prod/php/ScoperConfig.php
 
 # Mac
 .DS_Store
@@ -18,6 +19,7 @@ prod/php/OpenTelemetry/Distro/Log/LogFeature.php
 composer.lock
 composer.phar
 vendor/
+tests/vendor/
 prod/php/vendor_*/
 
 # PHP_CodeSniffer

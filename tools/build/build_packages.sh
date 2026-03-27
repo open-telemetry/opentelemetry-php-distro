@@ -92,6 +92,7 @@ test_package() {
     local PKG_TYPE=$1
     local PKG_FILENAME=$2
     local DOCKER_PLATFORM=$3
+    local SCOPE_NAME=$4
 
     echo ${PKG_FILENAME}
 
@@ -102,8 +103,8 @@ test_package() {
 
     case "${PKG_TYPE}" in
         "apk")
-            local INSTALL_SMOKE="apk add --allow-untrusted --verbose --no-cache  /source/build/packages/${PKG_FILENAME} && php /source/packaging/test/smokeTest.php"
-            local UNINSTALL_SMOKE="apk del --verbose --no-cache opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php"
+            local INSTALL_SMOKE="apk add --allow-untrusted --verbose --no-cache  /source/build/packages/${PKG_FILENAME} && php /source/packaging/test/smokeTest.php ${SCOPE_NAME}"
+            local UNINSTALL_SMOKE="apk del --verbose --no-cache opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php ${SCOPE_NAME}"
             docker run --rm \
                 --platform ${DOCKER_PLATFORM} \
                 -v ${PWD}:/source \
@@ -111,8 +112,8 @@ test_package() {
                 php:${PHP_VERSION}-alpine sh -c "ls /source/build/packages && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
         ;;
         "deb")
-            local INSTALL_SMOKE="dpkg -i  /source/build/packages/${PKG_FILENAME} && php /source/packaging/test/smokeTest.php"
-            local UNINSTALL_SMOKE="dpkg --purge opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php"
+            local INSTALL_SMOKE="dpkg -i  /source/build/packages/${PKG_FILENAME} && php /source/packaging/test/smokeTest.php ${SCOPE_NAME}"
+            local UNINSTALL_SMOKE="dpkg --purge opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php ${SCOPE_NAME}"
             docker run --rm \
                 --platform ${DOCKER_PLATFORM} \
                 -v ${PWD}:/source \
@@ -131,8 +132,8 @@ test_package() {
             && dnf clean all \
             && dnf install --setopt=install_weak_deps=False -y php${PHP_VERSION//./} php${PHP_VERSION//./}-syspaths"
 
-            local INSTALL_SMOKE="rpm -ivh /source/build/packages/${PKG_FILENAME} && php /source/packaging/test/smokeTest.php"
-            local UNINSTALL_SMOKE="rpm -ve opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php"
+            local INSTALL_SMOKE="rpm -ivh /source/build/packages/${PKG_FILENAME} && php /source/packaging/test/smokeTest.php ${SCOPE_NAME}"
+            local UNINSTALL_SMOKE="rpm -ve opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php ${SCOPE_NAME}"
 
             docker run --rm \
                 --platform ${DOCKER_PLATFORM} \
@@ -169,6 +170,12 @@ export PACKAGE_VERSION="${PACKAGE_VERSION}"
 export BUILD_ARCHITECTURE="${BUILD_ARCHITECTURE}"
 export PACKAGE_GOARCHITECTURE="${PACKAGE_GOARCHITECTURE}"
 export PACKAGE_SHA="${PACKAGE_SHA}"
+SCOPE_NAME=""
+
+if [[ "${_PROJECT_PROPERTIES_PHP_SCOPER_ENABLED}" == "true" ]]; then
+    SCOPE_NAME="${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX}"
+fi
+export SCOPE_NAME="${SCOPE_NAME}"
 
 DOCKER_PLATFORM="linux/x86_64"
 if [[ -n "${BUILD_ARCHITECTURE}" ]] && [[ "${BUILD_ARCHITECTURE}" =~ arm64$ ]]; then
@@ -208,7 +215,7 @@ do
     sha512sum "${PKG_FILENAME}" >"${PKG_FILENAME}".sha512
     popd
 
-    test_package ${pkg_type} "${PKG_FILENAME}" "${DOCKER_PLATFORM}"
+    test_package ${pkg_type} "${PKG_FILENAME}" "${DOCKER_PLATFORM}" "${SCOPE_NAME}"
 
 done
 

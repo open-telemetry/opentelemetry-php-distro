@@ -4,50 +4,59 @@ declare(strict_types=1);
 
 require __DIR__ . '/ScoperConfig.php';
 
-$vendorRootDir = __DIR__
-	. '/vendor_' . PHP_MAJOR_VERSION . PHP_MINOR_VERSION;
+$vendorRootDir = __DIR__ . '/vendor_' . PHP_MAJOR_VERSION . PHP_MINOR_VERSION;
 
+/** @var string $scopedDistroPath */
+$scopedDistroPath = OpenTelemetry\Distro\OTelDistroScoperConfig::DISTRO_PATH;
+
+/** @var array<int, string> $scopedOtelDirCandidates */
 $scopedOtelDirCandidates = [
-	$vendorRootDir . '/.otel_scoped_distro',
-	$vendorRootDir . '/.otel_scoped_distro/OpenTelemetry',
+    $vendorRootDir . '/' . $scopedDistroPath,
+    $vendorRootDir . '/' . $scopedDistroPath . '/OpenTelemetry',
 ];
 
+/** @var array<int, string> $unscopedOtelDirCandidates */
 $unscopedOtelDirCandidates = [
-	$vendorRootDir . '/open-telemetry/opentelemetry-distro/src/OpenTelemetry',
-	__DIR__ . '/OpenTelemetry',
+    $vendorRootDir . '/open-telemetry/opentelemetry-distro/src/OpenTelemetry',
+    __DIR__ . '/OpenTelemetry',
 ];
 
+/** @param array<int, string> $candidates */
 $selectFirstExistingDistroDir = static function (array $candidates): ?string {
-	foreach ($candidates as $candidate) {
-		if (is_dir($candidate . '/Distro')) {
-			return $candidate;
-		}
-	}
+    foreach ($candidates as $candidate) {
+        if (!is_string($candidate)) {
+            continue;
+        }
 
-	return null;
+        if (is_dir($candidate . '/Distro')) {
+            return $candidate;
+        }
+    }
+
+    return null;
 };
 
-$isScopedRuntime = OTelDistroScoperConfig::ENABLED;
+$isScopedRuntime = OpenTelemetry\Distro\OTelDistroScoperConfig::ENABLED;
 $otelRootDir = $isScopedRuntime
-	? $selectFirstExistingDistroDir($scopedOtelDirCandidates)
-	: $selectFirstExistingDistroDir($unscopedOtelDirCandidates);
+    ? $selectFirstExistingDistroDir($scopedOtelDirCandidates)
+    : $selectFirstExistingDistroDir($unscopedOtelDirCandidates);
 
 if ($otelRootDir === null) {
-	$scopedExpected = implode(', ', array_map(
-		static fn (string $dir): string => $dir . '/Distro',
-		$scopedOtelDirCandidates
-	));
-	$unscopedExpected = implode(', ', array_map(
-		static fn (string $dir): string => $dir . '/Distro',
-		$unscopedOtelDirCandidates
-	));
+    $scopedExpected = implode(', ', array_map(
+        static fn (string $dir): string => $dir . '/Distro',
+        $scopedOtelDirCandidates
+    ));
+    $unscopedExpected = implode(', ', array_map(
+        static fn (string $dir): string => $dir . '/Distro',
+        $unscopedOtelDirCandidates
+    ));
 
-	throw new RuntimeException(
-		'Cannot locate distro sources. '
-		. 'scoper enabled: ' . (OTelDistroScoperConfig::ENABLED ? 'true' : 'false')
-		. '; scoped candidates: ' . $scopedExpected
-		. '; unscoped candidates: ' . $unscopedExpected
-	);
+    throw new RuntimeException(
+        'Cannot locate distro sources. '
+        . 'scoper enabled: ' . ($isScopedRuntime ? 'true' : 'false')
+        . '; scoped candidates: ' . $scopedExpected
+        . '; unscoped candidates: ' . $unscopedExpected
+    );
 }
 
 $distroDir = $otelRootDir . '/Distro';
@@ -56,20 +65,20 @@ $unscopedProdPhpDirClass = 'OpenTelemetry\\Distro\\ProdPhpDir';
 $unscopedPhpPartFacadeClass = 'OpenTelemetry\\Distro\\PhpPartFacade';
 $unscopedInstrumentationBridgeClass = 'OpenTelemetry\\Distro\\InstrumentationBridge';
 
-$scopedPrefix = OTelDistroScoperConfig::PREFIX;
+$scopedPrefix = OpenTelemetry\Distro\OTelDistroScoperConfig::PREFIX;
 $scopedProdPhpDirClass = $scopedPrefix . '\\' . $unscopedProdPhpDirClass;
 $scopedPhpPartFacadeClass = $scopedPrefix . '\\' . $unscopedPhpPartFacadeClass;
 $scopedInstrumentationBridgeClass = $scopedPrefix . '\\' . $unscopedInstrumentationBridgeClass;
 
 $syncScopedAlias = static function (string $unscopedClass, string $scopedClass): void {
-	if (class_exists($unscopedClass, false) && !class_exists($scopedClass, false)) {
-		class_alias($unscopedClass, $scopedClass, false);
-		return;
-	}
+    if (class_exists($unscopedClass, false) && !class_exists($scopedClass, false)) {
+        class_alias($unscopedClass, $scopedClass, false);
+        return;
+    }
 
-	if (class_exists($scopedClass, false) && !class_exists($unscopedClass, false)) {
-		class_alias($scopedClass, $unscopedClass, false);
-	}
+    if (class_exists($scopedClass, false) && !class_exists($unscopedClass, false)) {
+        class_alias($scopedClass, $unscopedClass, false);
+    }
 };
 
 require $distroDir . '/ProdPhpDir.php';
@@ -85,5 +94,5 @@ $syncScopedAlias($unscopedInstrumentationBridgeClass, $scopedInstrumentationBrid
 $prodPhpDirClass = $isScopedRuntime ? $scopedProdPhpDirClass : $unscopedProdPhpDirClass;
 $prodPhpDirClass::$fullPath = __DIR__;
 if (property_exists($prodPhpDirClass, 'shadowOtelRootPath')) {
-	$prodPhpDirClass::$shadowOtelRootPath = $isScopedRuntime ? $otelRootDir : null;
+   $prodPhpDirClass::$shadowOtelRootPath = $isScopedRuntime ? $otelRootDir : null;
 }
