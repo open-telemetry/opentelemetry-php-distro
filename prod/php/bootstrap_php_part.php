@@ -87,9 +87,9 @@ require $distroDir . '/Util/SingletonInstanceTrait.php';
 require $distroDir . '/InstrumentationBridge.php';
 require $distroDir . '/PhpPartFacade.php';
 
-$syncScopedAlias($unscopedProdPhpDirClass, $scopedProdPhpDirClass);
-$syncScopedAlias($unscopedPhpPartFacadeClass, $scopedPhpPartFacadeClass);
-$syncScopedAlias($unscopedInstrumentationBridgeClass, $scopedInstrumentationBridgeClass);
+// $syncScopedAlias($unscopedProdPhpDirClass, $scopedProdPhpDirClass);
+// $syncScopedAlias($unscopedPhpPartFacadeClass, $scopedPhpPartFacadeClass);
+//$syncScopedAlias($unscopedInstrumentationBridgeClass, $scopedInstrumentationBridgeClass);
 
 $prodPhpDirClass = $isScopedRuntime ? $scopedProdPhpDirClass : $unscopedProdPhpDirClass; // @phpstan-ignore ternary.alwaysTrue
 $prodPhpDirClass::$fullPath = __DIR__;
