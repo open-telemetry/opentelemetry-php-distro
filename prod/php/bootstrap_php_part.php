@@ -61,6 +61,10 @@ if ($otelRootDir === null) {
 
 $distroDir = $otelRootDir . '/Distro';
 
+$unscopedProdPhpDirClass = 'OpenTelemetry\\Distro\\ProdPhpDir';
+$scopedPrefix = OpenTelemetry\Distro\OTelDistroScoperConfig::PREFIX;
+$scopedProdPhpDirClass = $scopedPrefix . '\\' . $unscopedProdPhpDirClass;
+
 require $distroDir . '/ProdPhpDir.php';
 require $distroDir . '/Util/HiddenConstructorTrait.php';
 require $distroDir . '/Util/SingletonInstanceTrait.php';
