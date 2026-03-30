@@ -227,7 +227,7 @@ final class PackagesPhpRequirementTest extends ComponentTestCaseBase
         OTelUtil::addActiveSpanAttributes([self::PROD_VENDOR_DIR_KEY => PhpPartFacade::getVendorDirPath()]);
     }
 
-    public function testPackagesHaveCorrectPhpVersion(): void
+    private function implTestPackagesHaveCorrectPhpVersion(): void
     {
         self::assertOpcacheEnabled();
 
@@ -249,5 +249,15 @@ final class PackagesPhpRequirementTest extends ComponentTestCaseBase
         self::verifyPackagesPhpVersion($prodVendorDir);
         self::validatePhpFilesUseParser($prodVendorDir);
         self::validatePhpFilesUseOpCache($prodVendorDir);
+    }
+
+    public function testPackagesHaveCorrectPhpVersion(): void
+    {
+        self::runAndEscalateLogLevelOnFailure(
+            self::buildDbgDescForTest(__CLASS__, __FUNCTION__),
+            function (): void {
+                $this->implTestPackagesHaveCorrectPhpVersion();
+            }
+        );
     }
 }
