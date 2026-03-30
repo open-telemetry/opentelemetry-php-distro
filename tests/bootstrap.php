@@ -29,6 +29,35 @@ ExceptionUtil::runCatchLogRethrow(
     }
 );
 
+// For BootstrapTests we need to have the same class aliases regardless of whether scoping is enabled or not, so we sync them in the bootstrap itself
+// (instead of relying on the PhpPartFacade which is not loaded in tests context).
+
+$syncScopedAlias = static function (string $unscopedClass, string $scopedClass): void {
+    if (class_exists($unscopedClass, false) && !class_exists($scopedClass, false)) {
+        class_alias($unscopedClass, $scopedClass, false);
+        return;
+    }
+
+    if (class_exists($scopedClass, false) && !class_exists($unscopedClass, false)) {
+        class_alias($scopedClass, $unscopedClass, false);
+    }
+};
+
+
+$unscopedProdPhpDirClass = 'OpenTelemetry\\Distro\\ProdPhpDir';
+$unscopedPhpPartFacadeClass = 'OpenTelemetry\\Distro\\PhpPartFacade';
+$unscopedInstrumentationBridgeClass = 'OpenTelemetry\\Distro\\InstrumentationBridge';
+
+$scopedPrefix = 'OTelDistroScoped';
+$scopedProdPhpDirClass = $scopedPrefix . '\\' . $unscopedProdPhpDirClass;
+$scopedPhpPartFacadeClass = $scopedPrefix . '\\' . $unscopedPhpPartFacadeClass;
+$scopedInstrumentationBridgeClass = $scopedPrefix . '\\' . $unscopedInstrumentationBridgeClass;
+
+
+$syncScopedAlias($unscopedProdPhpDirClass, $scopedProdPhpDirClass);
+$syncScopedAlias($unscopedPhpPartFacadeClass, $scopedPhpPartFacadeClass);
+$syncScopedAlias($unscopedInstrumentationBridgeClass, $scopedInstrumentationBridgeClass);
+
 /*
 Dummy comment to verify PHP source code max allowed line length (which is 200).
 PHP source code max allowed line length is configured in <repo root>/phpcs.xml
