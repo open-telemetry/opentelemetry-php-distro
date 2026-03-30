@@ -559,7 +559,7 @@ final class DebugContextSingleton implements LoggableInterface
             return null;
         }
 
-        $decodedContextsStack = JsonUtil::decode($addedText, asAssocArray: true);
+        $decodedContextsStack = JsonUtil::decode($addedText);
         return AssertEx::isArray($decodedContextsStack); // @phpstan-ignore return.type
     }
 

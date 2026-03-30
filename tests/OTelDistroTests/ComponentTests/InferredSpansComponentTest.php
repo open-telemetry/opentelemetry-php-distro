@@ -5,16 +5,14 @@ declare(strict_types=1);
 namespace OTelDistroTests\ComponentTests;
 
 use OpenTelemetry\Distro\Util\ArrayUtil;
+use OTelDistroTests\ComponentTests\Util\AppCodeContextDataUtil;
 use OTelDistroTests\ComponentTests\Util\AppCodeHostParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeRequestParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeTarget;
 use OTelDistroTests\ComponentTests\Util\ComponentTestCaseBase;
 use OTelDistroTests\ComponentTests\Util\InferredSpanExpectationsBuilder;
-use OTelDistroTests\ComponentTests\Util\OTelUtil;
-use OTelDistroTests\ComponentTests\Util\PhpSerializationUtil;
 use OTelDistroTests\ComponentTests\Util\SpanSequenceExpectations;
 use OTelDistroTests\ComponentTests\Util\StackTraceExpectations;
-use OTelDistroTests\ComponentTests\Util\TestCaseHandle;
 use OTelDistroTests\ComponentTests\Util\WaitForOTelSignalCounts;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\Config\OptionForProdName;
@@ -50,7 +48,6 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
     private const TIME_NANOSLEEP_FUNC_NAME = 'time_nanosleep';
     private const SLEEP_FUNC_NAMES = [self::SLEEP_FUNC_NAME, self::MULTI_STEP_USLEEP_FUNC_NAME, self::TIME_NANOSLEEP_FUNC_NAME];
 
-    private const IS_CURRENT_RUN_TO_GET_EXPECTED_HELPER_DATA_KEY = 'is_current_run_to_get_expected_helper_data';
     private const EXPECTED_HELPER_DATA_KEY = 'expected_helper_data';
     private const STACK_TRACE_KEY = 'stack_trace';
     private const LINE_NUMBER_KEY = 'line_number';
@@ -68,6 +65,7 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
         return self::adaptToSmoke(DataProviderForTestBuilder::convertEachDataSetToMixedMap($result));
     }
 
+    /** @noinspection PhpSameParameterValueInspection */
     private static function multiStepUsleep(int $secondsToSleep): void
     {
         $microsecondsInSecond = 1000 * 1000;
@@ -83,50 +81,43 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
     /**
      * @phpstan-param ExpectedHelperData $expectedHelperData
      */
-    private static function mySleep(string $sleepFuncToUse, bool $isCurrentRunToGetExpectedHelperData, /* ref */ array &$expectedHelperData): void
+    private static function mySleep(string $sleepFuncToUse, /* ref */ array &$expectedHelperData): void
     {
-        $secondsToSleep = $isCurrentRunToGetExpectedHelperData ? 0 : self::SLEEP_DURATION_SECONDS;
         switch ($sleepFuncToUse) {
             case self::SLEEP_FUNC_NAME:
-                self::assertSame(0, sleep($secondsToSleep));
+                self::assertSame(0, sleep(self::SLEEP_DURATION_SECONDS));
                 $sleepCallLine = __LINE__ - 1;
                 break;
             case self::MULTI_STEP_USLEEP_FUNC_NAME:
-                self::multiStepUsleep($secondsToSleep);
+                self::multiStepUsleep(self::SLEEP_DURATION_SECONDS);
                 $sleepCallLine = __LINE__ - 1;
                 break;
             case self::TIME_NANOSLEEP_FUNC_NAME:
-                self::assertTrue(time_nanosleep($secondsToSleep, nanoseconds: 0));
+                self::assertTrue(time_nanosleep(self::SLEEP_DURATION_SECONDS, nanoseconds: 0));
                 $sleepCallLine = __LINE__ - 1;
                 break;
             default:
                 self::fail('Unknown sleepFuncToUse: `' . $sleepFuncToUse . '\'');
         }
 
-        if ($isCurrentRunToGetExpectedHelperData) {
-            $expectedStackTrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
-            $expectedHelperData[$sleepFuncToUse] = [self::STACK_TRACE_KEY => $expectedStackTrace, self::LINE_NUMBER_KEY => $sleepCallLine];
-        }
+        $expectedStackTrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+        $expectedHelperData[$sleepFuncToUse] = [self::STACK_TRACE_KEY => $expectedStackTrace, self::LINE_NUMBER_KEY => $sleepCallLine];
     }
 
     public static function appCodeForTestInferredSpans(MixedMap $appCodeArgs): void
     {
-        $isCurrentRunToGetExpectedHelperData = $appCodeArgs->getBool(self::IS_CURRENT_RUN_TO_GET_EXPECTED_HELPER_DATA_KEY);
-
         /** @var ExpectedHelperData $expectedHelperData */
         $expectedHelperData = [];
 
-        self::mySleep(self::SLEEP_FUNC_NAME, $isCurrentRunToGetExpectedHelperData, /* ref */ $expectedHelperData);
-        self::mySleep(self::MULTI_STEP_USLEEP_FUNC_NAME, $isCurrentRunToGetExpectedHelperData, /* ref */ $expectedHelperData);
-        self::mySleep(self::TIME_NANOSLEEP_FUNC_NAME, $isCurrentRunToGetExpectedHelperData, /* ref */ $expectedHelperData);
+        self::mySleep(self::SLEEP_FUNC_NAME, /* ref */ $expectedHelperData);
+        self::mySleep(self::MULTI_STEP_USLEEP_FUNC_NAME, /* ref */ $expectedHelperData);
+        self::mySleep(self::TIME_NANOSLEEP_FUNC_NAME, /* ref */ $expectedHelperData);
 
-        if ($isCurrentRunToGetExpectedHelperData) {
-            // Slice 1 frame for this function call since this function call is converted to an inferred span
-            // and properties from the stack frame converted to an inferred span go to CODE_FILE_PATH and CODE_LINE_NUMBER attributes.
-            // This method is a special case since it's called by call_user_func, so there should not be CODE_FILE_PATH and CODE_LINE_NUMBER attributes.
-            $expectedHelperData[__FUNCTION__] = [self::STACK_TRACE_KEY => array_slice(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS), offset: 1)];
-            OTelUtil::addActiveSpanAttributes([self::EXPECTED_HELPER_DATA_KEY => PhpSerializationUtil::serializeToString($expectedHelperData)]);
-        }
+        // Slice 1 frame for this function call since this function call is converted to an inferred span
+        // and properties from the stack frame converted to an inferred span go to CODE_FILE_PATH and CODE_LINE_NUMBER attributes.
+        // This method is a special case since it's called by call_user_func, so there should not be CODE_FILE_PATH and CODE_LINE_NUMBER attributes.
+        $expectedHelperData[__FUNCTION__] = [self::STACK_TRACE_KEY => array_slice(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS), offset: 1)];
+        AppCodeContextDataUtil::writeDataToFile([self::EXPECTED_HELPER_DATA_KEY => $expectedHelperData], $appCodeArgs->getString(AppCodeContextDataUtil::FILE_PATH_KEY));
     }
 
     private function implTestInferredSpans(MixedMap $testArgs): void
@@ -140,45 +131,23 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
         $appCodeMethodName = $appCodeTarget->appCodeMethod;
         self::assertIsString($appCodeMethodName);
 
-        $setupAndCallAppCode = function (bool $isCurrentRunToGetExpectedHelperData) use ($isInferredSpansEnabled, $shouldCaptureSleeps, $appCodeTarget): TestCaseHandle {
-            $testCaseHandle = $this->getTestCaseHandle();
-            $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
-                function (AppCodeHostParams $appCodeParams) use ($isInferredSpansEnabled, $shouldCaptureSleeps, $isCurrentRunToGetExpectedHelperData): void {
-                    $appCodeParams->setProdOption(OptionForProdName::inferred_spans_enabled, (!$isCurrentRunToGetExpectedHelperData) && $isInferredSpansEnabled);
-                    $inferredMinDuration = $shouldCaptureSleeps ? self::INFERRED_MIN_DURATION_SECONDS_TO_CAPTURE_SLEEPS : self::INFERRED_MIN_DURATION_SECONDS_TO_OMIT_SLEEPS;
-                    $appCodeParams->setProdOption(OptionForProdName::inferred_spans_min_duration, $inferredMinDuration . 's');
-                }
-            );
-            $appCodeHost->execAppCode(
-                $appCodeTarget,
-                function (AppCodeRequestParams $appCodeReqParams) use ($isCurrentRunToGetExpectedHelperData): void {
-                    $appCodeReqParams->setAppCodeArgs([self::IS_CURRENT_RUN_TO_GET_EXPECTED_HELPER_DATA_KEY => $isCurrentRunToGetExpectedHelperData]);
-                }
-            );
+        $testCaseHandle = $this->getTestCaseHandle();
 
-            return $testCaseHandle;
-        };
+        $appCodeCtxDataFilePath = AppCodeContextDataUtil::createTempFile($testCaseHandle);
 
-        /**
-         * @return ExpectedHelperData
-         */
-        $doDummyRunToGetExpectedHelperData = function () use ($setupAndCallAppCode, $dbgCtx): array {
-            $testCaseHandle = $setupAndCallAppCode(isCurrentRunToGetExpectedHelperData: true);
-            // For the dummy run to get expected helper data inferred spans feature is disabled so only a local root span should be created
-            $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(WaitForOTelSignalCounts::spans(1));
-            $dbgCtx->add(compact('agentBackendComms'));
-            $this->tearDownTestCaseHandle();
-            $testCaseHandle = null;
-            $rootSpan = IterableUtil::singleValue($agentBackendComms->findRootSpans());
-            $expectedHelperData = PhpSerializationUtil::unserializeFromString($rootSpan->attributes->getString(self::EXPECTED_HELPER_DATA_KEY));
-            $dbgCtx->add(compact('expectedHelperData'));
-            self::assertIsArray($expectedHelperData);
-            /** @var ExpectedHelperData $expectedHelperData */
-            return $expectedHelperData;
-        };
-
-        $expectedHelperData = $doDummyRunToGetExpectedHelperData();
-        $testCaseHandle = $setupAndCallAppCode(isCurrentRunToGetExpectedHelperData: false);
+        $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
+            function (AppCodeHostParams $appCodeParams) use ($isInferredSpansEnabled, $shouldCaptureSleeps): void {
+                $appCodeParams->setProdOption(OptionForProdName::inferred_spans_enabled, $isInferredSpansEnabled);
+                $inferredMinDuration = $shouldCaptureSleeps ? self::INFERRED_MIN_DURATION_SECONDS_TO_CAPTURE_SLEEPS : self::INFERRED_MIN_DURATION_SECONDS_TO_OMIT_SLEEPS;
+                $appCodeParams->setProdOption(OptionForProdName::inferred_spans_min_duration, $inferredMinDuration . 's');
+            }
+        );
+        $appCodeHost->execAppCode(
+            $appCodeTarget,
+            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeCtxDataFilePath): void {
+                $appCodeRequestParams->setAppCodeArgs(new MixedMap([AppCodeContextDataUtil::FILE_PATH_KEY => $appCodeCtxDataFilePath]));
+            }
+        );
 
         // Inferred spans count is at least 4: 3 sleep spans + 1 span for appCode method
         $expectedInferredSpansMinCount = $isInferredSpansEnabled ? (($shouldCaptureSleeps ? 3 : 0) + 1) : 0;
@@ -188,6 +157,10 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
             $isInferredSpansEnabled ? WaitForOTelSignalCounts::spansAtLeast($expectedSpanMinCount) : WaitForOTelSignalCounts::spans($expectedSpanMinCount)
         );
         $dbgCtx->add(compact('agentBackendComms'));
+
+        $expectedHelperData = AppCodeContextDataUtil::readMixedMapFromFile($appCodeCtxDataFilePath)->getArray(self::EXPECTED_HELPER_DATA_KEY);
+        /** @var ExpectedHelperData $expectedHelperData */
+        $dbgCtx->add(compact('expectedHelperData'));
 
         $rootSpan = IterableUtil::singleValue($agentBackendComms->findRootSpans());
         foreach ($agentBackendComms->spans() as $span) {

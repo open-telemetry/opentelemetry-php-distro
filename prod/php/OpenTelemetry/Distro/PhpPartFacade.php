@@ -196,9 +196,9 @@ final class PhpPartFacade
         self::setEnvVar('OTEL_PHP_AUTOLOAD_ENABLED', 'true');
     }
 
-    public static function getVendorDirPath(): string
+    public static function getVendorDirPath(string $prodPhpDir): string
     {
-        return ProdPhpDir::$fullPath . DIRECTORY_SEPARATOR . (
+        return $prodPhpDir . DIRECTORY_SEPARATOR . (
             self::isInDevMode()
                 ? ('..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'vendor')
                 : ('vendor_' . PHP_MAJOR_VERSION . PHP_MINOR_VERSION)
@@ -213,7 +213,7 @@ final class PhpPartFacade
         }
         require_once $instrumentationHookPhp;
 
-        $vendorAutoloadPhp = self::getVendorDirPath() . '/autoload.php';
+        $vendorAutoloadPhp = self::getVendorDirPath(ProdPhpDir::$fullPath) . '/autoload.php';
         if (!file_exists($vendorAutoloadPhp)) {
             throw new RuntimeException("File $vendorAutoloadPhp does not exist");
         }
