@@ -61,26 +61,6 @@ if ($otelRootDir === null) {
 
 $distroDir = $otelRootDir . '/Distro';
 
-$unscopedProdPhpDirClass = 'OpenTelemetry\\Distro\\ProdPhpDir';
-$unscopedPhpPartFacadeClass = 'OpenTelemetry\\Distro\\PhpPartFacade';
-$unscopedInstrumentationBridgeClass = 'OpenTelemetry\\Distro\\InstrumentationBridge';
-
-$scopedPrefix = OpenTelemetry\Distro\OTelDistroScoperConfig::PREFIX;
-$scopedProdPhpDirClass = $scopedPrefix . '\\' . $unscopedProdPhpDirClass;
-$scopedPhpPartFacadeClass = $scopedPrefix . '\\' . $unscopedPhpPartFacadeClass;
-$scopedInstrumentationBridgeClass = $scopedPrefix . '\\' . $unscopedInstrumentationBridgeClass;
-
-$syncScopedAlias = static function (string $unscopedClass, string $scopedClass): void {
-    if (class_exists($unscopedClass, false) && !class_exists($scopedClass, false)) {
-        class_alias($unscopedClass, $scopedClass, false);
-        return;
-    }
-
-    if (class_exists($scopedClass, false) && !class_exists($unscopedClass, false)) {
-        class_alias($scopedClass, $unscopedClass, false);
-    }
-};
-
 require $distroDir . '/ProdPhpDir.php';
 require $distroDir . '/Util/HiddenConstructorTrait.php';
 require $distroDir . '/Util/SingletonInstanceTrait.php';
