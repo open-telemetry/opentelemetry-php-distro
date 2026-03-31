@@ -148,7 +148,7 @@ function build_list_of_not_dev_deps_to_remove_for_test() {
     done
 
     if [ ${#deps_to_remove[@]} -eq 0 ]; then
-        echo "There should be at least one package to remove to generate composer json derived for test env"
+        echo "::error:: ❌ There should be at least one package to remove to generate composer json derived for test env"
         exit 1
     fi
 
@@ -197,10 +197,11 @@ function derive_composer_json_for_env_kind() {
             command_to_derive=$(build_command_to_derive_composer_json_for_prod_static_check "${base_composer_json_full_path}")
             ;;
         test)
-            command_to_derive=$(build_command_to_derive_for_test "${base_composer_json_full_path}")
+           command_to_derive=$(build_command_to_derive_for_test "${base_composer_json_full_path}")
+            # command_to_derive="ls"
             ;;
         *)
-            echo "There is no way to generate derived composer json for environment kind ${_ENV_KIND}"
+            echo "::error:: ❌ There is no way to generate derived composer json for environment kind ${_ENV_KIND}"
             exit 1
             ;;
     esac
@@ -230,7 +231,7 @@ function derive_composer_json_for_env_kind() {
     local has_compared_the_same="true"
     diff "${base_composer_json_full_path}" "${derived_composer_json_full_path}" || has_compared_the_same="false"
     if [ "${has_compared_the_same}" == "true" ]; then
-        echo "${base_composer_json_full_path} and ${derived_composer_json_full_path} should be different"
+        echo "::error:: ❌ ${base_composer_json_full_path} and ${derived_composer_json_full_path} should be different"
         exit 1
     fi
 }

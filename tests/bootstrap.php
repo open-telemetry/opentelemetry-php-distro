@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+namespace OpenTelemetry\Instrumentation;
+use OpenTelemetry\Distro\InstrumentationBridge;
+
 use OTelDistroTests\Util\RepoRootDir;
 use OTelDistroTests\Util\ExceptionUtil;
 
@@ -57,6 +60,23 @@ $scopedInstrumentationBridgeClass = $scopedPrefix . '\\' . $unscopedInstrumentat
 $syncScopedAlias($unscopedProdPhpDirClass, $scopedProdPhpDirClass);
 $syncScopedAlias($unscopedPhpPartFacadeClass, $scopedPhpPartFacadeClass);
 $syncScopedAlias($unscopedInstrumentationBridgeClass, $scopedInstrumentationBridgeClass);
+
+
+function hook(
+    ?string $class,
+    string $function,
+    ?\Closure $pre = null,
+    ?\Closure $post = null,
+): bool {
+    /** @var class-string $bridgeClass */
+    $bridgeClass = 'OTelDistroScoped\\OpenTelemetry\\Distro\\InstrumentationBridge';
+    if (class_exists($bridgeClass, false)) {
+        return $bridgeClass::singletonInstance()->hook($class, $function, $pre, $post);
+    }
+
+    return \OpenTelemetry\Distro\InstrumentationBridge::singletonInstance()->hook($class, $function, $pre, $post);
+}
+
 
 /*
 Dummy comment to verify PHP source code max allowed line length (which is 200).
