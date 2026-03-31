@@ -6,7 +6,6 @@ require __DIR__ . '/ScoperConfig.php';
 
 $vendorRootDir = __DIR__ . '/vendor_' . PHP_MAJOR_VERSION . PHP_MINOR_VERSION;
 
-/** @var string $scopedDistroPath */
 $scopedDistroPath = OpenTelemetry\Distro\OTelDistroScoperConfig::DISTRO_PATH;
 
 /** @var array<int, string> $scopedOtelDirCandidates */
@@ -62,7 +61,8 @@ if ($otelRootDir === null) {
 $distroDir = $otelRootDir . '/Distro';
 
 $unscopedProdPhpDirClass = 'OpenTelemetry\\Distro\\ProdPhpDir';
-$scopedPrefix = OpenTelemetry\Distro\OTelDistroScoperConfig::PREFIX;
+/** @noinspection PhpFullyQualifiedNameUsageInspection */
+$scopedPrefix = \OpenTelemetry\Distro\OTelDistroScoperConfig::PREFIX;
 $scopedProdPhpDirClass = $scopedPrefix . '\\' . $unscopedProdPhpDirClass;
 
 require $distroDir . '/ProdPhpDir.php';
@@ -71,6 +71,10 @@ require $distroDir . '/Util/SingletonInstanceTrait.php';
 require $distroDir . '/InstrumentationBridge.php';
 require $distroDir . '/PhpPartFacade.php';
 
+/**
+ * @var class-string<\OpenTelemetry\Distro\ProdPhpDir> $prodPhpDirClass
+ * @noinspection PhpFullyQualifiedNameUsageInspection
+ */
 $prodPhpDirClass = $isScopedRuntime ? $scopedProdPhpDirClass : $unscopedProdPhpDirClass; // @phpstan-ignore ternary.alwaysTrue
 $prodPhpDirClass::$fullPath = __DIR__;
 if (property_exists($prodPhpDirClass, 'shadowOtelRootPath')) {

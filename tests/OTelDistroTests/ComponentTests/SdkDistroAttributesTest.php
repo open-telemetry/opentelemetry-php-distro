@@ -7,12 +7,13 @@ namespace OTelDistroTests\ComponentTests;
 use Composer\InstalledVersions;
 use OpenTelemetry\Distro\OverrideOTelSdkResourceAttributes;
 use OpenTelemetry\Distro\PhpPartVersion;
+use OTelDistroTests\ComponentTests\Util\AppCodeContextDataUtil;
+use OTelDistroTests\ComponentTests\Util\AppCodeContextUtil;
 use OTelDistroTests\ComponentTests\Util\AppCodeHostParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeRequestParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeTarget;
 use OTelDistroTests\ComponentTests\Util\ComponentTestCaseBase;
 use OTelDistroTests\ComponentTests\Util\AttributesExpectations;
-use OTelDistroTests\ComponentTests\Util\OTelUtil;
 use OTelDistroTests\ComponentTests\Util\WaitForOTelSignalCounts;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\BoolUtilForTests;
@@ -24,6 +25,7 @@ use OTelDistroTests\Util\RangeUtil;
 use OTelDistroTests\Util\TextUtilForTests;
 use OpenTelemetry\SemConv\ResourceAttributes;
 use PHPUnit\Framework\Assert;
+use ReflectionClass;
 
 /**
  * @group smoke
@@ -86,8 +88,19 @@ final class SdkDistroAttributesTest extends ComponentTestCaseBase
 
     public static function appCodeForTestAttributes(MixedMap $appCodeArgs): void
     {
-        self::appCodeSetsHowFinishedAttributes($appCodeArgs);
-        OTelUtil::addActiveSpanAttributes([self::DISTRO_VERSION_IN_APP_CONTEXT => OverrideOTelSdkResourceAttributes::getDistroVersion()]);
+        self::appCodeSetsHowFinished(
+            $appCodeArgs,
+            /**
+             * @retrun array<string, mixed>
+             */
+            function (): array {
+                $overrideOTelSdkResourceAttributesClassName = AppCodeContextUtil::adaptClassName(OverrideOTelSdkResourceAttributes::class);
+                return [
+                    "$overrideOTelSdkResourceAttributesClassName class is defined in file" => (new ReflectionClass($overrideOTelSdkResourceAttributesClassName))->getFileName(),
+                    self::DISTRO_VERSION_IN_APP_CONTEXT                                    => $overrideOTelSdkResourceAttributesClassName::getDistroVersion(),
+                ];
+            }
+        );
     }
 
     private static function getOTelSdkVersion(): string
@@ -109,10 +122,14 @@ final class SdkDistroAttributesTest extends ComponentTestCaseBase
                 $appCodeParams->setProdOption(OptionForProdName::resource_attributes, self::buildOTelResourceAttributesForAppProcess($testArgs));
             }
         );
+
+        $appCodeArgs = $testArgs->cloneAsArray();
+        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeArgs);
+
         $appCodeHost->execAppCode(
             AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestAttributes']),
-            function (AppCodeRequestParams $appCodeRequestParams) use ($testArgs): void {
-                $appCodeRequestParams->setAppCodeArgs($testArgs);
+            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeArgs): void {
+                $appCodeRequestParams->setAppCodeArgs($appCodeArgs);
             }
         );
 
@@ -137,9 +154,12 @@ final class SdkDistroAttributesTest extends ComponentTestCaseBase
 
         // Assert
 
+        $appCodeContextData = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeArgs);
+        $dbgCtx->add(compact('appCodeContextData'));
+        self::assertTrue($appCodeContextData->getBool(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY));
+
         $rootSpan = $agentBackendComms->singleRootSpan();
         $dbgCtx->add(compact('rootSpan'));
-        (new AttributesExpectations(attributes: [self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY => true], notAllowedAttributes: $notExpectedAttributes))->assertMatches($rootSpan->attributes);
 
         $removeVersionSuffix = function (string $inputVer): string {
             $suffixStartPos = null;
@@ -158,7 +178,7 @@ final class SdkDistroAttributesTest extends ComponentTestCaseBase
             return substr($inputVer, 0, $suffixStartPos);
         };
 
-        $distroVersionInAppContext = $rootSpan->attributes->getString(self::DISTRO_VERSION_IN_APP_CONTEXT);
+        $distroVersionInAppContext = $appCodeContextData->getString(self::DISTRO_VERSION_IN_APP_CONTEXT);
         $dbgCtx->add(compact('distroVersionInAppContext'));
         $dbgCtx->add(['PhpPartVersion::VALUE' => PhpPartVersion::VALUE]);
         $phpPartVerWithoutSuffix = $removeVersionSuffix(PhpPartVersion::VALUE);

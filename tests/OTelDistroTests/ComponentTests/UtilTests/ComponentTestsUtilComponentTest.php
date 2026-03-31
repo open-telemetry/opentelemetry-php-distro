@@ -52,9 +52,12 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
 
     public static function appCodeForTestRunAndEscalateLogLevelOnFailure(MixedMap $appCodeArgs): void
     {
-        self::appCodeSetsHowFinishedAttributes(
+        self::appCodeSetsHowFinished(
             $appCodeArgs,
-            function () use ($appCodeArgs): void {
+            /**
+             * @retrun array<string, mixed>
+             */
+            function () use ($appCodeArgs): array {
                 DebugContext::getCurrentScope(/* out */ $dbgCtx);
                 $dbgCtx->add(compact('appCodeArgs'));
                 $dbgCtx->add(['testConfig' => AmbientContextForTests::testConfig()]);
@@ -70,6 +73,7 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
                 $actualLogLevelForTestCode = AmbientContextForTests::testConfig()->logLevel;
                 $dbgCtx->add(compact('actualLogLevelForTestCode'));
                 self::assertSame($expectedLogLevelForTestCode, $actualLogLevelForTestCode);
+                return [];
             }
         );
     }

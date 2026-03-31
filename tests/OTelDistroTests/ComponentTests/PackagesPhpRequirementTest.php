@@ -230,7 +230,7 @@ final class PackagesPhpRequirementTest extends ComponentTestCaseBase
     {
         $bootstrapPhpPartFile = AssertEx::isString(ini_get(IniRawSnapshotSource::DEFAULT_PREFIX . OptionForProdName::bootstrap_php_part_file->name));
         $prodVendorDir = PhpPartFacade::getVendorDirPath(dirname(FileUtil::normalizePath($bootstrapPhpPartFile)));
-        AppCodeContextDataUtil::writeDataToFile([self::PROD_VENDOR_DIR_KEY => $prodVendorDir], $appCodeArgs->getString(AppCodeContextDataUtil::FILE_PATH_KEY));
+        AppCodeContextDataUtil::writeDataToTempFile([self::PROD_VENDOR_DIR_KEY => $prodVendorDir], $appCodeArgs);
     }
 
     private function implTestPackagesHaveCorrectPhpVersion(): void
@@ -241,7 +241,9 @@ final class PackagesPhpRequirementTest extends ComponentTestCaseBase
 
         $testCaseHandle = $this->getTestCaseHandle();
 
-        $appCodeCtxDataFilePath = AppCodeContextDataUtil::createTempFile($testCaseHandle);
+        /** @var array<string, mixed> $appCodeArgs */
+        $appCodeArgs = [];
+        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeArgs);
 
         $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
             function (AppCodeHostParams $appCodeParams): void {
@@ -250,15 +252,15 @@ final class PackagesPhpRequirementTest extends ComponentTestCaseBase
         );
         $appCodeHost->execAppCode(
             AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestPackagesHaveCorrectPhpVersion']),
-            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeCtxDataFilePath): void {
-                $appCodeRequestParams->setAppCodeArgs(new MixedMap([AppCodeContextDataUtil::FILE_PATH_KEY => $appCodeCtxDataFilePath]));
+            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeArgs): void {
+                $appCodeRequestParams->setAppCodeArgs($appCodeArgs);
             }
         );
 
         $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(WaitForOTelSignalCounts::spans(1)); // exactly 1 span (the root span) is expected
         $dbgCtx->add(compact('agentBackendComms'));
 
-        $prodVendorDir = AppCodeContextDataUtil::readMixedMapFromFile($appCodeCtxDataFilePath)->getString(self::PROD_VENDOR_DIR_KEY);
+        $prodVendorDir = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeArgs)->getString(self::PROD_VENDOR_DIR_KEY);
 
         self::verifyPackagesPhpVersion($prodVendorDir);
         self::validatePhpFilesUseParser($prodVendorDir);

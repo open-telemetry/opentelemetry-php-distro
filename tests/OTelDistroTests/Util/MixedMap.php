@@ -129,9 +129,17 @@ class MixedMap implements LoggableInterface, ArrayAccess, IteratorAggregate
         return self::getNullableStringFrom($key, $this->map);
     }
 
+    /**
+     * @param array<array-key, mixed> $from
+     */
+    public static function getStringFrom(string $key, array $from): string
+    {
+        return AssertEx::notNull(self::getNullableStringFrom($key, $from));
+    }
+
     public function getString(string $key): string
     {
-        return AssertEx::notNull($this->getNullableString($key));
+        return self::getStringFrom($key, $this->map);
     }
 
     public function getNullableFloat(string $key): ?float

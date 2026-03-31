@@ -208,6 +208,7 @@ final class PhpPartFacade
     private static function registerAutoloaderForVendorDir(): void
     {
         $instrumentationHookPhp = ProdPhpDir::getOpenTelemetryRootPath() . DIRECTORY_SEPARATOR . 'Instrumentation' . DIRECTORY_SEPARATOR . 'hook.php';
+        BootstrapStageLogger::logDebug('About to require ' . $instrumentationHookPhp, __FILE__, __LINE__, __CLASS__, __FUNCTION__);
         if (!file_exists($instrumentationHookPhp)) {
             throw new RuntimeException("File $instrumentationHookPhp does not exist");
         }

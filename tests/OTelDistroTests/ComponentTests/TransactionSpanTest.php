@@ -66,10 +66,14 @@ final class TransactionSpanTest extends ComponentTestCaseBase
 
     public static function appCodeForTestFeatureWithVariousEnabledConfigCombos(MixedMap $appCodeArgs): void
     {
-        self::appCodeSetsHowFinishedAttributes(
+        self::appCodeSetsHowFinished(
             $appCodeArgs,
-            function () use ($appCodeArgs): void {
+            /**
+             * @retrun array<string, mixed>
+             */
+            function () use ($appCodeArgs): array {
                 self::appCodeCreatesDummySpan($appCodeArgs);
+                return [];
             }
         );
     }

@@ -55,8 +55,9 @@ abstract class AppCodeHostBase extends SpawnedProcessBase
                         . ' php_ini_loaded_file(): ' . php_ini_loaded_file() . '.'
                     );
                 }
-                if (!PhpPartFacade::$wasBootstrapCalled) {
-                    throw new ComponentTestsInfraException('PhpPartFacade::$wasBootstrapCalled is false while it should be true for the process with app code');
+                $adaptedClassName = AppCodeContextUtil::adaptClassName(PhpPartFacade::class);
+                if (!$adaptedClassName::$wasBootstrapCalled) {
+                    throw new ComponentTestsInfraException($adaptedClassName . '::$wasBootstrapCalled is false while it should be true for the process with app code');
                 }
 
                 AmbientContextForTests::testConfig()->validateForAppCodeRequest();

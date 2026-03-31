@@ -38,7 +38,6 @@ class ComponentTestCaseBase extends TestCaseBase
     protected const SHOULD_APP_CODE_CREATE_DUMMY_SPAN_KEY = 'should_app_code_create_dummy_span';
     protected const APP_CODE_DUMMY_SPAN_NAME = 'app_code_dummy_span_name';
 
-    protected const SHOULD_APP_CODE_SET_HOW_FINISHED_ATTRIBUTES_KEY = 'should_app_code_set_how_finished_attribute';
     protected const DID_APP_CODE_FINISH_SUCCESSFULLY_KEY = 'is_app_code_finished_successfully';
     protected const THROWABLE_FROM_APP_CODE_KEY = 'throwable_from_app_code';
 
@@ -79,34 +78,32 @@ class ComponentTestCaseBase extends TestCaseBase
     }
 
     /**
-     * @param callable(): void $appCodeImpl
+     * @param ?callable(): array<string, mixed> $appCodeImpl
      *
      * @noinspection PhpDocMissingThrowsInspection
      */
-    public static function appCodeSetsHowFinishedAttributes(MixedMap $appCodeArgs, ?callable $appCodeImpl = null): void
+    public static function appCodeSetsHowFinished(MixedMap $appCodeArgs, ?callable $appCodeImpl = null): void
     {
-        $shouldSetAttributes = $appCodeArgs->isBoolIsNotSetOrSetToTrue(self::SHOULD_APP_CODE_SET_HOW_FINISHED_ATTRIBUTES_KEY);
-
         $logger = self::getLoggerStatic(__NAMESPACE__, __CLASS__, __FILE__);
         $loggerProxyDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
-        $logger->addAllContext(compact('shouldSetAttributes', 'appCodeArgs'));
+        $logger->addAllContext(compact('appCodeArgs'));
 
         $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Calling $appCodeImpl() ...');
         try {
+            $appCodeContextData = [];
             if ($appCodeImpl !== null) {
-                $appCodeImpl();
+                $appCodeContextData = $appCodeImpl();
             }
             $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Call to $appCodeImpl() finished successfully');
-            if ($shouldSetAttributes) {
-                OTelUtil::addActiveSpanAttributes([self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY => true]);
-            }
         } catch (Throwable $throwable) {
             $loggerProxyDebug && $loggerProxyDebug->logThrowable(__LINE__, $throwable, 'Call to $appCodeImpl() thrown');
-            if ($shouldSetAttributes) {
-                OTelUtil::addActiveSpanAttributes([self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY => false, self::THROWABLE_FROM_APP_CODE_KEY => LoggableToString::convert($throwable)]);
-            }
+            ArrayUtilForTests::addAssertingKeyNew(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY, false, /* in,out */ $appCodeContextData);
+            ArrayUtilForTests::addAssertingKeyNew(self::THROWABLE_FROM_APP_CODE_KEY, LoggableToString::convert($throwable), /* in,out */ $appCodeContextData);
+            AppCodeContextDataUtil::writeDataToTempFile($appCodeContextData, $appCodeArgs);
             throw $throwable;
         }
+        ArrayUtilForTests::addAssertingKeyNew(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY, true, /* in,out */ $appCodeContextData);
+        AppCodeContextDataUtil::writeDataToTempFile($appCodeContextData, $appCodeArgs);
     }
 
     public static function appCodeCreatesDummySpan(MixedMap $appCodeArgs): void

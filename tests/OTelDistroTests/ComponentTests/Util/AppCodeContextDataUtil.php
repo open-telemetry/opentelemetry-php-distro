@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OTelDistroTests\ComponentTests\Util;
 
 use OpenTelemetry\Distro\Util\StaticClassTrait;
+use OTelDistroTests\Util\ArrayUtilForTests;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\FileUtil;
 use OTelDistroTests\Util\JsonUtil;
@@ -18,32 +19,41 @@ final class AppCodeContextDataUtil
 {
     use StaticClassTrait;
 
-    public const FILE_PATH_KEY = 'app_code_context_data_file_path';
+    private const FILE_PATH_KEY = 'app_code_context_data_file_path';
 
-    public static function createTempFile(TestCaseHandle $testCaseHandle): string
+    /**
+     * @param array<string, mixed> &$appCodeArgs
+     */
+    public static function createTempFile(TestCaseHandle $testCaseHandle, /* in,out */ array &$appCodeArgs): void
     {
-        return $testCaseHandle->getResourcesClient()->createTempFile('app_code_context_data');
+        $tempFilePath = $testCaseHandle->getResourcesClient()->createTempFile('app_code_context_data');
+        ArrayUtilForTests::addAssertingKeyNew(self::FILE_PATH_KEY, $tempFilePath, /* in,out */ $appCodeArgs);
     }
 
     /**
      * @param JsonEncodableData $data
      */
-    public static function writeDataToFile(null|bool|int|float|string|array $data, string $filePath): void
+    public static function writeDataToTempFile(null|bool|int|float|string|array $data, MixedMap $appCodeArgs): void
     {
-        FileUtil::putFileContents($filePath, JsonUtil::encode(self::assertJsonEncodableData($data)));
+        FileUtil::putFileContents($appCodeArgs->getString(self::FILE_PATH_KEY), JsonUtil::encode(self::assertJsonEncodableData($data)));
     }
 
     /**
+     * @param array<string, mixed> $appCodeArgs
+     *
      * @return JsonEncodableData
      */
-    public static function readDataFromFile(string $filePath): null|bool|int|float|string|array
+    public static function readDataFromTempFile(array $appCodeArgs): null|bool|int|float|string|array
     {
-        return self::assertJsonEncodableData(JsonUtil::decode(FileUtil::getFileContents($filePath)));
+        return self::assertJsonEncodableData(JsonUtil::decode(FileUtil::getFileContents(MixedMap::getStringFrom(self::FILE_PATH_KEY, $appCodeArgs))));
     }
 
-    public static function readMixedMapFromFile(string $filePath): MixedMap
+    /**
+     * @param array<string, mixed> $appCodeArgs
+     */
+    public static function readDataAsMixedMapFromTempFile(array $appCodeArgs): MixedMap
     {
-        return (new MixedMap(MixedMap::assertValidMixedMapArray(AssertEx::isArray(self::readDataFromFile($filePath)))));
+        return (new MixedMap(MixedMap::assertValidMixedMapArray(AssertEx::isArray(self::readDataFromTempFile($appCodeArgs)))));
     }
 
     /**
