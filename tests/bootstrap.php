@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 namespace OpenTelemetry\Instrumentation;
-use OpenTelemetry\Distro\InstrumentationBridge;
 
 use OTelDistroTests\Util\RepoRootDir;
 use OTelDistroTests\Util\ExceptionUtil;
