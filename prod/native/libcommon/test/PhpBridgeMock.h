@@ -12,6 +12,8 @@ public:
     MOCK_METHOD(bool, callPHPSideExitPoint, (), (const, override));
     MOCK_METHOD(bool, callPHPSideErrorHandler, (int type, std::string_view errorFilename, uint32_t errorLineno, std::string_view message), (const, override));
 
+    MOCK_METHOD(void, enableScopedNamespaces, (bool enable), (override));
+
     MOCK_METHOD(std::vector<phpExtensionInfo_t>, getExtensionList, (), (const, override));
     MOCK_METHOD(std::string, getPhpInfo, (), (const, override));
 

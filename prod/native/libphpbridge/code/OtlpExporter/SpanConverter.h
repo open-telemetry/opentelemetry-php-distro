@@ -19,6 +19,9 @@ using namespace std::string_view_literals;
 
 class SpanConverter {
 public:
+    SpanConverter(bool scopedNamespacesEnabled) : scopedNamespacesEnabled_(scopedNamespacesEnabled) {
+    }
+
     std::string getStringSerialized(AutoZval const &batch) {
         return convert(batch).SerializeAsString();
     }
@@ -38,7 +41,7 @@ public:
             // auto resourceInfo = internalSpan.readProperty("resource");
             // auto instrumentationScope = internalSpan.readProperty("instrumentationScope");
 
-            auto resourceInfo = span.assertObjectType(PHP_SCOPER_PREFIX "OpenTelemetry\\SDK\\Trace\\ImmutableSpan"sv).callMethod("getResource"sv); // ResourceInfo
+            auto resourceInfo = span.assertObjectType(scopedNamespacesEnabled_ ? PHP_SCOPER_PREFIX "OpenTelemetry\\SDK\\Trace\\ImmutableSpan"sv : "OpenTelemetry\\SDK\\Trace\\ImmutableSpan"sv).callMethod("getResource"sv); // ResourceInfo
             auto instrumentationScope = span.callMethod("getInstrumentationScope"sv);                                            // InstrumentationScopeInterface
 
             std::string resourceId = ConverterHelpers::getResourceId(resourceInfo);
@@ -249,5 +252,8 @@ private:
         outStatus->set_message(status.callMethod("getDescription"sv).getStringView());
         outStatus->set_code(convertStatusCode(status.callMethod("getCode"sv).getStringView()));
     }
+
+private:
+    bool scopedNamespacesEnabled_;
 };
 } // namespace opentelemetry::php

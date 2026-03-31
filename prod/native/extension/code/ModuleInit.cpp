@@ -13,6 +13,7 @@
 #include "InternalFunctionInstrumentation.h"
 #include "ModuleIniEntries.h"
 #include "ModuleGlobals.h"
+#include "PhpBridgeInterface.h"
 #include "SigSegvHandler.h"
 #include "os/OsUtils.h"
 #include "VendorCustomizationsInterface.h"
@@ -85,6 +86,8 @@ void moduleInit(int moduleType, int moduleNumber) {
     ELOGF_DEBUG(globals->logger_, MODULE, "MINIT Replacing hooks");
     opentelemetry::php::Hooking::getInstance().fetchOriginalHooks();
     opentelemetry::php::Hooking::getInstance().replaceHooks(globals->config_->get().inferred_spans_enabled, globals->config_->get().dependency_autoloader_guard_enabled);
+
+    globals->bridge_->enableScopedNamespaces(globals->config_->get().debug_scoper_enabled);
 
     zend_observer_activate();
     zend_observer_fcall_register(opentelemetry::php::registerObserverHandlers);

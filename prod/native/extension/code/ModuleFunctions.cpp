@@ -272,7 +272,7 @@ PHP_FUNCTION(convert_spans) {
     ZEND_PARSE_PARAMETERS_END();
 
     try {
-        opentelemetry::php::SpanConverter converter;
+        opentelemetry::php::SpanConverter converter(OTEL_G(globals)->config_->get().debug_scoper_enabled);
         auto res = converter.getStringSerialized(opentelemetry::php::AutoZval(batch));
         RETURN_STRINGL(res.c_str(), res.length());
     } catch (std::exception const &e) {
@@ -316,7 +316,7 @@ PHP_FUNCTION(convert_metrics) {
     ZEND_PARSE_PARAMETERS_END();
 
     try {
-        opentelemetry::php::MetricConverter converter;
+        opentelemetry::php::MetricConverter converter(OTEL_G(globals)->config_->get().debug_scoper_enabled);
         auto res = converter.getStringSerialized(opentelemetry::php::AutoZval(batch));
         RETURN_STRINGL(res.c_str(), res.length());
     } catch (std::exception const &e) {
