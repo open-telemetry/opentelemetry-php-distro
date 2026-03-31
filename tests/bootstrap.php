@@ -1,4 +1,4 @@
-<?php
+<?php // phpcs:disable PSR1.Files.SideEffects.FoundWithSymbols
 
 declare(strict_types=1);
 
@@ -67,10 +67,11 @@ function hook(
     ?\Closure $pre = null,
     ?\Closure $post = null,
 ): bool {
-    /** @var class-string $bridgeClass */
-    $bridgeClass = 'OTelDistroScoped\\OpenTelemetry\\Distro\\InstrumentationBridge';
-    if (class_exists($bridgeClass, false)) {
-        return $bridgeClass::singletonInstance()->hook($class, $function, $pre, $post);
+    $scopedClass = 'OTelDistroScoped\\OpenTelemetry\\Distro\\InstrumentationBridge';
+    if (class_exists($scopedClass, false)) {
+        /** @var \OpenTelemetry\Distro\InstrumentationBridge $bridge */
+        $bridge = $scopedClass::singletonInstance();
+        return $bridge->hook($class, $function, $pre, $post);
     }
 
     return \OpenTelemetry\Distro\InstrumentationBridge::singletonInstance()->hook($class, $function, $pre, $post);
