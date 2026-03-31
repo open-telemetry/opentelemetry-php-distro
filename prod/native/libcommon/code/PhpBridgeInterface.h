@@ -26,6 +26,8 @@ public:
     virtual bool callPHPSideExitPoint() const = 0;
     virtual bool callPHPSideErrorHandler(int type, std::string_view errorFilename, uint32_t errorLineno, std::string_view message) const = 0;
 
+    virtual void enableScopedNamespaces(bool enable) = 0;
+
     virtual std::vector<phpExtensionInfo_t> getExtensionList() const = 0;
     virtual std::string getPhpInfo() const = 0;
 

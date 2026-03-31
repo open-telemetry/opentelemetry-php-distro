@@ -22,6 +22,9 @@ using namespace std::string_view_literals;
 
 class MetricConverter {
 public:
+    MetricConverter(bool scopedNamespacesEnabled) : scopedNamespacesEnabled_(scopedNamespacesEnabled) {
+    }
+
     std::string getStringSerialized(AutoZval const &batch) {
         return convert(batch).SerializeAsString();
     }
@@ -100,11 +103,11 @@ private:
 void convertMetricData(AutoZval const &data, opentelemetry::proto::metrics::v1::Metric *out) {
         using namespace opentelemetry::proto::metrics::v1;
 
-        if (data.instanceOf(PHP_SCOPER_PREFIX "OpenTelemetry\\SDK\\Metrics\\Data\\Gauge"sv)) {
+        if (data.instanceOf(scopedNamespacesEnabled_ ? PHP_SCOPER_PREFIX "OpenTelemetry\\SDK\\Metrics\\Data\\Gauge"sv : "OpenTelemetry\\SDK\\Metrics\\Data\\Gauge"sv)) {
             convertGauge(data, out->mutable_gauge());
-        } else if (data.instanceOf(PHP_SCOPER_PREFIX "OpenTelemetry\\SDK\\Metrics\\Data\\Sum"sv)) {
+        } else if (data.instanceOf(scopedNamespacesEnabled_ ? PHP_SCOPER_PREFIX "OpenTelemetry\\SDK\\Metrics\\Data\\Sum"sv : "OpenTelemetry\\SDK\\Metrics\\Data\\Sum"sv)) {
             convertSum(data, out->mutable_sum());
-        } else if (data.instanceOf(PHP_SCOPER_PREFIX "OpenTelemetry\\SDK\\Metrics\\Data\\Histogram"sv)) {
+        } else if (data.instanceOf(scopedNamespacesEnabled_ ? PHP_SCOPER_PREFIX "OpenTelemetry\\SDK\\Metrics\\Data\\Histogram"sv : "OpenTelemetry\\SDK\\Metrics\\Data\\Histogram"sv)) {
             convertHistogram(data, out->mutable_histogram());
         } else {
             //  ("Unsupported Metric data type");
@@ -226,6 +229,9 @@ void convertMetricData(AutoZval const &data, opentelemetry::proto::metrics::v1::
 
         throw std::runtime_error("Invalid temporality value: expected int or string (DELTA, CUMULATIVE, UNSPECIFIED)");
     }
+
+private:
+    bool scopedNamespacesEnabled_;
 };
 
 } // namespace opentelemetry::php
