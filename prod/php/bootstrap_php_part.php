@@ -12,12 +12,10 @@ $scopedDistroPath = OpenTelemetry\Distro\OTelDistroScoperConfig::DISTRO_PATH;
 /** @var array<int, string> $scopedOtelDirCandidates */
 $scopedOtelDirCandidates = [
     $vendorRootDir . '/' . $scopedDistroPath,
-    $vendorRootDir . '/' . $scopedDistroPath . '/OpenTelemetry',
 ];
 
 /** @var array<int, string> $unscopedOtelDirCandidates */
 $unscopedOtelDirCandidates = [
-    $vendorRootDir . '/open-telemetry/opentelemetry-distro/src/OpenTelemetry',
     __DIR__ . '/OpenTelemetry',
 ];
 
@@ -36,7 +34,7 @@ $selectFirstExistingDistroDir = static function (array $candidates): ?string {
     return null;
 };
 
-$isScopedRuntime = OpenTelemetry\Distro\OTelDistroScoperConfig::ENABLED;
+$isScopedRuntime = OpenTelemetry\Distro\OTelDistroScoperConfig::ENABLED && \OpenTelemetry\Distro\get_config_option_by_name('debug_scoper_enabled');
 $otelRootDir = $isScopedRuntime // @phpstan-ignore ternary.alwaysTrue (ENABLED is a generated constant that can be true or false)
     ? $selectFirstExistingDistroDir($scopedOtelDirCandidates)
     : $selectFirstExistingDistroDir($unscopedOtelDirCandidates);

@@ -444,7 +444,9 @@ zend_observer_fcall_handlers registerObserverHandlers(zend_execute_data *execute
     if (OTEL_GL(config_)->get().debug_instrument_all && OTEL_GL(requestScope_)->isFunctional()) {
         std::string_view filename(ZSTR_VAL(execute_data->func->op_array.filename), ZSTR_LEN(execute_data->func->op_array.filename));
         if (!(execute_data->func->common.fn_flags & ZEND_ACC_CLOSURE) && filename.find("/opentelemetry/php/distro/") == std::string_view::npos && filename.find("/open-telemetry/") == std::string_view::npos) {
-            callbacks = reinterpret_cast<InstrumentedFunctionHooksStorage_t *>(OTEL_GL(hooksStorage_).get())->storeFront(hash, AutoZval(PHP_SCOPER_PREFIX "OpenTelemetry\\Distro\\PhpPartFacade::debugPreHook"sv), AutoZval(PHP_SCOPER_PREFIX "OpenTelemetry\\Distro\\PhpPartFacade::debugPostHook"sv));
+            auto preHookName = OTEL_GL(config_)->get().debug_scoper_enabled ? PHP_SCOPER_PREFIX "OpenTelemetry\\Distro\\PhpPartFacade::debugPreHook"sv : "OpenTelemetry\\Distro\\PhpPartFacade::debugPreHook"sv;
+            auto postHookName = OTEL_GL(config_)->get().debug_scoper_enabled ? PHP_SCOPER_PREFIX "OpenTelemetry\\Distro\\PhpPartFacade::debugPostHook"sv : "OpenTelemetry\\Distro\\PhpPartFacade::debugPostHook"sv;
+            callbacks = reinterpret_cast<InstrumentedFunctionHooksStorage_t *>(OTEL_GL(hooksStorage_).get())->storeFront(hash, AutoZval(preHookName), AutoZval(postHookName));
         }
     }
 

@@ -102,6 +102,7 @@ private:
         BUILD_OTEL_PHP_OPTION_METADATA(OTEL_PHP_ASYNC_TRANSPORT_SHUTDOWN_TIMEOUT, OptionMetadata::type::duration, false),
         BUILD_OTEL_PHP_OPTION_METADATA(OTEL_PHP_DEBUG_INSTRUMENT_ALL, OptionMetadata::type::boolean, false),
         BUILD_OTEL_PHP_OPTION_METADATA(OTEL_PHP_DEBUG_PHP_HOOKS_ENABLED, OptionMetadata::type::boolean, false),
+        BUILD_OTEL_PHP_OPTION_METADATA(OTEL_PHP_DEBUG_SCOPER_ENABLED, OptionMetadata::type::boolean, false),
         BUILD_OTEL_PHP_OPTION_METADATA(OTEL_PHP_INFERRED_SPANS_ENABLED, OptionMetadata::type::boolean, false),
         BUILD_OTEL_PHP_OPTION_METADATA(OTEL_PHP_INFERRED_SPANS_REDUCTION_ENABLED, OptionMetadata::type::boolean, false),
         BUILD_OTEL_PHP_OPTION_METADATA(OTEL_PHP_INFERRED_SPANS_STACKTRACE_ENABLED, OptionMetadata::type::boolean, false),

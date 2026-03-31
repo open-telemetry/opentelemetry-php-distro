@@ -22,6 +22,8 @@ public:
     bool callPHPSideExitPoint() const final;
     bool callPHPSideErrorHandler(int type, std::string_view errorFilename, uint32_t errorLineno, std::string_view message) const final;
 
+    void enableScopedNamespaces(bool enable) final;
+
     std::vector<phpExtensionInfo_t> getExtensionList() const final;
     std::string getPhpInfo() const final;
 
@@ -48,6 +50,7 @@ public:
 
 private:
     std::shared_ptr<opentelemetry::php::LoggerInterface> log_;
+    bool scopedNamespacesEnabled_ = true;
 };
 
 
