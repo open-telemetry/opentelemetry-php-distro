@@ -116,3 +116,55 @@ if (file_put_contents($autoloadRealPath, $content) === false) {
 }
 
 fwrite(STDOUT, "Patched scoped Composer autoloader: $autoloadRealPath\n");
+
+// Rehash file identifiers in autoload_files.php and autoload_static.php
+// to avoid collisions with the monitored application's own Composer autoloader.
+// Composer tracks loaded files via $GLOBALS['__composer_autoload_files'][$hash].
+// Without rehashing, both the scoped distro vendor and the app vendor would use
+// identical hashes (same md5(packageName:relPath)), causing one side to skip loading.
+$rehashFileIdentifiers = static function (string $filePath) use ($prefix): void {
+    if (!is_file($filePath)) {
+        fwrite(STDERR, "File does not exist (skipping rehash): $filePath\n");
+        return;
+    }
+
+    $fileContent = file_get_contents($filePath);
+    if (!is_string($fileContent)) {
+        fwrite(STDERR, "Failed to read: $filePath\n");
+        exit(1);
+    }
+
+    $replacedCount = 0;
+    $seenOriginalHashes = [];
+    $newContent = preg_replace_callback(
+        "/(?<='|\"|\\\$files = array\\()([a-f0-9]{32})(?=')/",
+        static function (array $match) use ($prefix, &$replacedCount, &$seenOriginalHashes): string {
+            $originalHash = $match[1];
+            $seenOriginalHashes[$originalHash] = true;
+            $replacedCount++;
+            return md5($prefix . ':' . $originalHash);
+        },
+        $fileContent
+    );
+
+    if (!is_string($newContent)) {
+        fwrite(STDERR, "Failed to rehash file identifiers in: $filePath\n");
+        exit(1);
+    }
+
+    if ($replacedCount === 0) {
+        fwrite(STDOUT, "No file identifiers found to rehash in: $filePath\n");
+        return;
+    }
+
+    if (file_put_contents($filePath, $newContent) === false) {
+        fwrite(STDERR, "Failed to write rehashed: $filePath\n");
+        exit(1);
+    }
+
+    fwrite(STDOUT, "Rehashed $replacedCount file identifier(s) in: $filePath\n");
+};
+
+$composerDir = rtrim($vendorDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'composer' . DIRECTORY_SEPARATOR;
+$rehashFileIdentifiers($composerDir . 'autoload_files.php');
+$rehashFileIdentifiers($composerDir . 'autoload_static.php');
