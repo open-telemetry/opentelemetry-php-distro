@@ -69,7 +69,9 @@ function hook(
     ?\Closure $pre = null,
     ?\Closure $post = null,
 ): bool {
-    $scopedClass = $GLOBALS['scopedPrefix'] . '\\OpenTelemetry\\Distro\\InstrumentationBridge';
+    /** @var string $scopedPrefix */
+    $scopedPrefix = $GLOBALS['scopedPrefix'];
+    $scopedClass = $scopedPrefix . '\\OpenTelemetry\\Distro\\InstrumentationBridge';
     if (class_exists($scopedClass, false)) {
         /** @var \OpenTelemetry\Distro\InstrumentationBridge $bridge */
         $bridge = $scopedClass::singletonInstance();
