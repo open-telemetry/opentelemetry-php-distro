@@ -9,6 +9,7 @@ show_help() {
     echo "  --php_versions           Required. List of PHP versions separated by spaces (e.g., '81 82 83 84')."
     echo "  --results_path           Optional. The path where the results will be saved if a test failure occurs. (default is '${RESULTS_PATH}')"
     echo "  --deb_package            Optional. The path to debian package to install inside container."
+    echo "  --hook_bridge            Optional. Path to hook bridge PHP file (generated in /tmp if not provided)."
     echo "  --quiet                  Optional. Quiet composer."
     echo
     echo "Example:"
@@ -28,6 +29,10 @@ parse_args() {
             ;;
         --deb_package)
             PACKAGE=($2)
+            shift
+            ;;
+        --hook_bridge)
+            HOOK_BRIDGE=($2)
             shift
             ;;
         --quiet)
@@ -77,7 +82,13 @@ for PHP_VERSION in "${PHP_VERSIONS[@]}"; do
     echo "::endgroup::"
 
     VOLUMES=" -v ${PWD}:/source -v $(realpath ${RESULTS_PATH}):/results"
-    COMMAND="/source/tools/build/test_otel_unit_tests.sh -f /source/composer.json -r /results -w /tmp/otel-test-run ${QUIET} -p open-telemetry/opentelemetry-auto-\*"
+    COMMAND="/source/tools/build/test_otel_unit_tests.sh -f /source/composer.json -r /results -w /tmp/otel-test-run ${QUIET}"
+
+    if [ -n "${HOOK_BRIDGE:-}" ]; then
+        COMMAND+=" -b ${HOOK_BRIDGE}"
+    fi
+
+    COMMAND+=" -p open-telemetry/opentelemetry-auto-\*"
 
     if [ -n "${PACKAGE}" ]; then
         VOLUMES+=" -v $(realpath ${PACKAGE}):/package/package.deb "

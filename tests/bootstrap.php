@@ -1,12 +1,12 @@
-<?php
+<?php // phpcs:disable PSR1.Files.SideEffects.FoundWithSymbols
 
 declare(strict_types=1);
 
 namespace OpenTelemetry\Instrumentation;
-use OpenTelemetry\Distro\InstrumentationBridge;
 
 use OTelDistroTests\Util\RepoRootDir;
 use OTelDistroTests\Util\ExceptionUtil;
+use OTelDistroTests\Util\OTelDistroProjectProperties;
 
 // Ensure that composer has installed all dependencies
 if (!file_exists($vendorAutoload = (__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php'))) {
@@ -51,7 +51,8 @@ $unscopedProdPhpDirClass = 'OpenTelemetry\\Distro\\ProdPhpDir';
 $unscopedPhpPartFacadeClass = 'OpenTelemetry\\Distro\\PhpPartFacade';
 $unscopedInstrumentationBridgeClass = 'OpenTelemetry\\Distro\\InstrumentationBridge';
 
-$scopedPrefix = 'OTelDistroScoped';
+$projectProperties = OTelDistroProjectProperties::loadAsMap();
+$scopedPrefix = $projectProperties['php_scoper_prefix'];
 $scopedProdPhpDirClass = $scopedPrefix . '\\' . $unscopedProdPhpDirClass;
 $scopedPhpPartFacadeClass = $scopedPrefix . '\\' . $unscopedPhpPartFacadeClass;
 $scopedInstrumentationBridgeClass = $scopedPrefix . '\\' . $unscopedInstrumentationBridgeClass;
@@ -68,10 +69,13 @@ function hook(
     ?\Closure $pre = null,
     ?\Closure $post = null,
 ): bool {
-    /** @var class-string $bridgeClass */
-    $bridgeClass = 'OTelDistroScoped\\OpenTelemetry\\Distro\\InstrumentationBridge';
-    if (class_exists($bridgeClass, false)) {
-        return $bridgeClass::singletonInstance()->hook($class, $function, $pre, $post);
+    /** @var string $scopedPrefix */
+    $scopedPrefix = $GLOBALS['scopedPrefix'];
+    $scopedClass = $scopedPrefix . '\\OpenTelemetry\\Distro\\InstrumentationBridge';
+    if (class_exists($scopedClass, false)) {
+        /** @var \OpenTelemetry\Distro\InstrumentationBridge $bridge */
+        $bridge = $scopedClass::singletonInstance();
+        return $bridge->hook($class, $function, $pre, $post);
     }
 
     return \OpenTelemetry\Distro\InstrumentationBridge::singletonInstance()->hook($class, $function, $pre, $post);

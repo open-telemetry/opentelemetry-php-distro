@@ -34,8 +34,8 @@ $selectFirstExistingDistroDir = static function (array $candidates): ?string {
     return null;
 };
 
-$isScopedRuntime = OpenTelemetry\Distro\OTelDistroScoperConfig::ENABLED && \OpenTelemetry\Distro\get_config_option_by_name('debug_scoper_enabled');
-$otelRootDir = $isScopedRuntime // @phpstan-ignore ternary.alwaysTrue (ENABLED is a generated constant that can be true or false)
+$isScopedRuntime = OpenTelemetry\Distro\OTelDistroScoperConfig::ENABLED && \OpenTelemetry\Distro\get_config_option_by_name('debug_scoper_enabled'); // @phpstan-ignore booleanAnd.leftAlwaysTrue
+$otelRootDir = $isScopedRuntime
     ? $selectFirstExistingDistroDir($scopedOtelDirCandidates)
     : $selectFirstExistingDistroDir($unscopedOtelDirCandidates);
 
@@ -51,7 +51,7 @@ if ($otelRootDir === null) {
 
     throw new RuntimeException(
         'Cannot locate distro sources. '
-        . 'scoper enabled: ' . ($isScopedRuntime ? 'true' : 'false') // @phpstan-ignore ternary.alwaysTrue
+        . 'scoper enabled: ' . ($isScopedRuntime ? 'true' : 'false')
         . '; scoped candidates: ' . $scopedExpected
         . '; unscoped candidates: ' . $unscopedExpected
     );
@@ -69,8 +69,8 @@ require $distroDir . '/Util/SingletonInstanceTrait.php';
 require $distroDir . '/InstrumentationBridge.php';
 require $distroDir . '/PhpPartFacade.php';
 
-$prodPhpDirClass = $isScopedRuntime ? $scopedProdPhpDirClass : $unscopedProdPhpDirClass; // @phpstan-ignore ternary.alwaysTrue
+$prodPhpDirClass = $isScopedRuntime ? $scopedProdPhpDirClass : $unscopedProdPhpDirClass;
 $prodPhpDirClass::$fullPath = __DIR__;
 if (property_exists($prodPhpDirClass, 'shadowOtelRootPath')) {
-    $prodPhpDirClass::$shadowOtelRootPath = $isScopedRuntime ? $otelRootDir : null; // @phpstan-ignore ternary.alwaysTrue
+    $prodPhpDirClass::$shadowOtelRootPath = $isScopedRuntime ? $otelRootDir : null;
 }
