@@ -33,8 +33,8 @@ $selectFirstExistingDistroDir = static function (array $candidates): ?string {
     return null;
 };
 
-$isScopedRuntime = OpenTelemetry\Distro\OTelDistroScoperConfig::ENABLED && \OpenTelemetry\Distro\get_config_option_by_name('debug_scoper_enabled');
-$otelRootDir = $isScopedRuntime // @phpstan-ignore ternary.alwaysTrue (ENABLED is a generated constant that can be true or false)
+$isScopedRuntime = OpenTelemetry\Distro\OTelDistroScoperConfig::ENABLED && \OpenTelemetry\Distro\get_config_option_by_name('debug_scoper_enabled'); // @phpstan-ignore booleanAnd.leftAlwaysTrue
+$otelRootDir = $isScopedRuntime
     ? $selectFirstExistingDistroDir($scopedOtelDirCandidates)
     : $selectFirstExistingDistroDir($unscopedOtelDirCandidates);
 
@@ -73,8 +73,8 @@ require $distroDir . '/PhpPartFacade.php';
  * @var class-string<\OpenTelemetry\Distro\ProdPhpDir> $prodPhpDirClass
  * @noinspection PhpFullyQualifiedNameUsageInspection
  */
-$prodPhpDirClass = $isScopedRuntime ? $scopedProdPhpDirClass : $unscopedProdPhpDirClass; // @phpstan-ignore ternary.alwaysTrue
+$prodPhpDirClass = $isScopedRuntime ? $scopedProdPhpDirClass : $unscopedProdPhpDirClass;
 $prodPhpDirClass::$fullPath = __DIR__;
 if (property_exists($prodPhpDirClass, 'shadowOtelRootPath')) {
-    $prodPhpDirClass::$shadowOtelRootPath = $isScopedRuntime ? $otelRootDir : null; // @phpstan-ignore ternary.alwaysTrue
+    $prodPhpDirClass::$shadowOtelRootPath = $isScopedRuntime ? $otelRootDir : null;
 }

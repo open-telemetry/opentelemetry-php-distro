@@ -1,5 +1,11 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT_DIR="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+
+source "${REPO_ROOT_DIR}/tools/read_properties.sh"
+read_properties "${REPO_ROOT_DIR}/project.properties" _PROJECT_PROPERTIES
+
 function show_help {
 
 echo -e "$0 -b build_architecture -p php_version [-t tests]
@@ -55,6 +61,8 @@ if [[ "${BUILD_ARCHITECTURE}" =~ arm64$ ]]; then
      DOCKER_PLATFORM="linux/arm64"
 fi
 echo "Running on platform ${DOCKER_PLATFORM}";
+echo "PHP version: ${PHP_VERSION}";
+echo "SCOPER_PREFIX: ${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX}";
 
 OTEL_AGENT_PHP_PATH=${PWD}/../../../php
 
@@ -82,6 +90,7 @@ docker run --rm \
     -v ${LOCAL_LOG_TEST_RUN}:${LOG_TEST_RUN} \
     -v ${OTEL_AGENT_PHP_PATH}:/otel/php \
     -v ${OTEL_AGENT_SO_PATH}:/otel/opentelemetry_php_distro.so \
+    -e OTEL_PHP_SCOPER_PREFIX=${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX} \
     -w /phpt-tests \
     php:${PHP_VERSION:0:1}.${PHP_VERSION:1:1}-cli${ALPINE_IMAGE} sh -c "php -n ${RUN_TESTS} -s ${LOG_TEST_RUN} -w ${LOG_FAILED_TESTS} ${TESTS_TO_RUN}"
 

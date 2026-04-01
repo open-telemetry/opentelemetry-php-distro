@@ -117,6 +117,32 @@ final class OTelDistroProjectProperties
         return array_map(PhpVersionInfo::fromMajorMinorNoDotString(...), self::parseArray($propValue));
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public static function loadAsMap(): array
+    {
+        $fileFullPath = RepoRootDir::adaptRelativeUnixStylePath('project.properties');
+        $fileContents = file_get_contents($fileFullPath);
+        if ($fileContents === false) {
+            return [];
+        }
+
+        $result = [];
+        foreach (explode("\n", $fileContents) as $line) {
+            $line = trim($line);
+            if ($line === '' || str_starts_with($line, '#')) {
+                continue;
+            }
+            $keyValue = explode('=', $line, 2);
+            if (count($keyValue) !== 2) {
+                continue;
+            }
+            $result[trim($keyValue[0])] = trim($keyValue[1]);
+        }
+        return $result;
+    }
+
     public function getLowestSupportedPhpVersion(): PhpVersionInfo
     {
         /** @var ?PhpVersionInfo $result */

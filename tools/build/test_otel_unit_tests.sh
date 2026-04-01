@@ -1,7 +1,14 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
+source "${REPO_ROOT_DIR}/tools/read_properties.sh"
+read_properties "${REPO_ROOT_DIR}/project.properties" _PROJECT_PROPERTIES
+
 OPT_WORKINGDIR=/tmp/test-run
 OPT_REPORTS_DESTINATION_PATH=/tmp/reports
+OPT_HOOK_BRIDGE_FILE=/tmp/otel_hook_bridge.php
 
 show_help() {
     cat <<EOF
@@ -10,6 +17,8 @@ Usage: $0 -f <path_to_composer.json> -p <pattern> [-p <pattern> ...]
   -p   Package name pattern (can be specified multiple times)
   -w   Working directory (default '/tmp/test-run')
   -r   Destination path for junit reports (default '/tmp/reports')
+  -b   Optional. Path to the hook bridge PHP file (default '/tmp/otel_hook_bridge.php').
+       Generates a file that defines OpenTelemetry\Instrumentation\hook() and maps it to InstrumentationBridge::hook().
   -q   Optional. Composer in quiet mode.
   -h   Display this help message
 EOF
@@ -22,7 +31,7 @@ OPT_COMPOSER_FILE=""
 OPT_PATTERNS=()
 
 # Parse options using getopts
-while getopts "f:r:p:w:rhq" opt; do
+while getopts "f:r:p:w:b:rhq" opt; do
     case "$opt" in
     f)
         OPT_COMPOSER_FILE="$OPTARG"
@@ -35,6 +44,9 @@ while getopts "f:r:p:w:rhq" opt; do
         ;;
     w)
         OPT_WORKINGDIR="$OPTARG"
+        ;;
+    b)
+        OPT_HOOK_BRIDGE_FILE="$OPTARG"
         ;;
     q)
         OPT_QUIET=" --quiet "
@@ -163,8 +175,43 @@ if [[ ${#LIST_OF_PACKAGES_TO_INSTALL[@]} -eq 0 ]]; then
     exit 1
 fi
 
+# This generated script will forward calls to otel extension hook function to Distro's InstrumentationBridge, which will then forward them to the distro extension.
+# This allows us to run tests with or without the scoper and ensure that hooks are working correctly in both cases.
+generate_hook_bridge_file() {
+    local file_path="$1"
+    local scoper_prefix="${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX}"
+    cat > "$file_path" << HOOK_BRIDGE_EOF
+<?php
+
+declare(strict_types=1);
+
+namespace OpenTelemetry\Instrumentation;
+if (!function_exists('OpenTelemetry\\Instrumentation\\hook')) {
+    function hook(
+        ?string \$class,
+        string \$function,
+        ?\Closure \$pre = null,
+        ?\Closure \$post = null,
+    ): bool {
+        foreach ([
+            '${scoper_prefix}\\OpenTelemetry\\Distro\\InstrumentationBridge',
+            'OpenTelemetry\\Distro\\InstrumentationBridge',
+        ] as \$bridgeClass) {
+            if (class_exists(\$bridgeClass, false)) {
+                return \$bridgeClass::singletonInstance()->hook(\$class, \$function, \$pre, \$post);
+            }
+        }
+        return false;
+    }
+}
+HOOK_BRIDGE_EOF
+    echo "Generated hook bridge file at: $file_path"
+}
+
 mkdir -p "${OPT_REPORTS_DESTINATION_PATH}"
 mkdir -p "${OPT_WORKINGDIR}"
+
+generate_hook_bridge_file "${OPT_HOOK_BRIDGE_FILE}"
 
 cd "${OPT_WORKINGDIR}"
 
@@ -190,6 +237,12 @@ FAILURE=false
 semconv_package=$(get_package_version "open-telemetry/sem-conv")
 sdk_package=$(get_package_version "open-telemetry/sdk")
 
+declare -A PACKAGE_EXCLUDE_FILTERS
+# These curl tests must be disabled due to double instrumentation and internal handling of
+# CURLOPT_HEADERFUNCTION inside the instrumentation. In the second instrumentation instance,
+# the original header function is captured twice, which leads to an infinite loop.
+PACKAGE_EXCLUDE_FILTERS["open-telemetry/opentelemetry-auto-curl"]="--filter /^(?!.*(test_curl_exec_headers_capturing|test_curl_exec_calls_user_defined_headerfunc|test_curl_multi_exec_calls_user_defined_headerfunc|test_curl_multi_exec_headers_capturing))/"
+
 for package in "${MATCHED_PACKAGES[@]}"; do
     vendor_dir="${OPT_WORKINGDIR}/vendor/$package"
 
@@ -214,7 +267,13 @@ for package in "${MATCHED_PACKAGES[@]}"; do
     echo "::endgroup::"
 
     echo "::group::🚀 Running $package tests 🚀"
-    ./vendor/bin/phpunit --verbose --debug --log-junit ${OPT_REPORTS_DESTINATION_PATH}/$package.xml
+    exclude_filter="${PACKAGE_EXCLUDE_FILTERS[$package]:-}"
+
+    if [[ -n "$exclude_filter" ]]; then
+        echo "Applying PHPUnit filter for package $package: $exclude_filter"
+    fi
+
+    php -d auto_prepend_file=${OPT_HOOK_BRIDGE_FILE} ./vendor/bin/phpunit ${exclude_filter} --verbose --debug --log-junit ${OPT_REPORTS_DESTINATION_PATH}/$package.xml
 
     if [[ $? -ne 0 ]]; then
         echo "::error::PHPUnit tests failed for package $package"
