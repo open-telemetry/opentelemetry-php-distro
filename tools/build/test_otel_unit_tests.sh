@@ -1,5 +1,11 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
+source "${REPO_ROOT_DIR}/tools/read_properties.sh"
+read_properties "${REPO_ROOT_DIR}/project.properties" _PROJECT_PROPERTIES
+
 OPT_WORKINGDIR=/tmp/test-run
 OPT_REPORTS_DESTINATION_PATH=/tmp/reports
 OPT_HOOK_BRIDGE_FILE=/tmp/otel_hook_bridge.php
@@ -173,7 +179,8 @@ fi
 # This allows us to run tests with or without the scoper and ensure that hooks are working correctly in both cases.
 generate_hook_bridge_file() {
     local file_path="$1"
-    cat > "$file_path" << 'HOOK_BRIDGE_EOF'
+    local scoper_prefix="${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX}"
+    cat > "$file_path" << HOOK_BRIDGE_EOF
 <?php
 
 declare(strict_types=1);
@@ -181,17 +188,17 @@ declare(strict_types=1);
 namespace OpenTelemetry\Instrumentation;
 if (!function_exists('OpenTelemetry\\Instrumentation\\hook')) {
     function hook(
-        ?string $class,
-        string $function,
-        ?\Closure $pre = null,
-        ?\Closure $post = null,
+        ?string \$class,
+        string \$function,
+        ?\Closure \$pre = null,
+        ?\Closure \$post = null,
     ): bool {
         foreach ([
-            'OTelDistroScoped\\OpenTelemetry\\Distro\\InstrumentationBridge',
+            '${scoper_prefix}\\OpenTelemetry\\Distro\\InstrumentationBridge',
             'OpenTelemetry\\Distro\\InstrumentationBridge',
-        ] as $bridgeClass) {
-            if (class_exists($bridgeClass, false)) {
-                return $bridgeClass::singletonInstance()->hook($class, $function, $pre, $post);
+        ] as \$bridgeClass) {
+            if (class_exists(\$bridgeClass, false)) {
+                return \$bridgeClass::singletonInstance()->hook(\$class, \$function, \$pre, \$post);
             }
         }
         return false;
