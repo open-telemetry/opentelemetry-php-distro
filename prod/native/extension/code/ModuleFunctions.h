@@ -5,5 +5,5 @@
 namespace opentelemetry::php::module_functions {
 
 extern const zend_function_entry opentelemetry_distro_functions[];
-
+extern const zend_function_entry opentelemetry_distro_fake_functions[];
 }

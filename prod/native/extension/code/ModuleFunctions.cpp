@@ -385,6 +385,13 @@ const zend_function_entry opentelemetry_distro_functions[] = {
 
     PHP_FE_END
 };
+
+const zend_function_entry opentelemetry_distro_fake_functions[] = {
+    ZEND_NS_FE( "OpenTelemetry\\Instrumentation", hook, hook_arginfo)
+
+    PHP_FE_END
+};
+
 // clang-format on
 
 } // namespace opentelemetry::php::module_functions
