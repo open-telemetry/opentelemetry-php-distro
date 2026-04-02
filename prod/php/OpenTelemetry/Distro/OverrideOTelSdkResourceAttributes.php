@@ -25,7 +25,7 @@ final class OverrideOTelSdkResourceAttributes implements ResourceDetectorInterfa
     {
         self::$distroVersion = self::buildDistroVersion($nativePartVersion);
         OTelSdkRegistry::registerResourceDetector(self::class, new self());
-        self::logDebug(__LINE__, __FUNCTION__, 'Registered; distroVersion: ' . self::$distroVersion);
+        self::logDebug(__LINE__, __FUNCTION__, 'Exiting', ['distroVersion' => self::$distroVersion]);
     }
 
     public function getResource(): ResourceInfo
@@ -35,7 +35,7 @@ final class OverrideOTelSdkResourceAttributes implements ResourceDetectorInterfa
             ResourceAttributes::TELEMETRY_DISTRO_VERSION => self::getDistroVersion(),
         ];
 
-        self::logDebug(__LINE__, __FUNCTION__, 'Returning', compact('attributes'));
+        self::logDebug(__LINE__, __FUNCTION__, 'Exiting', compact('attributes'));
         return ResourceInfo::create(Attributes::create($attributes), ResourceAttributes::SCHEMA_URL);
     }
 
@@ -45,8 +45,7 @@ final class OverrideOTelSdkResourceAttributes implements ResourceDetectorInterfa
             return $nativePartVersion;
         }
 
-        $logMsg = 'Native part and PHP part versions do not match. native part version: ' . $nativePartVersion . '; PHP part version: ' . PhpPartVersion::VALUE;
-        self::logWarning(__LINE__, __FUNCTION__, $logMsg);
+        self::logWarning(__LINE__, __FUNCTION__, 'Native part and PHP part versions do NOT match', ['native part version' => $nativePartVersion, 'PHP part version' => PhpPartVersion::VALUE]);
         return $nativePartVersion . '/' . PhpPartVersion::VALUE;
     }
 

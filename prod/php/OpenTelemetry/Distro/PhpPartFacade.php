@@ -44,7 +44,7 @@ final class PhpPartFacade
     private static bool $rootSpanEnded = false;
     private ?InferredSpans $inferredSpans = null;
 
-    public const IS_ENABLED_ENV_VAR_NAME = 'OTEL_PHP_ENABLED';
+    private const IS_DISTRO_ENABLED_ENV_VAR_NAME = 'OTEL_PHP_ENABLED';
 
     /**
      * Called by the extension
@@ -64,8 +64,8 @@ final class PhpPartFacade
         BootstrapStageLogger::configure($maxEnabledLogLevel, __DIR__, __NAMESPACE__);
         self::logDebug(__LINE__, __FUNCTION__, 'Starting bootstrap sequence...', compact('nativePartVersion', 'maxEnabledLogLevel', 'requestInitStartTime'));
 
-        if (!self::isEnabled()) {
-            self::logCritical(__LINE__, __FUNCTION__, __FUNCTION__ . '() is called but it is DISABLED - aborting bootstrap sequence');
+        if (!self::isDistroEnabled()) {
+            self::logCritical(__LINE__, __FUNCTION__, __FUNCTION__ . '() is called but Distro is DISABLED - aborting bootstrap sequence');
             return false;
         }
 
@@ -111,12 +111,10 @@ final class PhpPartFacade
              * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
              */
             if (\OpenTelemetry\Distro\get_config_option_by_name('inferred_spans_enabled')) {
-                self::$singletonInstance->inferredSpans = new InferredSpans(
                 /** @noinspection PhpUnnecessaryFullyQualifiedNameInspection */
+                self::$singletonInstance->inferredSpans = new InferredSpans(
                     (bool)\OpenTelemetry\Distro\get_config_option_by_name('inferred_spans_reduction_enabled'),
-                    /** @noinspection PhpUnnecessaryFullyQualifiedNameInspection */
                     (bool)\OpenTelemetry\Distro\get_config_option_by_name('inferred_spans_stacktrace_enabled'),
-                    /** @noinspection PhpUnnecessaryFullyQualifiedNameInspection */
                     \OpenTelemetry\Distro\get_config_option_by_name('inferred_spans_min_duration') // @phpstan-ignore argument.type
                 );
             }
@@ -150,9 +148,9 @@ final class PhpPartFacade
         return true;
     }
 
-    private static function isEnabled(): bool
+    private static function isDistroEnabled(): bool
     {
-        return self::getBoolEnvVar(self::IS_ENABLED_ENV_VAR_NAME, default: true);
+        return self::getBoolEnvVar(self::IS_DISTRO_ENABLED_ENV_VAR_NAME, default: true);
     }
 
     public static function getBoolEnvVar(string $envVarName, bool $default): bool
