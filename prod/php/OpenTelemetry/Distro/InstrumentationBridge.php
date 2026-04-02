@@ -51,7 +51,7 @@ final class InstrumentationBridge
         require $instrumentationHookPhp;
 
         /**
-         * Use fully qualified names for a function implemented by the extension to make sure scoper correctly detects it
+         * Use fully qualified names for functions implemented by the extension to make sure scoper correctly detects them
          * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
          */
         $this->enableDebugHooks = (bool)\OpenTelemetry\Distro\get_config_option_by_name('debug_php_hooks_enabled');
@@ -102,7 +102,7 @@ final class InstrumentationBridge
         self::logTrace(__LINE__, __FUNCTION__, 'Entered', compact('dbgClassAsString', 'function'));
 
         /**
-         * Use fully qualified names for a function implemented by the extension to make sure scoper correctly detects it
+         * Use fully qualified names for functions implemented by the extension to make sure scoper correctly detects them
          * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
          */
         $retVal = \OpenTelemetry\Distro\hook($class, $function, $pre, $post);
@@ -171,7 +171,7 @@ final class InstrumentationBridge
             $function,
             function () use ($func) {
                 /**
-                 * Use fully qualified names for a function implemented by the extension to make sure scoper correctly detects it
+                 * Use fully qualified names for functions implemented by the extension to make sure scoper correctly detects them
                  * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
                  */
                 \OpenTelemetry\Distro\log_feature(
@@ -186,7 +186,7 @@ final class InstrumentationBridge
             },
             function () use ($func) {
                 /**
-                 * Use fully qualified names for a function implemented by the extension to make sure scoper correctly detects it
+                 * Use fully qualified names for functions implemented by the extension to make sure scoper correctly detects them
                  * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
                  */
                 \OpenTelemetry\Distro\log_feature(

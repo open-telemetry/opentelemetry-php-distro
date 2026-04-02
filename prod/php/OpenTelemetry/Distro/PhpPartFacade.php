@@ -107,7 +107,7 @@ final class PhpPartFacade
             self::$singletonInstance = new self();
 
             /**
-             * Use fully qualified names for a function implemented by the extension to make sure scoper correctly detects it
+             * Use fully qualified names for functions implemented by the extension to make sure scoper correctly detects them
              * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
              */
             if (\OpenTelemetry\Distro\get_config_option_by_name('inferred_spans_enabled')) {
@@ -194,7 +194,7 @@ final class PhpPartFacade
     private static function registerAsyncTransportFactory(): void
     {
         /**
-         * Use fully qualified names for a function implemented by the extension to make sure scoper correctly detects it
+         * Use fully qualified names for functions implemented by the extension to make sure scoper correctly detects them
          * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
          */
         if (\OpenTelemetry\Distro\get_config_option_by_name('async_transport') === false) {
@@ -213,7 +213,7 @@ final class PhpPartFacade
     private static function registerNativeOtlpSerializer(): void
     {
         /**
-         * Use fully qualified names for a function implemented by the extension to make sure scoper correctly detects it
+         * Use fully qualified names for functions implemented by the extension to make sure scoper correctly detects them
          * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
          */
         if (\OpenTelemetry\Distro\get_config_option_by_name('native_otlp_serializer_enabled') === false) {

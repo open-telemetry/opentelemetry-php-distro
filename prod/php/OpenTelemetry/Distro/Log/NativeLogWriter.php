@@ -32,7 +32,7 @@ class NativeLogWriter implements LogWriterInterface
         $logContext = $this->attachLogContext ? (' context: ' . var_export($context, true)) : '';
 
         /**
-         * Use fully qualified names for a function implemented by the extension to make sure scoper correctly detects it
+         * Use fully qualified names for functions implemented by the extension to make sure scoper correctly detects them
          * @noinspection PhpFullyQualifiedNameUsageInspection
          */
         \OpenTelemetry\Distro\log_feature(
