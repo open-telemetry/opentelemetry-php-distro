@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace OTelDistroTests\UnitTests\UtilTests;
 
 use Ds\Map;
-use OpenTelemetry\Distro\PhpPartFacade;
 use OTelDistroTests\ComponentTests\Util\AppCodeHostParams;
 use OTelDistroTests\Util\AmbientContextForTests;
 use OTelDistroTests\Util\ArrayUtilForTests;
@@ -46,8 +45,6 @@ final class ComponentTestsEnvVarsForAppCodeTest extends TestCaseBase
             yield 'Unrelated to OTel/EDOT' => ['COMPOSER_BINARY', 'SHELL', 'XDG_SESSION_TYPE'];
 
             yield 'All options for tests' => array_map(fn($optName) => $optName->name, OptionForTestsName::cases());
-
-            yield 'DEV_INTERNAL_MODE_IS_DEV' => [PhpPartFacade::MODE_IS_DEV_ENV_VAR_NAME];
         };
 
         $allProdOptionNames = OptionForProdName::cases();
@@ -57,7 +54,7 @@ final class ComponentTestsEnvVarsForAppCodeTest extends TestCaseBase
             }
         }
 
-        // Inherited Log related (but not log related) options for production should be automatically passed through
+        // Inherited Log related options for production should be automatically passed through
         // except for log level related options which should be automatically passed through if and only if none of log level related production options is set
         foreach (OptionForProdName::getAllLogRelated() as $optName) {
             $inheritedEnvVarNames = [$optName->toEnvVarName()];

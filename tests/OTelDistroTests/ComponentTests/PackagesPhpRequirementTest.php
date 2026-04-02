@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace OTelDistroTests\ComponentTests;
 
 use Composer\Semver\Semver;
-use OpenTelemetry\Distro\PhpPartFacade;
+use OpenTelemetry\Distro\VendorDir;
 use OTelDistroTests\ComponentTests\Util\AppCodeContextDataUtil;
+use OTelDistroTests\ComponentTests\Util\AppCodeContextUtil;
 use OTelDistroTests\ComponentTests\Util\AppCodeHostParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeRequestParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeTarget;
@@ -15,8 +16,6 @@ use OTelDistroTests\ComponentTests\Util\EnvVarUtilForTests;
 use OTelDistroTests\ComponentTests\Util\ProcessUtil;
 use OTelDistroTests\ComponentTests\Util\WaitForOTelSignalCounts;
 use OTelDistroTests\Util\AssertEx;
-use OTelDistroTests\Util\Config\IniRawSnapshotSource;
-use OTelDistroTests\Util\Config\OptionForProdName;
 use OTelDistroTests\Util\DebugContext;
 use OTelDistroTests\Util\FileUtil;
 use OTelDistroTests\Util\JsonUtil;
@@ -33,7 +32,7 @@ use Throwable;
  */
 final class PackagesPhpRequirementTest extends ComponentTestCaseBase
 {
-    private const PROD_VENDOR_DIR_KEY = 'prod_vendor_dir';
+    private const APP_CODE_CTX_VENDOR_DIR_KEY = 'prod_vendor_dir';
 
     public function testSemverConstraint(): void
     {
@@ -228,9 +227,7 @@ final class PackagesPhpRequirementTest extends ComponentTestCaseBase
 
     public static function appCodeForTestPackagesHaveCorrectPhpVersion(MixedMap $appCodeArgs): void
     {
-        $bootstrapPhpPartFile = AssertEx::isString(ini_get(IniRawSnapshotSource::DEFAULT_PREFIX . OptionForProdName::bootstrap_php_part_file->name));
-        $prodVendorDir = PhpPartFacade::getVendorDirPath(dirname(FileUtil::normalizePath($bootstrapPhpPartFile)));
-        AppCodeContextDataUtil::writeDataToTempFile([self::PROD_VENDOR_DIR_KEY => $prodVendorDir], $appCodeArgs);
+        AppCodeContextDataUtil::writeDataToTempFile([self::APP_CODE_CTX_VENDOR_DIR_KEY => AppCodeContextUtil::adaptClassName(VendorDir::class)::$fullPath], $appCodeArgs);
     }
 
     private function implTestPackagesHaveCorrectPhpVersion(): void
@@ -260,7 +257,7 @@ final class PackagesPhpRequirementTest extends ComponentTestCaseBase
         $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(WaitForOTelSignalCounts::spans(1)); // exactly 1 span (the root span) is expected
         $dbgCtx->add(compact('agentBackendComms'));
 
-        $prodVendorDir = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeArgs)->getString(self::PROD_VENDOR_DIR_KEY);
+        $prodVendorDir = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeArgs)->getString(self::APP_CODE_CTX_VENDOR_DIR_KEY);
 
         self::verifyPackagesPhpVersion($prodVendorDir);
         self::validatePhpFilesUseParser($prodVendorDir);

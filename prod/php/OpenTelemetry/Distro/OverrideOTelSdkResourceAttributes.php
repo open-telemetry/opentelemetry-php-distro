@@ -17,13 +17,15 @@ use OpenTelemetry\SemConv\ResourceAttributes;
  */
 final class OverrideOTelSdkResourceAttributes implements ResourceDetectorInterface
 {
+    use BootstrapStageLoggingClassTrait;
+
     private static ?string $distroVersion = null;
 
     public static function register(string $nativePartVersion): void
     {
         self::$distroVersion = self::buildDistroVersion($nativePartVersion);
         OTelSdkRegistry::registerResourceDetector(self::class, new self());
-        BootstrapStageLogger::logDebug('Registered; distroVersion: ' . self::$distroVersion, __FILE__, __LINE__, __CLASS__, __FUNCTION__);
+        self::logDebug(__LINE__, __FUNCTION__, 'Registered; distroVersion: ' . self::$distroVersion);
     }
 
     public function getResource(): ResourceInfo
@@ -33,7 +35,7 @@ final class OverrideOTelSdkResourceAttributes implements ResourceDetectorInterfa
             ResourceAttributes::TELEMETRY_DISTRO_VERSION => self::getDistroVersion(),
         ];
 
-        BootstrapStageLogger::logDebug('Returning attributes: ' . json_encode($attributes), __FILE__, __LINE__, __CLASS__, __FUNCTION__);
+        self::logDebug(__LINE__, __FUNCTION__, 'Returning', compact('attributes'));
         return ResourceInfo::create(Attributes::create($attributes), ResourceAttributes::SCHEMA_URL);
     }
 
@@ -44,12 +46,28 @@ final class OverrideOTelSdkResourceAttributes implements ResourceDetectorInterfa
         }
 
         $logMsg = 'Native part and PHP part versions do not match. native part version: ' . $nativePartVersion . '; PHP part version: ' . PhpPartVersion::VALUE;
-        BootstrapStageLogger::logWarning($logMsg, __FILE__, __LINE__, __CLASS__, __FUNCTION__);
+        self::logWarning(__LINE__, __FUNCTION__, $logMsg);
         return $nativePartVersion . '/' . PhpPartVersion::VALUE;
     }
 
     public static function getDistroVersion(): string
     {
         return self::$distroVersion ?? PhpPartVersion::VALUE;
+    }
+
+    /**
+     * Must be defined in class using BootstrapStageLoggingClassTrait
+     */
+    private static function getCurrentSourceCodeFile(): string
+    {
+        return __FILE__;
+    }
+
+    /**
+     * Must be defined in class using BootstrapStageLoggingClassTrait
+     */
+    private static function getCurrentSourceCodeClass(): string
+    {
+        return __CLASS__;
     }
 }

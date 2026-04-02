@@ -2,79 +2,42 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/ScoperConfig.php';
+use OpenTelemetry\Distro\OTelDistroScoperConfig;
 
-$vendorRootDir = __DIR__ . '/vendor_' . PHP_MAJOR_VERSION . PHP_MINOR_VERSION;
+/*
+ * Directory Layout after package install
+ *
+ *          bootstrap_php_part.php
+ *          vendor_81/
+ *              OTelDistroScoped/
+ *                  Contrib/
+ *                  Distro/
+ *                  Instrumentation/
+ */
 
-$scopedDistroPath = OpenTelemetry\Distro\OTelDistroScoperConfig::DISTRO_PATH;
-
-/** @var array<int, string> $scopedOtelDirCandidates */
-$scopedOtelDirCandidates = [
-    $vendorRootDir . '/' . $scopedDistroPath,
-];
-
-/** @var array<int, string> $unscopedOtelDirCandidates */
-$unscopedOtelDirCandidates = [
-    __DIR__ . '/OpenTelemetry',
-];
-
-/** @param array<int, string> $candidates */
-$selectFirstExistingDistroDir = static function (array $candidates): ?string {
-    foreach ($candidates as $candidate) {
-        if (!is_string($candidate)) {
-            continue;
-        }
-
-        if (is_dir($candidate . '/Distro')) {
-            return $candidate;
-        }
-    }
-
-    return null;
-};
-
-$isScopedRuntime = OpenTelemetry\Distro\OTelDistroScoperConfig::ENABLED && \OpenTelemetry\Distro\get_config_option_by_name('debug_scoper_enabled'); // @phpstan-ignore booleanAnd.leftAlwaysTrue
-$otelRootDir = $isScopedRuntime
-    ? $selectFirstExistingDistroDir($scopedOtelDirCandidates)
-    : $selectFirstExistingDistroDir($unscopedOtelDirCandidates);
-
-if ($otelRootDir === null) {
-    $scopedExpected = implode(', ', array_map(
-        static fn (string $dir): string => $dir . '/Distro',
-        $scopedOtelDirCandidates
-    ));
-    $unscopedExpected = implode(', ', array_map(
-        static fn (string $dir): string => $dir . '/Distro',
-        $unscopedOtelDirCandidates
-    ));
-
-    throw new RuntimeException(
-        'Cannot locate distro sources. '
-        . 'scoper enabled: ' . ($isScopedRuntime ? 'true' : 'false') // @phpstan-ignore ternary.alwaysTrue
-        . '; scoped candidates: ' . $scopedExpected
-        . '; unscoped candidates: ' . $unscopedExpected
-    );
-}
-
-$distroDir = $otelRootDir . '/Distro';
-
-$unscopedProdPhpDirClass = 'OpenTelemetry\\Distro\\ProdPhpDir';
+$vendorDir = __DIR__ . DIRECTORY_SEPARATOR . 'vendor_' . PHP_MAJOR_VERSION . PHP_MINOR_VERSION;
+require __DIR__ . DIRECTORY_SEPARATOR . 'ScoperConfig.php';
+$scopedDistroRootDir = $vendorDir . DIRECTORY_SEPARATOR . OTelDistroScoperConfig::DISTRO_PATH;
+$otelDistroDir = $scopedDistroRootDir . DIRECTORY_SEPARATOR . 'Distro';
 /** @noinspection PhpFullyQualifiedNameUsageInspection */
-$scopedPrefix = \OpenTelemetry\Distro\OTelDistroScoperConfig::PREFIX;
-$scopedProdPhpDirClass = $scopedPrefix . '\\' . $unscopedProdPhpDirClass;
-
-require $distroDir . '/ProdPhpDir.php';
-require $distroDir . '/Util/HiddenConstructorTrait.php';
-require $distroDir . '/Util/SingletonInstanceTrait.php';
-require $distroDir . '/InstrumentationBridge.php';
-require $distroDir . '/PhpPartFacade.php';
+$scopePrefixIfEnabled = \OpenTelemetry\Distro\get_config_option_by_name('debug_scoper_enabled') ? (OTelDistroScoperConfig::PREFIX . '\\') : '';
 
 /**
- * @var class-string<\OpenTelemetry\Distro\ProdPhpDir> $prodPhpDirClass
  * @noinspection PhpFullyQualifiedNameUsageInspection
+ * @var class-string<\OpenTelemetry\Distro\ProdPhpDir> $prodPhpDirClass
  */
-$prodPhpDirClass = $isScopedRuntime ? $scopedProdPhpDirClass : $unscopedProdPhpDirClass;
-$prodPhpDirClass::$fullPath = __DIR__;
-if (property_exists($prodPhpDirClass, 'shadowOtelRootPath')) {
-    $prodPhpDirClass::$shadowOtelRootPath = $isScopedRuntime ? $otelRootDir : null;
-}
+$prodPhpDirClass = $scopePrefixIfEnabled . 'OpenTelemetry\\Distro\\ProdPhpDir';
+require $otelDistroDir . DIRECTORY_SEPARATOR . 'ProdPhpDir.php';
+$prodPhpDirClass::$fullPath = $scopedDistroRootDir;
+
+/**
+ * @noinspection PhpFullyQualifiedNameUsageInspection
+ * @var class-string<\OpenTelemetry\Distro\VendorDir> $vendorDirClass
+ */
+$vendorDirClass = $scopePrefixIfEnabled . 'OpenTelemetry\\Distro\\VendorDir';
+require $otelDistroDir . DIRECTORY_SEPARATOR . 'VendorDir.php';
+$vendorDirClass::$fullPath = $vendorDir;
+
+require $otelDistroDir . '/BootstrapStageLoggingClassTrait.php';
+require $otelDistroDir . '/Util/HiddenConstructorTrait.php';
+require $otelDistroDir . '/PhpPartFacade.php';

@@ -107,11 +107,6 @@ class MixedMap implements LoggableInterface, ArrayAccess, IteratorAggregate
         return self::getBool($key);
     }
 
-    public function isBoolIsNotSetOrSetToTrue(string $key): bool
-    {
-        return (($value = self::tryToGetBool($key)) === null) || $value;
-    }
-
     /**
      * @param array<array-key, mixed> $from
      */

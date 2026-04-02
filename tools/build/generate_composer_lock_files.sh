@@ -172,7 +172,8 @@ function build_generated_composer_json_full_path() {
     local _STAGE_DIR="${1:?}"
     local _ENV_KIND="${2:?}"
 
-    local _GENERATED_COMPOSER_JSON_FILE_NAME="$(build_generated_composer_json_file_name "${_ENV_KIND}")"
+    local _GENERATED_COMPOSER_JSON_FILE_NAME
+    _GENERATED_COMPOSER_JSON_FILE_NAME="$(build_generated_composer_json_file_name "${_ENV_KIND}")"
     echo "${_STAGE_DIR}/${_GENERATED_COMPOSER_JSON_FILE_NAME}"
 }
 
@@ -181,12 +182,12 @@ function derive_composer_json_for_env_kind() {
     local _ENV_KIND="${2:?}"
 
     local base_composer_json_full_path
-    base_composer_json_full_path="$(build_generated_composer_json_full_path ${_STAGE_DIR} "dev")"
+    base_composer_json_full_path="$(build_generated_composer_json_full_path "${_STAGE_DIR}" "dev")"
 
     echo "Deriving composer json for ${_ENV_KIND} from ${base_composer_json_full_path} ..."
 
     local derived_composer_json_full_path
-    derived_composer_json_full_path="$(build_generated_composer_json_full_path ${_STAGE_DIR} "${_ENV_KIND}")"
+    derived_composer_json_full_path="$(build_generated_composer_json_full_path "${_STAGE_DIR}" "${_ENV_KIND}")"
 
     local command_to_derive
     case ${_ENV_KIND} in
@@ -213,6 +214,8 @@ function derive_composer_json_for_env_kind() {
     local current_user_group_id
     current_user_group_id="$(id -g)"
 
+    # SC2086: Double quote to prevent globbing and word splitting.
+    # shellcheck disable=SC2086
     local -r lowest_supported_php_version_no_dot=$(get_array_min_value ${_PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS})
     local -r PHP_docker_image=$(build_light_PHP_docker_image_name_for_version_no_dot "${lowest_supported_php_version_no_dot}")
 
@@ -302,7 +305,6 @@ function main() {
     source "${repo_root_dir}/tools/read_properties.sh"
     read_properties "${repo_root_dir}/project.properties" _PROJECT_PROPERTIES
 
-
     # Parse arguments
     parse_args "$@"
 
@@ -311,7 +313,7 @@ function main() {
 
     trap on_script_exit EXIT
 
-    local _REPO_TEMP_COPY_DIR="$(mktemp -d)"
+    _REPO_TEMP_COPY_DIR="$(mktemp -d)"
     echo "_REPO_TEMP_COPY_DIR: ${_REPO_TEMP_COPY_DIR}"
 
     copy_file "composer.json" "${_REPO_TEMP_COPY_DIR}/"
@@ -329,7 +331,8 @@ function main() {
     local GENERATED_COMPOSER_LOCK_FILES_STAGE_DIR="${_REPO_TEMP_COPY_DIR}/${_PROJECT_PROPERTIES_GENERATED_LOCK_FILES_FOLDER:?}"
     mkdir -p "${GENERATED_COMPOSER_LOCK_FILES_STAGE_DIR}"
 
-    local _DEV_COMPOSER_JSON_FULL_PATH="$(build_generated_composer_json_full_path "${GENERATED_COMPOSER_LOCK_FILES_STAGE_DIR}" "dev")"
+    local _DEV_COMPOSER_JSON_FULL_PATH
+    _DEV_COMPOSER_JSON_FULL_PATH="$(build_generated_composer_json_full_path "${GENERATED_COMPOSER_LOCK_FILES_STAGE_DIR}" "dev")"
     copy_file "composer.json" "${_DEV_COMPOSER_JSON_FULL_PATH}"
 
     echo "ls -al ${_REPO_TEMP_COPY_DIR}"
@@ -342,6 +345,8 @@ function main() {
     done
 
 
+    # SC2086: Double quote to prevent globbing and word splitting.
+    # shellcheck disable=SC2086
     for PHP_version_no_dot in $(get_array $_PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS) ; do
         for env_kind in "dev" "prod" "prod_static_check" "test"; do
             generate_composer_lock_for_PHP_version "${GENERATED_COMPOSER_LOCK_FILES_STAGE_DIR}" "${env_kind}" "${PHP_version_no_dot}" "${_PROJECT_PROPERTIES_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH}" "${_PROJECT_PROPERTIES_COMPOSER_HOME_FOR_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH}"

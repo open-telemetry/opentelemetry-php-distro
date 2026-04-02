@@ -30,6 +30,10 @@ final class SpanExporter implements SpanExporterInterface
     /** @inheritDoc */
     public function export(iterable $batch, ?CancellationInterface $cancellation = null): FutureInterface
     {
+        /**
+         * Use fully qualified names for a function implemented by the extension to make sure scoper correctly detects it
+         * @noinspection PhpFullyQualifiedNameUsageInspection
+         */
         return $this->transport
             ->send(\OpenTelemetry\Distro\OtlpExporters\convert_spans($batch), $cancellation)
             ->map(
@@ -39,6 +43,8 @@ final class SpanExporter implements SpanExporterInterface
                     }
 
                     $serviceResponse = new ExportTraceServiceResponse();
+
+                    /** @noinspection DuplicatedCode */
                     $partialSuccess = $serviceResponse->getPartialSuccess();
                     if ($partialSuccess !== null && $partialSuccess->getRejectedSpans()) {
                         self::logError('Export partial success', [

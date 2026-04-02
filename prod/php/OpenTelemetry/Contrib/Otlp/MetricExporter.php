@@ -40,6 +40,10 @@ final class MetricExporter implements PushMetricExporterInterface, AggregationTe
     /** @inheritDoc */
     public function export(iterable $batch): bool
     {
+        /**
+         * Use fully qualified names for a function implemented by the extension to make sure scoper correctly detects it
+         * @noinspection PhpFullyQualifiedNameUsageInspection
+         */
         return $this->transport
             ->send(\OpenTelemetry\Distro\OtlpExporters\convert_metrics($batch))
             ->map(
@@ -50,6 +54,7 @@ final class MetricExporter implements PushMetricExporterInterface, AggregationTe
 
                     $serviceResponse = new ExportMetricsServiceResponse();
 
+                    /** @noinspection DuplicatedCode */
                     $partialSuccess = $serviceResponse->getPartialSuccess();
                     if ($partialSuccess !== null && $partialSuccess->getRejectedDataPoints()) {
                         self::logError('Export partial success', [

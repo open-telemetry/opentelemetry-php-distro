@@ -6,7 +6,6 @@ namespace OTelDistroTests\ComponentTests\Util;
 
 use Ds\Map;
 use OpenTelemetry\Distro\Log\LogLevel;
-use OpenTelemetry\Distro\PhpPartFacade;
 use OpenTelemetry\Distro\Util\TextUtil;
 use OTelDistroTests\UnitTests\Util\MockConfigRawSnapshotSource;
 use OTelDistroTests\Util\AmbientContextForTests;
@@ -135,11 +134,6 @@ class AppCodeHostParams implements LoggableInterface
 
                 // Keep environment variables related to testing infrastructure
                 if (TextUtil::isPrefixOfIgnoreCase(OptionForTestsName::ENV_VAR_NAME_PREFIX, $envVarName)) {
-                    return true;
-                }
-
-                // Keep environment variable 'is dev mode'
-                if ($envVarName === PhpPartFacade::MODE_IS_DEV_ENV_VAR_NAME) {
                     return true;
                 }
 

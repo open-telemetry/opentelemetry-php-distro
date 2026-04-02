@@ -42,7 +42,10 @@ final class NativeHttpTransport implements TransportInterface
         $this->endpoint = $endpoint;
         $this->contentType = $contentType;
 
-        // \OpenTelemetry\Distro\HttpTransport\initialize is provided by the extension
+        /**
+         * Use fully qualified names for a function implemented by the extension to make sure scoper correctly detects it
+         * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
+         */
         \OpenTelemetry\Distro\HttpTransport\initialize($endpoint, $contentType, $headers, $timeout, $retryDelay, $maxRetries);
     }
 
@@ -56,7 +59,10 @@ final class NativeHttpTransport implements TransportInterface
      */
     public function send(string $payload, ?CancellationInterface $cancellation = null): FutureInterface
     {
-        // \OpenTelemetry\Distro\HttpTransport\enqueue is provided by the extension
+        /**
+         * Use fully qualified names for a function implemented by the extension to make sure scoper correctly detects it
+         * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
+         */
         \OpenTelemetry\Distro\HttpTransport\enqueue($this->endpoint, $payload);
 
         return new CompletedFuture(null);

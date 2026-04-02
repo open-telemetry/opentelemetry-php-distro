@@ -19,7 +19,7 @@ $extensionFunctionFqcns = [
     'OpenTelemetry\\Distro\\HttpTransport\\initialize',
     'OpenTelemetry\\Distro\\HttpTransport\\enqueue',
     'OpenTelemetry\\Distro\\InferredSpans\\force_set_object_property_value'
-    ];
+];
 
 $restoreUnscopedExtensionFunctions = static function (string $filePath, string $scoperPrefix, string $content) use ($extensionFunctionFqcns): string {
     $content = str_replace($scoperPrefix . '\\' . $scoperPrefix . '\\', $scoperPrefix . '\\', $content);

@@ -6,6 +6,7 @@ namespace OTelDistroTests\ComponentTests\Util;
 
 use OpenTelemetry\Distro\OTelDistroScoperConfig;
 use OpenTelemetry\Distro\Util\StaticClassTrait;
+use OTelDistroTests\Util\Config\OptionForProdName;
 
 final class AppCodeContextUtil
 {
@@ -16,10 +17,12 @@ final class AppCodeContextUtil
      *
      * @param class-string<T> $unscopedClassName
      *
-     * @phpstan-return class-string<T>
+     * @return class-string<T>
      */
     public static function adaptClassName(string $unscopedClassName): string
     {
-        return (OTelDistroScoperConfig::ENABLED ? (OTelDistroScoperConfig::PREFIX . '\\') : '') . $unscopedClassName; // @phpstan-ignore return.type, ternary.alwaysTrue
+        /** @noinspection PhpFullyQualifiedNameUsageInspection */
+        $isScoperEnabled = \OpenTelemetry\Distro\get_config_option_by_name(OptionForProdName::debug_scoper_enabled->name);
+        return ($isScoperEnabled ? (OTelDistroScoperConfig::PREFIX . '\\') : '') . $unscopedClassName; // @phpstan-ignore return.type
     }
 }

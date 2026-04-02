@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\ComponentTests\Util;
 
-use OTelDistroTests\Util\AmbientContextForTests;
-use OTelDistroTests\Util\IterableUtil;
-use OTelDistroTests\Util\Log\LogCategoryForTests;
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Trace\Span as OTelApiSpan;
 use OpenTelemetry\API\Trace\SpanInterface as OTelApiSpanInterface;
@@ -25,39 +22,74 @@ use Throwable;
  * @phpstan-type OTelAttributesMapIterable iterable<non-empty-string, OTelAttributeValue>
  * @phpstan-type IntLimitedToOTelSpanKind OTelSpanKind::KIND_*
  */
-class OTelUtil
+final class OTelUtil
 {
-    public static function getTracer(): TracerInterface
+    /**
+     * Use PHPDoc tags instead of PHP language native type hints to avoid runtime enforcement
+     * because the runtime enforcement will fail when scoping is enabled
+     *
+     * @return TracerInterface
+     *
+     * @noinspection PhpMissingReturnTypeInspection
+     */
+    private static function getTracer()
     {
-        return Globals::tracerProvider()->getTracer(name: 'org.opentelemetry.php.distro.component-tests', version: Version::VERSION_1_27_0->value);
+        return AppCodeContextUtil::adaptClassName(Globals::class)::tracerProvider()->getTracer(name: 'org.opentelemetry.php.distro.component-tests', version: Version::VERSION_1_27_0->value);
     }
 
     /**
-     * @phpstan-param non-empty-string          $spanName
+     * @return class-string<Context>
+     */
+    private static function contextClass(): string
+    {
+        return AppCodeContextUtil::adaptClassName(Context::class);
+    }
+
+    /**
+     * @return class-string<OTelApiSpan>
+     */
+    private static function apiSpanClass(): string
+    {
+        return AppCodeContextUtil::adaptClassName(OTelApiSpan::class);
+    }
+
+    /**
+     * @phpstan-param TracerInterface $tracer
+     * @phpstan-param non-empty-string $spanName
      * @phpstan-param IntLimitedToOTelSpanKind  $spanKind
      * @phpstan-param OTelAttributesMapIterable $attributes
+     *
+     * Use PHPDoc tags instead of PHP language native type hints to avoid runtime enforcement
+     * because the runtime enforcement will fail when scoping is enabled
+     *
+     * @return OTelApiSpanInterface
+     *
+     * @noinspection PhpMissingReturnTypeInspection
+     * @noinspection PhpReturnValueOfMethodIsNeverUsedInspection
      */
-    public static function startSpan(TracerInterface $tracer, string $spanName, int $spanKind = OTelSpanKind::KIND_INTERNAL, iterable $attributes = []): OTelApiSpanInterface
+    private static function startSpan($tracer, string $spanName, int $spanKind = OTelSpanKind::KIND_INTERNAL, iterable $attributes = [])
     {
-        $parentCtx = Context::getCurrent();
+        $parentCtx = self::contextClass()::getCurrent();
         $newSpanBuilder = $tracer->spanBuilder($spanName)->setParent($parentCtx)->setSpanKind($spanKind)->setAttributes($attributes);
         $newSpan = $newSpanBuilder->startSpan();
         $newSpanCtx = $newSpan->storeInContext($parentCtx);
-        Context::storage()->attach($newSpanCtx);
+        self::contextClass()::storage()->attach($newSpanCtx);
         return $newSpan;
     }
 
     /**
      * @param OTelAttributesMapIterable $attributes
+     *
+     * @noinspection PhpSameParameterValueInspection
      */
-    public static function endActiveSpan(?Throwable $throwable = null, ?string $errorStatus = null, iterable $attributes = []): void
+    private static function endActiveSpan(?Throwable $throwable = null, ?string $errorStatus = null, iterable $attributes = []): void
     {
-        $scope = Context::storage()->scope();
+        $scope = self::contextClass()::storage()->scope();
         if ($scope === null) {
             return;
         }
         Assert::assertSame(0, $scope->detach());
-        $span = OTelApiSpan::fromContext($scope->context());
+        $span = self::apiSpanClass()::fromContext($scope->context());
 
         $span->setAttributes($attributes);
 
@@ -80,14 +112,13 @@ class OTelUtil
      * @phpstan-param OTelAttributesMapIterable $attributes
      */
     public static function startEndSpan(
-        TracerInterface $tracer,
         string $spanName,
         int $spanKind = OTelSpanKind::KIND_INTERNAL,
         iterable $attributes = [],
         ?Throwable $throwable = null,
         ?string $errorStatus = null
     ): void {
-        self::startSpan($tracer, $spanName, $spanKind, $attributes);
+        self::startSpan(self::getTracer(), $spanName, $spanKind, $attributes);
         self::endActiveSpan($throwable, $errorStatus);
     }
 
@@ -95,6 +126,8 @@ class OTelUtil
      * @param iterable<string> $attributeKeys
      *
      * @return array<string, mixed>
+     *
+     * @noinspection PhpUnused
      */
     public static function dbgDescForSpan(OTelApiSpanInterface $span, iterable $attributeKeys = []): array
     {
@@ -110,27 +143,5 @@ class OTelUtil
             $result['attributes'] = $attributes;
         }
         return $result;
-    }
-
-    /**
-     * @param OTelAttributesMapIterable $attributes
-     */
-    public static function addSpanAttributes(OTelApiSpanInterface $span, iterable $attributes): void
-    {
-        $logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__);
-        $loggerProxyDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
-        $logger->addAllContext(compact('attributes'));
-
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Before setting attributes', ['span' => self::dbgDescForSpan($span, IterableUtil::keys($attributes))]);
-        $span->setAttributes($attributes);
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'After setting attributes', ['span' => self::dbgDescForSpan($span, IterableUtil::keys($attributes))]);
-    }
-
-    /**
-     * @param OTelAttributesMapIterable $attributes
-     */
-    public static function addActiveSpanAttributes(iterable $attributes): void
-    {
-        self::addSpanAttributes(OTelApiSpan::getCurrent(), $attributes);
     }
 }

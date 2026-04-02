@@ -16,15 +16,13 @@ use OTelDistroTests\Util\Config\OptionForProdName;
 use OTelDistroTests\Util\Config\OptionsForProdMetadata;
 use OTelDistroTests\Util\Config\Parser as ConfigParser;
 use OTelDistroTests\Util\DataProviderForTestBuilder;
+use OTelDistroTests\Util\DebugContext;
 use OTelDistroTests\Util\IterableUtil;
 use OTelDistroTests\Util\Log\LoggableToString;
 use OTelDistroTests\Util\Log\LogLevelUtil;
 use OTelDistroTests\Util\MixedMap;
 use OTelDistroTests\Util\RangeUtil;
 use OTelDistroTests\Util\TestCaseBase;
-use OpenTelemetry\API\Globals;
-use OpenTelemetry\API\Trace\TracerInterface;
-use OpenTelemetry\SemConv\Version;
 use Override;
 use PHPUnit\Framework\Assert;
 use Throwable;
@@ -108,8 +106,8 @@ class ComponentTestCaseBase extends TestCaseBase
 
     public static function appCodeCreatesDummySpan(MixedMap $appCodeArgs): void
     {
-        if ($appCodeArgs->isBoolIsNotSetOrSetToTrue(self::SHOULD_APP_CODE_CREATE_DUMMY_SPAN_KEY)) {
-            OTelUtil::startEndSpan(OTelUtil::getTracer(), self::APP_CODE_DUMMY_SPAN_NAME);
+        if ($appCodeArgs->tryToGetBool(self::SHOULD_APP_CODE_CREATE_DUMMY_SPAN_KEY) ?? true) {
+            OTelUtil::startEndSpan(self::APP_CODE_DUMMY_SPAN_NAME);
         }
     }
 
@@ -154,7 +152,10 @@ class ComponentTestCaseBase extends TestCaseBase
 
     protected static function waitForOneSpan(TestCaseHandle $testCaseHandle): Span
     {
+        DebugContext::getCurrentScope(/* out */ $dbgCtx);
+
         $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(WaitForOTelSignalCounts::spans(1));
+        $dbgCtx->add(compact('agentBackendComms'));
         return $agentBackendComms->singleSpan();
     }
 
@@ -434,11 +435,6 @@ class ComponentTestCaseBase extends TestCaseBase
     {
         Assert::assertArrayHasKey($key, $array);
         return $array[$key];
-    }
-
-    protected static function getTracerFromAppCode(): TracerInterface
-    {
-        return Globals::tracerProvider()->getTracer('org.opentelemetry.php.distro.ComponentTests', null, Version::VERSION_1_25_0->url());
     }
 
     protected static function buildProdConfigFromAppCode(): ConfigSnapshotForProd

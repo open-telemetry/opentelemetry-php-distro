@@ -24,7 +24,8 @@ echo CGREEN."OK\n".CDEF;
 
 
 echo "Checking if extension is enabled: ";
-if (OpenTelemetry\Distro\is_enabled() !== true) {
+/** @noinspection PhpFullyQualifiedNameUsageInspection */
+if (\OpenTelemetry\Distro\is_enabled() !== true) {
     echo CRED."FAILED. OpenTelemetry PHP Distro extension is not enabled\n".CDEF;
     exit(1);
 }

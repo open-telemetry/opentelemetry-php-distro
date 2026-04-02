@@ -32,13 +32,8 @@ constexpr std::array<char, N> toLowerAsciiArray(std::string_view input) noexcept
 	return output;
 }
 
-#if @_PROJECT_PROPERTIES_PHP_SCOPER_ENABLED@
 constexpr std::string_view php_scoper_prefix = "@_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX@\\"sv;
 #define PHP_SCOPER_PREFIX "@_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX@\\"
-#else
-constexpr std::string_view php_scoper_prefix = ""sv;
-#define PHP_SCOPER_PREFIX ""
-#endif
 
 constexpr auto php_scoper_prefix_lc_array = toLowerAsciiArray<php_scoper_prefix.size() + 1>(php_scoper_prefix);
 constexpr std::string_view php_scoper_prefix_lc = {php_scoper_prefix_lc_array.data(), php_scoper_prefix.size()};

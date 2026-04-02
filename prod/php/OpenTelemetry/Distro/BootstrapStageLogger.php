@@ -7,7 +7,6 @@ declare(strict_types=1);
 namespace OpenTelemetry\Distro;
 
 use Closure;
-use Throwable;
 
 /**
  * @phpstan-type WriteToSink Closure(int $level, int $feature, string $file, int $line, string $func, string $message): void
@@ -137,19 +136,6 @@ final class BootstrapStageLogger
         return $statementLevel <= self::$maxEnabledLevel;
     }
 
-    public static function logCriticalThrowable(Throwable $throwable, string $message, string $file, int $line, string $class, string $func): void
-    {
-        self::logCritical(
-            $message . '.'
-            . ' ' . get_class($throwable) . ': ' . $throwable->getMessage()
-            . PHP_EOL . 'Stack trace:' . PHP_EOL . $throwable->getTraceAsString(),
-            $file,
-            $line,
-            $class,
-            $func
-        );
-    }
-
     private static function isPrefixOf(string $prefix, string $text, bool $isCaseSensitive = true): bool
     {
         $prefixLen = strlen($prefix);
@@ -202,6 +188,10 @@ final class BootstrapStageLogger
         }
 
         if (self::$writeToSink === null) {
+            /**
+             * Use fully qualified names for a function implemented by the extension to make sure scoper correctly detects it
+             * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
+             */
             \OpenTelemetry\Distro\log_feature(
                 0 /* $isForced */,
                 $statementLevel,

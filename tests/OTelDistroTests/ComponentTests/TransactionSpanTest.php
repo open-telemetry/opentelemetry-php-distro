@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\ComponentTests;
 
+use OTelDistroTests\ComponentTests\Util\AppCodeContextDataUtil;
 use OTelDistroTests\ComponentTests\Util\AppCodeHostParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeRequestParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeTarget;
@@ -94,10 +95,14 @@ final class TransactionSpanTest extends ComponentTestCaseBase
                 $appCodeParams->setProdOptionIfNotNull(OptionForProdName::transaction_span_enabled_cli, $transactionSpanEnabledCli);
             }
         );
+
+        $appCodeArgs = $testArgs->cloneAsArray();
+        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeArgs);
+
         $appCodeHost->execAppCode(
             AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestFeatureWithVariousEnabledConfigCombos']),
-            function (AppCodeRequestParams $appCodeRequestParams) use ($testArgs): void {
-                $appCodeRequestParams->setAppCodeArgs($testArgs);
+            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeArgs): void {
+                $appCodeRequestParams->setAppCodeArgs($appCodeArgs);
             }
         );
 
@@ -124,15 +129,12 @@ final class TransactionSpanTest extends ComponentTestCaseBase
                     TraceAttributes::URL_FULL                  => UrlUtil::buildFullUrl($expectedRootSpanUrlParts),
                     TraceAttributes::URL_PATH                  => $expectedRootSpanUrlParts->path,
                     TraceAttributes::URL_SCHEME                => $expectedRootSpanUrlParts->scheme,
-                    self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY => true,
                 ]
             );
         } else {
             $expectedRootSpanKind = SpanKind::server;
             $rootSpanAttributesExpectations = new AttributesExpectations(
-                attributes:           [
-                                          self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY => true,
-                                      ],
+                attributes:           [],
                 notAllowedAttributes: [
                                           TraceAttributes::HTTP_REQUEST_METHOD,
                                           TraceAttributes::HTTP_REQUEST_BODY_SIZE,
@@ -152,6 +154,12 @@ final class TransactionSpanTest extends ComponentTestCaseBase
         $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(WaitForOTelSignalCounts::spans($expectedSpanCount));
         $dbgCtx->add(compact('agentBackendComms'));
 
+        // Assert
+
+        $appCodeContextData = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeArgs);
+        $dbgCtx->add(compact('appCodeContextData'));
+        self::assertTrue($appCodeContextData->getBool(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY));
+
         $rootSpan = null;
         $dummySpan = null;
         if ($isTransactionSpanEnabled) {
@@ -169,8 +177,6 @@ final class TransactionSpanTest extends ComponentTestCaseBase
             $dummySpan = $agentBackendComms->singleSpan();
         }
         $dbgCtx->add(compact('rootSpan', 'dummySpan'));
-
-        // Assert
 
         self::assertSame($isTransactionSpanEnabled, $rootSpan !== null);
         if ($rootSpan !== null) {

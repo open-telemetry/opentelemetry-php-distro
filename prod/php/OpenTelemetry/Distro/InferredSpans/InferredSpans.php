@@ -267,6 +267,10 @@ class InferredSpans
                     ['new', $lastSpanParent, 'old', $span->getParentContext()]
                 );
 
+                /**
+                 * Use fully qualified names for a function implemented by the extension to make sure scoper correctly detects it
+                 * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
+                 */
                 $forceParentChangeFailed = !\OpenTelemetry\Distro\InferredSpans\force_set_object_property_value($span, "parentSpanContext", $lastSpanParent);
             }
         }

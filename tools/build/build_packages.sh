@@ -87,38 +87,42 @@ sanitize_package_version_for_type() {
 }
 
 test_package() {
-    local highest_supported_php_version_no_dot=$(get_array_max_value ${_PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS})
-    local PHP_VERSION=$(convert_no_dot_to_dot_separated_version "${highest_supported_php_version_no_dot}")
-    local PKG_TYPE=$1
-    local PKG_FILENAME=$2
-    local DOCKER_PLATFORM=$3
-    local SCOPE_NAME=$4
+    local -r _PKG_TYPE="$1"
+    local -r _PKG_FILENAME="$2"
+    local -r _DOCKER_PLATFORM="$3"
+    local -r _SCOPE_NAME="$4"
 
-    echo ${PKG_FILENAME}
+    # Use the highest supported PHP version
+    # SC2086: Double quote to prevent globbing and word splitting.
+    # shellcheck disable=SC2086
+    local -r _PHP_VERSION_NO_DOT=$(get_array_max_value ${_PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS})
+    local -r _PHP_VERSION=$(convert_no_dot_to_dot_separated_version "${_PHP_VERSION_NO_DOT}")
 
-    echo "Starting ${PKG_FILENAME} smoke test"
-    echo "Running on platform ${DOCKER_PLATFORM}";
+    echo "${_PKG_FILENAME}"
+
+    echo "Starting ${_PKG_FILENAME} smoke test"
+    echo "Running on platform ${_DOCKER_PLATFORM}";
 
     local TEST_LICENSE_FILES="echo -n 'Checking for \"copyright\" files existence: ' && test -f /opt/opentelemetry/php/distro/LICENSE && test -f /opt/opentelemetry/php/distro/NOTICE && echo -e '\033[0;32mOK\033[0;39m'"
 
-    case "${PKG_TYPE}" in
+    case "${_PKG_TYPE}" in
         "apk")
-            local INSTALL_SMOKE="apk add --allow-untrusted --verbose --no-cache  /source/build/packages/${PKG_FILENAME} && php /source/packaging/test/smokeTest.php ${SCOPE_NAME}"
-            local UNINSTALL_SMOKE="apk del --verbose --no-cache opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php ${SCOPE_NAME}"
+            local INSTALL_SMOKE="apk add --allow-untrusted --verbose --no-cache  /source/build/packages/${_PKG_FILENAME} && php /source/packaging/test/smokeTest.php ${_SCOPE_NAME}"
+            local UNINSTALL_SMOKE="apk del --verbose --no-cache opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php ${_SCOPE_NAME}"
             docker run --rm \
-                --platform ${DOCKER_PLATFORM} \
-                -v ${PWD}:/source \
+                --platform "${_DOCKER_PLATFORM}" \
+                -v "${PWD}:/source" \
                 -e OTEL_PHP_LOG_LEVEL_STDERR=error \
-                php:${PHP_VERSION}-alpine sh -c "ls /source/build/packages && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
+                "php:${_PHP_VERSION}-alpine" sh -c "ls /source/build/packages && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
         ;;
         "deb")
-            local INSTALL_SMOKE="dpkg -i  /source/build/packages/${PKG_FILENAME} && php /source/packaging/test/smokeTest.php ${SCOPE_NAME}"
-            local UNINSTALL_SMOKE="dpkg --purge opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php ${SCOPE_NAME}"
+            local INSTALL_SMOKE="dpkg -i  /source/build/packages/${_PKG_FILENAME} && php /source/packaging/test/smokeTest.php ${_SCOPE_NAME}"
+            local UNINSTALL_SMOKE="dpkg --purge opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php ${_SCOPE_NAME}"
             docker run --rm \
-                --platform ${DOCKER_PLATFORM} \
-                -v ${PWD}:/source \
+                --platform "${_DOCKER_PLATFORM}" \
+                -v "${PWD}:/source" \
                 -e OTEL_PHP_LOG_LEVEL_STDERR=error \
-                php:${PHP_VERSION} sh -c "ls /source/build/packages && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
+                "php:${_PHP_VERSION}" sh -c "ls /source/build/packages && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
         ;;
         "rpm")
             local INSTALL_PHP="cat /etc/redhat-release \
@@ -130,24 +134,26 @@ test_package() {
                 sed -ri 's|^#baseurl=|baseurl=|g' \"\$f\"; \
                 done \
             && dnf clean all \
-            && dnf install --setopt=install_weak_deps=False -y php${PHP_VERSION//./} php${PHP_VERSION//./}-syspaths"
+            && dnf install --setopt=install_weak_deps=False -y php${_PHP_VERSION_NO_DOT} php${_PHP_VERSION_NO_DOT}-syspaths"
 
-            local INSTALL_SMOKE="rpm -ivh /source/build/packages/${PKG_FILENAME} && php /source/packaging/test/smokeTest.php ${SCOPE_NAME}"
-            local UNINSTALL_SMOKE="rpm -ve opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php ${SCOPE_NAME}"
+            local INSTALL_SMOKE="rpm -ivh /source/build/packages/${_PKG_FILENAME} && php /source/packaging/test/smokeTest.php ${_SCOPE_NAME}"
+            local UNINSTALL_SMOKE="rpm -ve opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php ${_SCOPE_NAME}"
 
             docker run --rm \
-                --platform ${DOCKER_PLATFORM} \
-                -v ${PWD}:/source \
+                --platform "${_DOCKER_PLATFORM}" \
+                -v "${PWD}:/source" \
                 -e OTEL_PHP_LOG_LEVEL_STDERR=error \
                 redhat/ubi9 sh -c "ls /source/build/packages && ${INSTALL_PHP} && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
         ;;
         *)
-            echo -e "\033[0;33mPackage ${PKG_FILENAME} can't be tested because smoke test is not implemented\033[0;39m"
+            echo -e "\033[0;33mPackage ${_PKG_FILENAME} can't be tested because smoke test is not implemented\033[0;39m"
         ;;
     esac
 
+    # SC2181: Check exit code directly with e.g. 'if ! mycmd;', not indirectly with $?.
+    # shellcheck disable=SC2181
     if [ $? -ne 0 ]; then
-        echo -e "\033[0;31mPackage ${PKG_FILENAME} smoke test FAILED\033[0;39m"
+        echo -e "\033[0;31mPackage ${_PKG_FILENAME} smoke test FAILED\033[0;39m"
         exit 1
     fi
 
@@ -155,6 +161,8 @@ test_package() {
 
 if [ "${PACKAGE_SHA}" == "unknown" ]; then
     GITCMD=$(command -v git)
+    # SC2181: Check exit code directly with e.g. 'if ! mycmd;', not indirectly with $?.
+    # shellcheck disable=SC2181
     if [ $? -eq 0 ]; then
         PACKAGE_SHA=$( ${GITCMD} rev-parse HEAD )
     fi
@@ -170,12 +178,8 @@ export PACKAGE_VERSION="${PACKAGE_VERSION}"
 export BUILD_ARCHITECTURE="${BUILD_ARCHITECTURE}"
 export PACKAGE_GOARCHITECTURE="${PACKAGE_GOARCHITECTURE}"
 export PACKAGE_SHA="${PACKAGE_SHA}"
-SCOPE_NAME=""
 
-if [[ "${_PROJECT_PROPERTIES_PHP_SCOPER_ENABLED}" == "true" ]]; then
-    SCOPE_NAME="${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX}"
-fi
-export SCOPE_NAME="${SCOPE_NAME}"
+export SCOPE_NAME="${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX}"
 
 DOCKER_PLATFORM="linux/x86_64"
 if [[ -n "${BUILD_ARCHITECTURE}" ]] && [[ "${BUILD_ARCHITECTURE}" =~ arm64$ ]]; then
@@ -192,7 +196,7 @@ do
     echo "Building package type: ${pkg_type}"
     echo "Effective package version for ${pkg_type}: ${EFFECTIVE_PACKAGE_VERSION}"
 
-    PACKAGE_VERSION="${EFFECTIVE_PACKAGE_VERSION}" envsubst <packaging/nfpm.yaml >${PWD}/build/packages/nfpm.yaml
+    PACKAGE_VERSION="${EFFECTIVE_PACKAGE_VERSION}" envsubst <packaging/nfpm.yaml >"${PWD}/build/packages/nfpm.yaml"
 
     docker run --rm \
         --platform ${DOCKER_PLATFORM} \
@@ -200,8 +204,8 @@ do
         -e BUILD_ARCHITECTURE="${BUILD_ARCHITECTURE}" \
         -e PACKAGE_GOARCHITECTURE="${PACKAGE_GOARCHITECTURE}" \
         -e PACKAGE_SHA="${PACKAGE_SHA}" \
-        -v ${PWD}:/source \
-        -w /source/packaging goreleaser/nfpm package -f /source/build/packages/nfpm.yaml -t "/source/build/packages" -p ${pkg_type} | tee /tmp/nfpm_output.txt
+        -v "${PWD}:/source" \
+        -w /source/packaging goreleaser/nfpm package -f /source/build/packages/nfpm.yaml -t "/source/build/packages" -p "${pkg_type}" | tee /tmp/nfpm_output.txt
 
     PKG_FILENAME=$(grep "created package: " /tmp/nfpm_output.txt | sed 's/^.*: \/source\/build\/packages\///')
 
@@ -215,20 +219,20 @@ do
     sha512sum "${PKG_FILENAME}" >"${PKG_FILENAME}".sha512
     popd
 
-    test_package ${pkg_type} "${PKG_FILENAME}" "${DOCKER_PLATFORM}" "${SCOPE_NAME}"
+    test_package "${pkg_type}" "${PKG_FILENAME}" "${DOCKER_PLATFORM}" "${SCOPE_NAME}"
 
 done
 
-rm ${PWD}/build/packages/nfpm.yaml
+rm "${PWD}/build/packages/nfpm.yaml"
 
 echo "Creating debug symbols artifacts"
 DBGSYM_FILE="opentelemetry-php-distro-debugsymbols-${BUILD_ARCHITECTURE}.tar.gz"
 DBGSYM_PATH="${PWD}/build/packages/${DBGSYM_FILE}"
 
-pushd prod/native/_build/${BUILD_ARCHITECTURE}-release
-tar --transform 's/.*\///g' -zcvf ${DBGSYM_PATH} extension/code/*.debug loader/code/*.debug
+pushd "prod/native/_build/${BUILD_ARCHITECTURE}-release"
+tar --transform 's/.*\///g' -zcvf "${DBGSYM_PATH}" extension/code/*.debug loader/code/*.debug
 popd
 
 pushd "${PWD}/build/packages"
-sha512sum ${DBGSYM_FILE} >${DBGSYM_FILE}.sha512
+sha512sum "${DBGSYM_FILE}" >"${DBGSYM_FILE}.sha512"
 popd

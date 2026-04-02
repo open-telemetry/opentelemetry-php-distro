@@ -32,6 +32,7 @@ use Throwable;
  */
 final class PhpPartFacade
 {
+    use BootstrapStageLoggingClassTrait;
     /**
      * Constructor is hidden because instance() should be used instead
      */
@@ -44,7 +45,6 @@ final class PhpPartFacade
     private ?InferredSpans $inferredSpans = null;
 
     public const IS_ENABLED_ENV_VAR_NAME = 'OTEL_PHP_ENABLED';
-    public const MODE_IS_DEV_ENV_VAR_NAME = 'OTEL_PHP_DEV_INTERNAL_MODE_IS_DEV';
 
     /**
      * Called by the extension
@@ -62,34 +62,15 @@ final class PhpPartFacade
         require __DIR__ . DIRECTORY_SEPARATOR . 'BootstrapStageLogger.php';
 
         BootstrapStageLogger::configure($maxEnabledLogLevel, __DIR__, __NAMESPACE__);
-        BootstrapStageLogger::logDebug(
-            'Starting bootstrap sequence...'
-            . "; nativePartVersion: $nativePartVersion" . "; maxEnabledLogLevel: $maxEnabledLogLevel" . "; requestInitStartTime: $requestInitStartTime",
-            __FILE__,
-            __LINE__,
-            __CLASS__,
-            __FUNCTION__
-        );
+        self::logDebug(__LINE__, __FUNCTION__, 'Starting bootstrap sequence...', compact('nativePartVersion', 'maxEnabledLogLevel', 'requestInitStartTime'));
 
         if (!self::isEnabled()) {
-            BootstrapStageLogger::logCritical(
-                'bootstrap() is called while EDOT is disabled - aborting bootstrap sequence',
-                __FILE__,
-                __LINE__,
-                __CLASS__,
-                __FUNCTION__
-            );
+            self::logCritical(__LINE__, __FUNCTION__, __FUNCTION__ . '() is called but it is DISABLED - aborting bootstrap sequence');
             return false;
         }
 
         if (self::$singletonInstance !== null) {
-            BootstrapStageLogger::logCritical(
-                'bootstrap() is called even though singleton instance is already created (probably bootstrap() is called more than once)',
-                __FILE__,
-                __LINE__,
-                __CLASS__,
-                __FUNCTION__
-            );
+            self::logCritical(__LINE__, __FUNCTION__, __FUNCTION__ . '() is called even though singleton instance is already created (probably ' . __FUNCTION__ . '() is called more than once)');
             return false;
         }
 
@@ -112,7 +93,7 @@ final class PhpPartFacade
 
             /** @noinspection PhpInternalEntityUsedInspection */
             if (SdkAutoloader::isExcludedUrl()) {
-                BootstrapStageLogger::logDebug('Url is excluded', __FILE__, __LINE__, __CLASS__, __FUNCTION__);
+                self::logDebug(__LINE__, __FUNCTION__, 'URL is excluded');
                 return false;
             }
 
@@ -125,19 +106,26 @@ final class PhpPartFacade
 
             self::$singletonInstance = new self();
 
+            /**
+             * Use fully qualified names for a function implemented by the extension to make sure scoper correctly detects it
+             * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
+             */
             if (\OpenTelemetry\Distro\get_config_option_by_name('inferred_spans_enabled')) {
                 self::$singletonInstance->inferredSpans = new InferredSpans(
+                /** @noinspection PhpUnnecessaryFullyQualifiedNameInspection */
                     (bool)\OpenTelemetry\Distro\get_config_option_by_name('inferred_spans_reduction_enabled'),
+                    /** @noinspection PhpUnnecessaryFullyQualifiedNameInspection */
                     (bool)\OpenTelemetry\Distro\get_config_option_by_name('inferred_spans_stacktrace_enabled'),
+                    /** @noinspection PhpUnnecessaryFullyQualifiedNameInspection */
                     \OpenTelemetry\Distro\get_config_option_by_name('inferred_spans_min_duration') // @phpstan-ignore argument.type
                 );
             }
         } catch (Throwable $throwable) {
-            BootstrapStageLogger::logCriticalThrowable($throwable, 'One of the steps in bootstrap sequence has thrown', __FILE__, __LINE__, __CLASS__, __FUNCTION__);
+            self::logCriticalThrowable(__LINE__, __FUNCTION__, $throwable, 'One of the steps in bootstrap sequence has thrown');
             return false;
         }
 
-        BootstrapStageLogger::logDebug('Successfully completed bootstrap sequence', __FILE__, __LINE__, __CLASS__, __FUNCTION__);
+        self::logDebug(__LINE__, __FUNCTION__, 'Successfully completed bootstrap sequence');
         return true;
     }
 
@@ -149,22 +137,17 @@ final class PhpPartFacade
     public static function inferredSpans(int $durationMs, bool $internalFunction): bool
     {
         if (self::$singletonInstance === null) {
-            BootstrapStageLogger::logDebug('Missing facade', __FILE__, __LINE__, __CLASS__, __FUNCTION__);
+            self::logDebug(__LINE__, __FUNCTION__, 'Missing facade');
             return true;
         }
 
         if (self::$singletonInstance->inferredSpans === null) {
-            BootstrapStageLogger::logDebug('Missing inferred spans instance', __FILE__, __LINE__, __CLASS__, __FUNCTION__);
+            self::logDebug(__LINE__, __FUNCTION__, 'Missing inferred spans instance');
             return true;
         }
         self::$singletonInstance->inferredSpans->captureStackTrace($durationMs, $internalFunction);
 
         return true;
-    }
-
-    private static function isInDevMode(): bool
-    {
-        return self::getBoolEnvVar(self::MODE_IS_DEV_ENV_VAR_NAME, default: false);
     }
 
     private static function isEnabled(): bool
@@ -196,38 +179,26 @@ final class PhpPartFacade
         self::setEnvVar('OTEL_PHP_AUTOLOAD_ENABLED', 'true');
     }
 
-    public static function getVendorDirPath(string $prodPhpDir): string
-    {
-        return $prodPhpDir . DIRECTORY_SEPARATOR . (
-            self::isInDevMode()
-                ? ('..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'vendor')
-                : ('vendor_' . PHP_MAJOR_VERSION . PHP_MINOR_VERSION)
-            );
-    }
-
     private static function registerAutoloaderForVendorDir(): void
     {
-        $instrumentationHookPhp = ProdPhpDir::getOpenTelemetryRootPath() . DIRECTORY_SEPARATOR . 'Instrumentation' . DIRECTORY_SEPARATOR . 'hook.php';
-        BootstrapStageLogger::logDebug('About to require ' . $instrumentationHookPhp, __FILE__, __LINE__, __CLASS__, __FUNCTION__);
-        if (!file_exists($instrumentationHookPhp)) {
-            throw new RuntimeException("File $instrumentationHookPhp does not exist");
-        }
-        require_once $instrumentationHookPhp;
-
-        $vendorAutoloadPhp = self::getVendorDirPath(ProdPhpDir::$fullPath) . '/autoload.php';
+        $vendorAutoloadPhp = VendorDir::$fullPath . DIRECTORY_SEPARATOR . 'autoload.php';
         if (!file_exists($vendorAutoloadPhp)) {
             throw new RuntimeException("File $vendorAutoloadPhp does not exist");
         }
-        BootstrapStageLogger::logDebug('About to require ' . $vendorAutoloadPhp, __FILE__, __LINE__, __CLASS__, __FUNCTION__);
+        self::logDebug(__LINE__, __FUNCTION__, 'Before require', compact('vendorAutoloadPhp'));
         require $vendorAutoloadPhp;
 
-        BootstrapStageLogger::logDebug('Finished successfully', __FILE__, __LINE__, __CLASS__, __FUNCTION__);
+        self::logDebug(__LINE__, __FUNCTION__, 'Finished successfully');
     }
 
     private static function registerAsyncTransportFactory(): void
     {
+        /**
+         * Use fully qualified names for a function implemented by the extension to make sure scoper correctly detects it
+         * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
+         */
         if (\OpenTelemetry\Distro\get_config_option_by_name('async_transport') === false) {
-            BootstrapStageLogger::logDebug('OTEL_PHP_ASYNC_TRANSPORT set to false', __FILE__, __LINE__, __CLASS__, __FUNCTION__);
+            self::logDebug(__LINE__, __FUNCTION__, 'OTEL_PHP_ASYNC_TRANSPORT set to false');
             return;
         }
 
@@ -241,11 +212,15 @@ final class PhpPartFacade
 
     private static function registerNativeOtlpSerializer(): void
     {
+        /**
+         * Use fully qualified names for a function implemented by the extension to make sure scoper correctly detects it
+         * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
+         */
         if (\OpenTelemetry\Distro\get_config_option_by_name('native_otlp_serializer_enabled') === false) {
-            BootstrapStageLogger::logDebug('OTEL_PHP_NATIVE_OTLP_SERIALIZER_ENABLED set to false', __FILE__, __LINE__, __CLASS__, __FUNCTION__);
+            self::logDebug(__LINE__, __FUNCTION__, 'OTEL_PHP_NATIVE_OTLP_SERIALIZER_ENABLED set to false');
         } else {
             // Load classes such as \OpenTelemetry\Contrib\Otlp\SpanExporter to shadow the ones in SDK
-            $otelOtlpDir = ProdPhpDir::getOpenTelemetryRootPath() . DIRECTORY_SEPARATOR . 'Contrib' . DIRECTORY_SEPARATOR . 'Otlp';
+            $otelOtlpDir = ProdPhpDir::$fullPath . DIRECTORY_SEPARATOR . 'Contrib' . DIRECTORY_SEPARATOR . 'Otlp';
             foreach (['SpanExporter', 'LogsExporter', 'MetricExporter'] as $exporter) {
                 require $otelOtlpDir . DIRECTORY_SEPARATOR . $exporter . '.php';
             }
@@ -259,13 +234,7 @@ final class PhpPartFacade
      */
     public static function handleError(int $type, string $errorFilename, int $errorLineno, string $message): void
     {
-        BootstrapStageLogger::logDebug(
-            "Called with arguments: type: $type, errorFilename: $errorFilename, errorLineno: $errorLineno, message: $message",
-            __FILE__,
-            __LINE__,
-            __CLASS__,
-            __FUNCTION__
-        );
+        self::logDebug(__LINE__, __FUNCTION__, 'Entered', compact('type', 'errorFilename', 'errorLineno', 'message'));
     }
 
     /**
@@ -342,5 +311,21 @@ final class PhpPartFacade
         }
 
         $span->end();
+    }
+
+    /**
+     * Must be defined in class using BootstrapStageLoggingClassTrait
+     */
+    private static function getCurrentSourceCodeFile(): string
+    {
+        return __FILE__;
+    }
+
+    /**
+     * Must be defined in class using BootstrapStageLoggingClassTrait
+     */
+    private static function getCurrentSourceCodeClass(): string
+    {
+        return __CLASS__;
     }
 }

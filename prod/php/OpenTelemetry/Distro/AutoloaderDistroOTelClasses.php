@@ -8,6 +8,8 @@ namespace OpenTelemetry\Distro;
 
 final class AutoloaderDistroOTelClasses
 {
+    use BootstrapStageLoggingClassTrait;
+
     private readonly string $autoloadFqClassNamePrefix;
     private readonly int $autoloadFqClassNamePrefixLength;
     private readonly string $srcFilePathPrefix;
@@ -34,16 +36,10 @@ final class AutoloaderDistroOTelClasses
     {
         // Example of $fqClassName: OpenTelemetry\Distro\Autoloader
 
-        BootstrapStageLogger::logTrace("Entered with fqClassName: `$fqClassName'", __FILE__, __LINE__, __CLASS__, __FUNCTION__);
+        self::logTrace(__LINE__, __FUNCTION__, 'Entered', compact('fqClassName'));
 
         if (!self::shouldAutoloadCodeForClass($fqClassName)) {
-            BootstrapStageLogger::logTrace(
-                "shouldAutoloadCodeForClass returned false. fqClassName: $fqClassName",
-                __FILE__,
-                __LINE__,
-                __CLASS__,
-                __FUNCTION__
-            );
+            self::logTrace(__LINE__, __FUNCTION__, 'shouldAutoloadCodeForClass returned false', compact('fqClassName'));
             return;
         }
 
@@ -55,32 +51,27 @@ final class AutoloaderDistroOTelClasses
         $classSrcFileAbsolute = $this->srcFilePathPrefix . $classSrcFileRelative;
 
         if (file_exists($classSrcFileAbsolute)) {
-            BootstrapStageLogger::logTrace(
-                "Before require `$classSrcFileAbsolute' ...",
-                __FILE__,
-                __LINE__,
-                __CLASS__,
-                __FUNCTION__
-            );
-
+            self::logTrace(__LINE__, __FUNCTION__, 'Before require', compact('classSrcFileAbsolute'));
             require $classSrcFileAbsolute;
-
-            BootstrapStageLogger::logTrace(
-                "After require `$classSrcFileAbsolute' ...",
-                __FILE__,
-                __LINE__,
-                __CLASS__,
-                __FUNCTION__
-            );
+            self::logTrace(__LINE__, __FUNCTION__, 'After require', compact('classSrcFileAbsolute'));
         } else {
-            BootstrapStageLogger::logTrace(
-                "File with the code for class doesn't exist."
-                    . " classSrcFile: `$classSrcFileAbsolute'. fqClassName: `$fqClassName'",
-                __FILE__,
-                __LINE__,
-                __CLASS__,
-                __FUNCTION__
-            );
+            self::logTrace(__LINE__, __FUNCTION__, 'File with the code for class does not exist', compact('fqClassName', 'classSrcFileAbsolute'));
         }
+    }
+
+    /**
+     * Must be defined in class using BootstrapStageLoggingClassTrait
+     */
+    private static function getCurrentSourceCodeFile(): string
+    {
+        return __FILE__;
+    }
+
+    /**
+     * Must be defined in class using BootstrapStageLoggingClassTrait
+     */
+    private static function getCurrentSourceCodeClass(): string
+    {
+        return __CLASS__;
     }
 }

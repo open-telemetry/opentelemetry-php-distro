@@ -18,6 +18,7 @@ enum OptionForProdName
 
     case autoload_enabled;
     case bootstrap_php_part_file;
+    case debug_scoper_enabled;
     case disabled_instrumentations;
     case enabled;
     case exporter_otlp_endpoint;
@@ -48,6 +49,7 @@ enum OptionForProdName
         return [
             self::autoload_enabled->name                  => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
             self::bootstrap_php_part_file->name           => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
+            self::debug_scoper_enabled->name              => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
             self::disabled_instrumentations->name         => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
             self::enabled->name                           => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
             self::exporter_otlp_endpoint->name            => self::OTEL_ENV_VAR_NAME_PREFIX,
