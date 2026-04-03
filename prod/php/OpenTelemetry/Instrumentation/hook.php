@@ -30,11 +30,13 @@ use Throwable;
  *
  * @see https://github.com/open-telemetry/opentelemetry-php-instrumentation
  */
-function hook(
-    ?string $class,
-    string $function,
-    ?Closure $pre = null,
-    ?Closure $post = null,
-): bool {
-    return InstrumentationBridge::singletonInstance()->hook($class, $function, $pre, $post);
+if (!function_exists(__NAMESPACE__ . '\\hook')) {
+    function hook(
+        ?string $class,
+        string $function,
+        ?Closure $pre = null,
+        ?Closure $post = null,
+    ): bool {
+        return InstrumentationBridge::singletonInstance()->hook($class, $function, $pre, $post);
+    }
 }
