@@ -181,12 +181,14 @@ PHP_MINIT_FUNCTION(opentelemetry_distro) {
 
     opentelemetry::php::moduleInit(type, module_number);
 
-    if (OTEL_G(globals)->config_->get().debug_scoper_enabled) {
-        opentelemetry_distro_fake.functions = opentelemetry::php::module_functions::opentelemetry_distro_fake_functions;
-    }
+    if (OTEL_G(globals)->config_->get().opentelemetry_extension_emulation_enabled) {
+        if (OTEL_G(globals)->config_->get().debug_scoper_enabled) {
+            opentelemetry_distro_fake.functions = opentelemetry::php::module_functions::opentelemetry_distro_fake_functions;
+        }
 
-    if (!zend_register_internal_module(&opentelemetry_distro_fake)) {
-        ELOGF_WARNING(OTEL_G(globals)->logger_, MODULE, "Unable to create artificial OpenTelemetry extension - opentelemetry.so extension should be disabled. There might be stability issues.");
+        if (!zend_register_internal_module(&opentelemetry_distro_fake)) {
+            ELOGF_WARNING(OTEL_G(globals)->logger_, MODULE, "Unable to create artificial OpenTelemetry extension - opentelemetry.so extension should be disabled. There might be stability issues.");
+        }
     }
 
     return SUCCESS;

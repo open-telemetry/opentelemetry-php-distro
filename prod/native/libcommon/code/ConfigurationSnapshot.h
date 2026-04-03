@@ -31,6 +31,8 @@
 
 #define OTEL_PHP_DEPENDENCY_AUTOLOADER_GUARD_ENABLED dependency_autoloader_guard_enabled
 
+#define OTEL_PHP_OPENTELEMETRY_EXTENSION_EMULATION_ENABLED opentelemetry_extension_emulation_enabled
+
 #define OTEL_PHP_NATIVE_OTLP_SERIALIZER_ENABLED native_otlp_serializer_enabled
 
 #define OTEL_PHP_OPAMP_HEADERS opamp_headers
@@ -107,6 +109,7 @@ struct ConfigurationSnapshot {
     std::chrono::milliseconds OTEL_PHP_INFERRED_SPANS_MIN_DURATION = std::chrono::milliseconds(0);
 
     bool OTEL_PHP_DEPENDENCY_AUTOLOADER_GUARD_ENABLED = false;
+    bool OTEL_PHP_OPENTELEMETRY_EXTENSION_EMULATION_ENABLED = true;
     bool OTEL_PHP_NATIVE_OTLP_SERIALIZER_ENABLED = true;
 
     std::string OTEL_PHP_OPAMP_HEADERS;

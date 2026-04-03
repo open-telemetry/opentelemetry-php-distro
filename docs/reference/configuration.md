@@ -57,6 +57,7 @@ opentelemetry_distro.enabled=true
 | Option | Default | Accepted values | Description |
 | --- | --- | --- | --- |
 | `OTEL_PHP_ENABLED` | `true` | `true` or `false` | Enables automatic bootstrap |
+| `OTEL_PHP_OPENTELEMETRY_EXTENSION_EMULATION_ENABLED` | `true` | `true` or `false` | Enables registration of an emulated `opentelemetry` extension, allowing auto-instrumentations to work without `opentelemetry.so` |
 | `OTEL_PHP_NATIVE_OTLP_SERIALIZER_ENABLED` | `true` | `true` or `false` | Enables native OTLP protobuf serializer |
 
 ### Asynchronous data sending
