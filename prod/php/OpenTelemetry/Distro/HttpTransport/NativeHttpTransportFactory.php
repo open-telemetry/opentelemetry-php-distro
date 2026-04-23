@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\Distro\HttpTransport;
 
+use OpenTelemetry\Distro\PhpPartFacade;
 use OpenTelemetry\Distro\PhpPartVersion;
 use OpenTelemetry\SDK\Common\Export\TransportFactoryInterface;
 
@@ -21,7 +22,9 @@ class NativeHttpTransportFactory implements TransportFactoryInterface
         ?string $cert = null,
         ?string $key = null
     ): NativeHttpTransport {
-        $headers['User-Agent'] = "otlp-http-php-distro/" . PhpPartVersion::VALUE;
+        $vendor = PhpPartFacade::getVendorCustomizations();
+        $headers['User-Agent'] = ($vendor !== null ? $vendor->getUserAgentString() : null)
+            ?? ("otlp-http-php-distro/" . PhpPartVersion::VALUE);
         return new NativeHttpTransport($endpoint, $contentType, $headers, $compression, $timeout, $retryDelay, $maxRetries, $cacert, $cert, $key);
     }
 }

@@ -42,6 +42,9 @@ final class PhpPartFacade
 
     private static ?self $singletonInstance = null;
     private static bool $rootSpanEnded = false;
+    private static ?VendorCustomizationsInterface $vendorCustomizations = null;
+    /** @var RemoteConfigConsumerInterface[] */
+    private static array $remoteConfigConsumers = [];
     private ?InferredSpans $inferredSpans = null;
 
     private const IS_DISTRO_ENABLED_ENV_VAR_NAME = 'OTEL_PHP_ENABLED';
@@ -86,7 +89,7 @@ final class PhpPartFacade
             // RemoteConfigHandler::fetchAndApply depends on OTel SDK so it has to be called after autoloader for OTel SDK is registered
             RemoteConfigHandler::fetchAndApply();
             // OverrideOTelSdkResourceAttributes::register depends on OTel SDK so it has to be called after autoloader for OTel SDK is registered
-            OverrideOTelSdkResourceAttributes::register($nativePartVersion);
+            OverrideOTelSdkResourceAttributes::register($nativePartVersion, self::$vendorCustomizations);
             self::registerNativeOtlpSerializer();
             self::registerAsyncTransportFactory();
             self::registerOtelLogWriter();
@@ -170,6 +173,35 @@ final class PhpPartFacade
         if (!putenv($envVarName . '=' . $envVarValue)) {
             throw new RuntimeException('putenv returned false; $envVarName: ' . $envVarName . '; envVarValue: ' . $envVarValue);
         }
+    }
+
+    /**
+     * Registers vendor-specific customizations. Must be called BEFORE bootstrap().
+     */
+    public static function setVendorCustomizations(VendorCustomizationsInterface $vendor): void
+    {
+        self::$vendorCustomizations = $vendor;
+    }
+
+    public static function getVendorCustomizations(): ?VendorCustomizationsInterface
+    {
+        return self::$vendorCustomizations;
+    }
+
+    /**
+     * Registers a remote config consumer. Must be called BEFORE bootstrap().
+     */
+    public static function registerRemoteConfigConsumer(RemoteConfigConsumerInterface $consumer): void
+    {
+        self::$remoteConfigConsumers[] = $consumer;
+    }
+
+    /**
+     * @return RemoteConfigConsumerInterface[]
+     */
+    public static function getRemoteConfigConsumers(): array
+    {
+        return self::$remoteConfigConsumers;
     }
 
     private static function prepareForOTelSdk(): void

@@ -40,4 +40,6 @@ $vendorDirClass::$fullPath = $vendorDir;
 
 require $otelDistroDir . '/BootstrapStageLoggingClassTrait.php';
 require $otelDistroDir . '/Util/HiddenConstructorTrait.php';
+require $otelDistroDir . '/VendorCustomizationsInterface.php';
+require $otelDistroDir . '/RemoteConfigConsumerInterface.php';
 require $otelDistroDir . '/PhpPartFacade.php';

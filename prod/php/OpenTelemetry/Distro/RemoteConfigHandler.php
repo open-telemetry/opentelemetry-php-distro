@@ -46,7 +46,18 @@ final class RemoteConfigHandler
             return;
         }
 
-        self::logDebug(__LINE__, __FUNCTION__, 'Exiting', compact('fileNameToContent'));
+        self::logDebug(__LINE__, __FUNCTION__, 'Fetched remote configuration', compact('fileNameToContent'));
+
+        $consumers = PhpPartFacade::getRemoteConfigConsumers();
+        if (count($consumers) === 0) {
+            self::logDebug(__LINE__, __FUNCTION__, 'No remote config consumers registered - skipping');
+            return;
+        }
+
+        foreach ($consumers as $consumer) {
+            self::logDebug(__LINE__, __FUNCTION__, 'Delegating remote config to consumer', ['consumer' => get_class($consumer)]);
+            $consumer->applyRemoteConfig($fileNameToContent);
+        }
     }
 
     /**

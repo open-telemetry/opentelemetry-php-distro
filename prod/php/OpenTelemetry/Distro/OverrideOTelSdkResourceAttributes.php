@@ -20,20 +20,33 @@ final class OverrideOTelSdkResourceAttributes implements ResourceDetectorInterfa
     use BootstrapStageLoggingClassTrait;
 
     private static ?string $distroVersion = null;
+    private static ?string $distroName = null;
+    /** @var array<string, string> */
+    private static array $extraAttributes = [];
 
-    public static function register(string $nativePartVersion): void
+    public static function register(string $nativePartVersion, ?VendorCustomizationsInterface $vendor = null): void
     {
-        self::$distroVersion = self::buildDistroVersion($nativePartVersion);
+        if ($vendor !== null) {
+            self::$distroName = $vendor->getDistributionName();
+            self::$distroVersion = $vendor->getDistributionVersion();
+            self::$extraAttributes = $vendor->getResourceAttributes();
+        } else {
+            self::$distroName = 'opentelemetry-php-distro';
+            self::$distroVersion = self::buildDistroVersion($nativePartVersion);
+        }
         OTelSdkRegistry::registerResourceDetector(self::class, new self());
-        self::logDebug(__LINE__, __FUNCTION__, 'Exiting', ['distroVersion' => self::$distroVersion]);
+        self::logDebug(__LINE__, __FUNCTION__, 'Exiting', ['distroName' => self::$distroName, 'distroVersion' => self::$distroVersion]);
     }
 
     public function getResource(): ResourceInfo
     {
-        $attributes = [
-            ResourceAttributes::TELEMETRY_DISTRO_NAME => 'opentelemetry-php-distro',
-            ResourceAttributes::TELEMETRY_DISTRO_VERSION => self::getDistroVersion(),
-        ];
+        $attributes = array_merge(
+            [
+                ResourceAttributes::TELEMETRY_DISTRO_NAME => self::$distroName ?? 'opentelemetry-php-distro',
+                ResourceAttributes::TELEMETRY_DISTRO_VERSION => self::getDistroVersion(),
+            ],
+            self::$extraAttributes,
+        );
 
         self::logDebug(__LINE__, __FUNCTION__, 'Exiting', compact('attributes'));
         return ResourceInfo::create(Attributes::create($attributes), ResourceAttributes::SCHEMA_URL);
