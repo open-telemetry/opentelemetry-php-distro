@@ -46,6 +46,8 @@ final class RemoteConfigHandler
             return;
         }
 
+        /** @var array<string, string> $fileNameToContent */
+
         self::logDebug(__LINE__, __FUNCTION__, 'Fetched remote configuration', compact('fileNameToContent'));
 
         $consumers = PhpPartFacade::getRemoteConfigConsumers();
