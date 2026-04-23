@@ -38,7 +38,7 @@ public:
     bool tryReceiveMessage(char *buffer, size_t bufferSize, size_t &receivedSize) {
         try {
             unsigned int priority = 0;
-            return queue_->timed_receive(buffer, bufferSize, receivedSize, priority, std::chrono::steady_clock::now() + std::chrono::milliseconds(100));
+            return queue_->timed_receive(buffer, bufferSize, receivedSize, priority, std::chrono::system_clock::now() + std::chrono::milliseconds(100));
         } catch (std::exception &ex) {
             if (logger_) {
                 ELOG_DEBUG(logger_, COORDINATOR, "CoordinatorProcess: message_queue receive failed: '{}'", ex.what());
