@@ -6,7 +6,7 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\Distro\InferredSpans;
 
-use OpenTelemetry\Distro\ScoperConfig;
+use OpenTelemetry\Distro\OTelDistroScoperConfig;
 use OpenTelemetry\Distro\Util\ArrayUtil;
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Behavior\LogsMessagesTrait;
@@ -185,7 +185,7 @@ class InferredSpans
             $frame = $stackTrace[$index];
             if (
                 array_key_exists('class', $frame) &&
-                (str_starts_with($frame['class'], ScoperConfig::PREFIX) || str_starts_with($frame['class'], 'OpenTelemetry\\')) // TODO allow namespaces to be configured
+                (str_starts_with((string)$frame['class'], OTelDistroScoperConfig::PREFIX) || str_starts_with((string)$frame['class'], 'OpenTelemetry\\')) // TODO allow namespaces to be configured
             ) {
                 $cutIndex = $index;
                 break;
