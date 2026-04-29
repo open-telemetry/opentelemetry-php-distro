@@ -94,7 +94,7 @@ static constexpr const char *kTlsClientNotBefore
  * Deprecated, use @code server.address @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code server.address @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code server.address @endcode.", "reason": "renamed", "renamed_to": "server.address"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kTlsClientServerName
@@ -211,16 +211,12 @@ static constexpr const char *kTlsServerSubject
 
 namespace TlsProtocolNameValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kSsl
  = "ssl";
 
-/**
- * none
- */
+
 static constexpr const char *
  kTls
  = "tls";

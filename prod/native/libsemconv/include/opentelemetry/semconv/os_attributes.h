@@ -132,11 +132,22 @@ static constexpr const char *
  = "solaris";
 
 /**
- * IBM z/OS
+ * Deprecated. Use @code zos @endcode instead.
+ *
+ * @deprecated
+ * {"note": "Replaced by @code zos @endcode.", "reason": "renamed", "renamed_to": "zos"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *
  kZOs
  = "z_os";
+
+/**
+ * IBM z/OS
+ */
+static constexpr const char *
+ kZos
+ = "zos";
 
 }
 

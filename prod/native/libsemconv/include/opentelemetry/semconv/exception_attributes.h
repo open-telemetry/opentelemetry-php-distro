@@ -32,7 +32,7 @@ namespace exception
  * Indicates that the exception is escaping the scope of the span.
  *
  * @deprecated
- * {"note": "It's no longer recommended to record exceptions that are handled and do not escape the scope of a span.", "reason": "uncategorized"}
+ * {"note": "It's no longer recommended to record exceptions that are handled and do not escape the scope of a span.\n", "reason": "obsoleted"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kExceptionEscaped

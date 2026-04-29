@@ -25,29 +25,15 @@
 namespace opentelemetry {
 namespace semconv
 {
-namespace disk
+namespace mainframe
 {
 
 /**
- * The disk IO operation direction.
+ * Name of the logical partition that hosts a systems with a mainframe operating system.
  */
-static constexpr const char *kDiskIoDirection
- = "disk.io.direction";
+static constexpr const char *kMainframeLparName
+ = "mainframe.lpar.name";
 
-
-namespace DiskIoDirectionValues
-{
-
-static constexpr const char *
- kRead
- = "read";
-
-
-static constexpr const char *
- kWrite
- = "write";
-
-}
 
 
 }

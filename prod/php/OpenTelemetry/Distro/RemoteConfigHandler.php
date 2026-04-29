@@ -69,13 +69,13 @@ final class RemoteConfigHandler
      */
     private static function verifyLocalConfigCompatible(): bool
     {
-        if (OTelSdkConfiguration::has(OTelSdkConfigVariables::OTEL_EXPERIMENTAL_CONFIG_FILE)) {
-            $cfgFileOptVal = OTelSdkConfiguration::getMixed(OTelSdkConfigVariables::OTEL_EXPERIMENTAL_CONFIG_FILE);
+        if (OTelSdkConfiguration::has(OTelSdkConfigVariables::OTEL_CONFIG_FILE)) {
+            $cfgFileOptVal = OTelSdkConfiguration::getMixed(OTelSdkConfigVariables::OTEL_CONFIG_FILE);
             self::logError(
                 __LINE__,
                 __FUNCTION__,
-                'Local config has ' . OTelSdkConfigVariables::OTEL_EXPERIMENTAL_CONFIG_FILE . ' option set - remote config feature is not compatible with this option',
-                [OTelSdkConfigVariables::OTEL_EXPERIMENTAL_CONFIG_FILE . ' option value' => $cfgFileOptVal],
+                'Local config has ' . OTelSdkConfigVariables::OTEL_CONFIG_FILE . ' option set - remote config feature is not compatible with this option',
+                [OTelSdkConfigVariables::OTEL_CONFIG_FILE . ' option value' => $cfgFileOptVal],
             );
             return false;
         }

@@ -37,14 +37,14 @@ namespace gen_ai
 {
 
 /**
- * GenAI operation duration
+ * GenAI operation duration.
  * <p>
  * histogram
  */
 static constexpr const char *kMetricGenAiClientOperationDuration
  = "gen_ai.client.operation.duration";
 static constexpr const char *descrMetricGenAiClientOperationDuration
- = "GenAI operation duration";
+ = "GenAI operation duration.";
 static constexpr const char *unitMetricGenAiClientOperationDuration
  = "s";
 
@@ -81,14 +81,14 @@ CreateSyncDoubleMetricGenAiClientOperationDuration
 
 
 /**
- * Measures number of input and output tokens used
+ * Number of input and output tokens used.
  * <p>
  * histogram
  */
 static constexpr const char *kMetricGenAiClientTokenUsage
  = "gen_ai.client.token.usage";
 static constexpr const char *descrMetricGenAiClientTokenUsage
- = "Measures number of input and output tokens used";
+ = "Number of input and output tokens used.";
 static constexpr const char *unitMetricGenAiClientTokenUsage
  = "{token}";
 
@@ -125,14 +125,14 @@ CreateSyncDoubleMetricGenAiClientTokenUsage
 
 
 /**
- * Generative AI server request duration such as time-to-last byte or last output token
+ * Generative AI server request duration such as time-to-last byte or last output token.
  * <p>
  * histogram
  */
 static constexpr const char *kMetricGenAiServerRequestDuration
  = "gen_ai.server.request.duration";
 static constexpr const char *descrMetricGenAiServerRequestDuration
- = "Generative AI server request duration such as time-to-last byte or last output token";
+ = "Generative AI server request duration such as time-to-last byte or last output token.";
 static constexpr const char *unitMetricGenAiServerRequestDuration
  = "s";
 
@@ -169,14 +169,14 @@ CreateSyncDoubleMetricGenAiServerRequestDuration
 
 
 /**
- * Time per output token generated after the first token for successful responses
+ * Time per output token generated after the first token for successful responses.
  * <p>
  * histogram
  */
 static constexpr const char *kMetricGenAiServerTimePerOutputToken
  = "gen_ai.server.time_per_output_token";
 static constexpr const char *descrMetricGenAiServerTimePerOutputToken
- = "Time per output token generated after the first token for successful responses";
+ = "Time per output token generated after the first token for successful responses.";
 static constexpr const char *unitMetricGenAiServerTimePerOutputToken
  = "s";
 
@@ -213,14 +213,14 @@ CreateSyncDoubleMetricGenAiServerTimePerOutputToken
 
 
 /**
- * Time to generate first token for successful responses
+ * Time to generate first token for successful responses.
  * <p>
  * histogram
  */
 static constexpr const char *kMetricGenAiServerTimeToFirstToken
  = "gen_ai.server.time_to_first_token";
 static constexpr const char *descrMetricGenAiServerTimeToFirstToken
- = "Time to generate first token for successful responses";
+ = "Time to generate first token for successful responses.";
 static constexpr const char *unitMetricGenAiServerTimeToFirstToken
  = "s";
 

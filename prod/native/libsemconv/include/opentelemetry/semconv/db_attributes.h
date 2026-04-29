@@ -32,7 +32,7 @@ namespace db
  * Deprecated, use @code cassandra.consistency.level @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code cassandra.consistency.level @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code cassandra.consistency.level @endcode.", "reason": "renamed", "renamed_to": "cassandra.consistency.level"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbCassandraConsistencyLevel
@@ -42,7 +42,7 @@ static constexpr const char *kDbCassandraConsistencyLevel
  * Deprecated, use @code cassandra.coordinator.dc @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code cassandra.coordinator.dc @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code cassandra.coordinator.dc @endcode.", "reason": "renamed", "renamed_to": "cassandra.coordinator.dc"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbCassandraCoordinatorDc
@@ -52,7 +52,7 @@ static constexpr const char *kDbCassandraCoordinatorDc
  * Deprecated, use @code cassandra.coordinator.id @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code cassandra.coordinator.id @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code cassandra.coordinator.id @endcode.", "reason": "renamed", "renamed_to": "cassandra.coordinator.id"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbCassandraCoordinatorId
@@ -62,7 +62,7 @@ static constexpr const char *kDbCassandraCoordinatorId
  * Deprecated, use @code cassandra.query.idempotent @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code cassandra.query.idempotent @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code cassandra.query.idempotent @endcode.", "reason": "renamed", "renamed_to": "cassandra.query.idempotent"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbCassandraIdempotence
@@ -72,7 +72,7 @@ static constexpr const char *kDbCassandraIdempotence
  * Deprecated, use @code cassandra.page.size @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code cassandra.page.size @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code cassandra.page.size @endcode.", "reason": "renamed", "renamed_to": "cassandra.page.size"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbCassandraPageSize
@@ -82,7 +82,7 @@ static constexpr const char *kDbCassandraPageSize
  * Deprecated, use @code cassandra.speculative_execution.count @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code cassandra.speculative_execution.count @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code cassandra.speculative_execution.count @endcode.", "reason": "renamed", "renamed_to": "cassandra.speculative_execution.count"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbCassandraSpeculativeExecutionCount
@@ -92,7 +92,7 @@ static constexpr const char *kDbCassandraSpeculativeExecutionCount
  * Deprecated, use @code db.collection.name @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code db.collection.name @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code db.collection.name @endcode.", "reason": "renamed", "renamed_to": "db.collection.name"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbCassandraTable
@@ -114,7 +114,7 @@ static constexpr const char *kDbClientConnectionState
  * Deprecated, use @code db.client.connection.pool.name @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code db.client.connection.pool.name @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code db.client.connection.pool.name @endcode.", "reason": "renamed", "renamed_to": "db.client.connection.pool.name"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbClientConnectionsPoolName
@@ -124,7 +124,7 @@ static constexpr const char *kDbClientConnectionsPoolName
  * Deprecated, use @code db.client.connection.state @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code db.client.connection.state @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code db.client.connection.state @endcode.", "reason": "renamed", "renamed_to": "db.client.connection.state"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbClientConnectionsState
@@ -137,7 +137,8 @@ static constexpr const char *kDbClientConnectionsState
  * without attempting to do any case normalization.
  * <p>
  * The collection name SHOULD NOT be extracted from @code db.query.text @endcode,
- * when the database system supports cross-table queries in non-batch operations.
+ * when the database system supports query text with multiple collections
+ * in non-batch operations.
  * <p>
  * For batch operations, if the individual operations are known to have the same
  * collection name then that collection name SHOULD be used.
@@ -149,7 +150,7 @@ static constexpr const char *kDbCollectionName
  * Deprecated, use @code server.address @endcode, @code server.port @endcode attributes instead.
  *
  * @deprecated
- * {"note": "Replaced by @code server.address @endcode and @code server.port @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code server.address @endcode and @code server.port @endcode.\n", "reason": "uncategorized"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbConnectionString
@@ -159,7 +160,7 @@ static constexpr const char *kDbConnectionString
  * Deprecated, use @code azure.client.id @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code azure.client.id @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code azure.client.id @endcode.", "reason": "renamed", "renamed_to": "azure.client.id"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbCosmosdbClientId
@@ -169,7 +170,7 @@ static constexpr const char *kDbCosmosdbClientId
  * Deprecated, use @code azure.cosmosdb.connection.mode @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code azure.cosmosdb.connection.mode @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code azure.cosmosdb.connection.mode @endcode.", "reason": "renamed", "renamed_to": "azure.cosmosdb.connection.mode"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbCosmosdbConnectionMode
@@ -179,7 +180,7 @@ static constexpr const char *kDbCosmosdbConnectionMode
  * Deprecated, use @code cosmosdb.consistency.level @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code azure.cosmosdb.consistency.level @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code azure.cosmosdb.consistency.level @endcode.", "reason": "renamed", "renamed_to": "azure.cosmosdb.consistency.level"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbCosmosdbConsistencyLevel
@@ -189,7 +190,7 @@ static constexpr const char *kDbCosmosdbConsistencyLevel
  * Deprecated, use @code db.collection.name @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code db.collection.name @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code db.collection.name @endcode.", "reason": "renamed", "renamed_to": "db.collection.name"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbCosmosdbContainer
@@ -199,7 +200,7 @@ static constexpr const char *kDbCosmosdbContainer
  * Deprecated, no replacement at this time.
  *
  * @deprecated
- * {"note": "No replacement at this time.", "reason": "uncategorized"}
+ * {"note": "Removed, no replacement at this time.\n", "reason": "obsoleted"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbCosmosdbOperationType
@@ -209,7 +210,7 @@ static constexpr const char *kDbCosmosdbOperationType
  * Deprecated, use @code azure.cosmosdb.operation.contacted_regions @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code azure.cosmosdb.operation.contacted_regions @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code azure.cosmosdb.operation.contacted_regions @endcode.", "reason": "renamed", "renamed_to": "azure.cosmosdb.operation.contacted_regions"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbCosmosdbRegionsContacted
@@ -219,7 +220,7 @@ static constexpr const char *kDbCosmosdbRegionsContacted
  * Deprecated, use @code azure.cosmosdb.operation.request_charge @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code azure.cosmosdb.operation.request_charge @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code azure.cosmosdb.operation.request_charge @endcode.", "reason": "renamed", "renamed_to": "azure.cosmosdb.operation.request_charge"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbCosmosdbRequestCharge
@@ -229,7 +230,7 @@ static constexpr const char *kDbCosmosdbRequestCharge
  * Deprecated, use @code azure.cosmosdb.request.body.size @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code azure.cosmosdb.request.body.size @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code azure.cosmosdb.request.body.size @endcode.", "reason": "renamed", "renamed_to": "azure.cosmosdb.request.body.size"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbCosmosdbRequestContentLength
@@ -239,7 +240,7 @@ static constexpr const char *kDbCosmosdbRequestContentLength
  * Deprecated, use @code db.response.status_code @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code db.response.status_code @endcode.", "reason": "uncategorized"}
+ * {"note": "Use @code db.response.status_code @endcode instead.", "reason": "uncategorized"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbCosmosdbStatusCode
@@ -249,7 +250,7 @@ static constexpr const char *kDbCosmosdbStatusCode
  * Deprecated, use @code azure.cosmosdb.response.sub_status_code @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code azure.cosmosdb.response.sub_status_code @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code azure.cosmosdb.response.sub_status_code @endcode.", "reason": "renamed", "renamed_to": "azure.cosmosdb.response.sub_status_code"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbCosmosdbSubStatusCode
@@ -259,7 +260,7 @@ static constexpr const char *kDbCosmosdbSubStatusCode
  * Deprecated, use @code db.namespace @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code db.namespace @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code db.namespace @endcode.", "reason": "renamed", "renamed_to": "db.namespace"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbElasticsearchClusterName
@@ -269,7 +270,7 @@ static constexpr const char *kDbElasticsearchClusterName
  * Deprecated, use @code elasticsearch.node.name @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code elasticsearch.node.name @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code elasticsearch.node.name @endcode.", "reason": "renamed", "renamed_to": "elasticsearch.node.name"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbElasticsearchNodeName
@@ -279,7 +280,7 @@ static constexpr const char *kDbElasticsearchNodeName
  * Deprecated, use @code db.operation.parameter @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code db.operation.parameter @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code db.operation.parameter @endcode.", "reason": "renamed", "renamed_to": "db.operation.parameter"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbElasticsearchPathParts
@@ -289,7 +290,7 @@ static constexpr const char *kDbElasticsearchPathParts
  * Deprecated, no general replacement at this time. For Elasticsearch, use @code db.elasticsearch.node.name @endcode instead.
  *
  * @deprecated
- * {"note": "Deprecated, no general replacement at this time. For Elasticsearch, use @code db.elasticsearch.node.name @endcode instead.", "reason": "uncategorized"}
+ * {"note": "Removed, no general replacement at this time. For Elasticsearch, use @code db.elasticsearch.node.name @endcode instead.\n", "reason": "obsoleted"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbInstanceId
@@ -299,7 +300,7 @@ static constexpr const char *kDbInstanceId
  * Removed, no replacement at this time.
  *
  * @deprecated
- * {"note": "Removed as not used.", "reason": "uncategorized"}
+ * {"note": "Removed, no replacement at this time.\n", "reason": "obsoleted"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbJdbcDriverClassname
@@ -309,7 +310,7 @@ static constexpr const char *kDbJdbcDriverClassname
  * Deprecated, use @code db.collection.name @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code db.collection.name @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code db.collection.name @endcode.", "reason": "renamed", "renamed_to": "db.collection.name"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbMongodbCollection
@@ -319,7 +320,7 @@ static constexpr const char *kDbMongodbCollection
  * Deprecated, SQL Server instance is now populated as a part of @code db.namespace @endcode attribute.
  *
  * @deprecated
- * {"note": "Deprecated, no replacement at this time.", "reason": "uncategorized"}
+ * {"note": "Removed, no replacement at this time.", "reason": "obsoleted"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbMssqlInstanceName
@@ -329,7 +330,7 @@ static constexpr const char *kDbMssqlInstanceName
  * Deprecated, use @code db.namespace @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code db.namespace @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code db.namespace @endcode.", "reason": "renamed", "renamed_to": "db.namespace"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbName
@@ -338,7 +339,7 @@ static constexpr const char *kDbName
 /**
  * The name of the database, fully qualified within the server address and port.
  * <p>
- * If a database system has multiple namespace components, they SHOULD be concatenated (potentially using database system specific conventions) from most general to most specific namespace component, and more specific namespaces SHOULD NOT be captured without the more general namespaces, to ensure that "startswith" queries for the more general namespaces will be valid.
+ * If a database system has multiple namespace components, they SHOULD be concatenated from the most general to the most specific namespace component, using @code | @endcode as a separator between the components. Any missing components (and their associated separators) SHOULD be omitted.
  * Semantic conventions for individual database systems SHOULD document what @code db.namespace @endcode means in the context of that system.
  * It is RECOMMENDED to capture the value as provided by the application without attempting to do any case normalization.
  */
@@ -349,7 +350,7 @@ static constexpr const char *kDbNamespace
  * Deprecated, use @code db.operation.name @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code db.operation.name @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code db.operation.name @endcode.", "reason": "renamed", "renamed_to": "db.operation.name"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbOperation
@@ -370,7 +371,8 @@ static constexpr const char *kDbOperationBatchSize
  * without attempting to do any case normalization.
  * <p>
  * The operation name SHOULD NOT be extracted from @code db.query.text @endcode,
- * when the database system supports cross-table queries in non-batch operations.
+ * when the database system supports query text with multiple operations
+ * in non-batch operations.
  * <p>
  * If spaces can occur in the operation name, multiple consecutive spaces
  * SHOULD be normalized to a single space.
@@ -386,28 +388,52 @@ static constexpr const char *kDbOperationName
 /**
  * A database operation parameter, with @code <key> @endcode being the parameter name, and the attribute value being a string representation of the parameter value.
  * <p>
- * If a parameter has no name and instead is referenced only by index, then @code <key> @endcode SHOULD be the 0-based index.
- * If @code db.query.text @endcode is also captured, then @code db.operation.parameter.<key> @endcode SHOULD match up with the parameterized placeholders present in @code db.query.text @endcode.
- * @code db.operation.parameter.<key> @endcode SHOULD NOT be captured on batch operations.
+ * For example, a client-side maximum number of rows to read from the database
+ * MAY be recorded as the @code db.operation.parameter.max_rows @endcode attribute.
+ * <p>
+ * @code db.query.text @endcode parameters SHOULD be captured using @code db.query.parameter.<key> @endcode
+ * instead of @code db.operation.parameter.<key> @endcode.
  */
 static constexpr const char *kDbOperationParameter
  = "db.operation.parameter";
 
 /**
- * A query parameter used in @code db.query.text @endcode, with @code <key> @endcode being the parameter name, and the attribute value being a string representation of the parameter value.
- *
- * @deprecated
- * {"note": "Replaced by @code db.operation.parameter @endcode.", "reason": "uncategorized"}
+ * A database query parameter, with @code <key> @endcode being the parameter name, and the attribute value being a string representation of the parameter value.
+ * <p>
+ * If a query parameter has no name and instead is referenced only by index,
+ * then @code <key> @endcode SHOULD be the 0-based index.
+ * <p>
+ * @code db.query.parameter.<key> @endcode SHOULD match
+ * up with the parameterized placeholders present in @code db.query.text @endcode.
+ * <p>
+ * It is RECOMMENDED to capture the value as provided by the application
+ * without attempting to do any case normalization.
+ * <p>
+ * @code db.query.parameter.<key> @endcode SHOULD NOT be captured on batch operations.
+ * <p>
+ * Examples:
+ * <ul>
+ *   <li>For a query @code SELECT * FROM users where username =  %s @endcode with the parameter @code "jdoe" @endcode,
+ * the attribute @code db.query.parameter.0 @endcode SHOULD be set to @code "jdoe" @endcode.</li>
+ *   <li>For a query @code "SELECT * FROM users WHERE username = %(userName)s; @endcode with parameter
+ * @code userName = "jdoe" @endcode, the attribute @code db.query.parameter.userName @endcode SHOULD be set to @code "jdoe" @endcode.</li>
+ * </ul>
  */
-OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbQueryParameter
  = "db.query.parameter";
 
 /**
- * Low cardinality representation of a database query text.
+ * Low cardinality summary of a database query.
  * <p>
- * @code db.query.summary @endcode provides static summary of the query text. It describes a class of database queries and is useful as a grouping key, especially when analyzing telemetry for database calls involving complex queries.
- * Summary may be available to the instrumentation through instrumentation hooks or other means. If it is not available, instrumentations that support query parsing SHOULD generate a summary following <a href="../database/database-spans.md#generating-a-summary-of-the-query-text">Generating query summary</a> section.
+ * The query summary describes a class of database queries and is useful
+ * as a grouping key, especially when analyzing telemetry for database
+ * calls involving complex queries.
+ * <p>
+ * Summary may be available to the instrumentation through
+ * instrumentation hooks or other means. If it is not available, instrumentations
+ * that support query parsing SHOULD generate a summary following
+ * <a href="/docs/database/database-spans.md#generating-a-summary-of-the-query">Generating query summary</a>
+ * section.
  */
 static constexpr const char *kDbQuerySummary
  = "db.query.summary";
@@ -415,9 +441,9 @@ static constexpr const char *kDbQuerySummary
 /**
  * The database query being executed.
  * <p>
- * For sanitization see <a href="../database/database-spans.md#sanitization-of-dbquerytext">Sanitization of @code db.query.text @endcode</a>.
+ * For sanitization see <a href="/docs/database/database-spans.md#sanitization-of-dbquerytext">Sanitization of @code db.query.text @endcode</a>.
  * For batch operations, if the individual operations are known to have the same query text then that query text SHOULD be used, otherwise all of the individual query texts SHOULD be concatenated with separator @code ;  @endcode or some other database system specific separator if more applicable.
- * Even though parameterized query text can potentially have sensitive data, by using a parameterized query the user is giving a strong signal that any sensitive data will be passed as parameter values, and the benefit to observability of capturing the static part of the query text by default outweighs the risk.
+ * Parameterized query text SHOULD NOT be sanitized. Even though parameterized query text can potentially have sensitive data, by using a parameterized query the user is giving a strong signal that any sensitive data will be passed as parameter values, and the benefit to observability of capturing the static part of the query text by default outweighs the risk.
  */
 static constexpr const char *kDbQueryText
  = "db.query.text";
@@ -426,7 +452,7 @@ static constexpr const char *kDbQueryText
  * Deprecated, use @code db.namespace @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code db.namespace @endcode.", "reason": "uncategorized"}
+ * {"note": "Uncategorized.", "reason": "uncategorized"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbRedisDatabaseIndex
@@ -448,7 +474,7 @@ static constexpr const char *kDbResponseStatusCode
  = "db.response.status_code";
 
 /**
- * Deprecated, use @code db.collection.name @endcode instead, but only if not extracting the value from @code db.query.text @endcode.
+ * Deprecated, use @code db.collection.name @endcode instead.
  *
  * @deprecated
  * {"note": "Replaced by @code db.collection.name @endcode, but only if not extracting the value from @code db.query.text @endcode.", "reason": "uncategorized"}
@@ -461,7 +487,7 @@ static constexpr const char *kDbSqlTable
  * The database statement being executed.
  *
  * @deprecated
- * {"note": "Replaced by @code db.query.text @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code db.query.text @endcode.", "reason": "renamed", "renamed_to": "db.query.text"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbStatement
@@ -483,7 +509,7 @@ static constexpr const char *kDbStoredProcedureName
  * Deprecated, use @code db.system.name @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code db.system.name @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code db.system.name @endcode.", "reason": "renamed", "renamed_to": "db.system.name"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbSystem
@@ -501,7 +527,7 @@ static constexpr const char *kDbSystemName
  * Deprecated, no replacement at this time.
  *
  * @deprecated
- * {"note": "No replacement at this time.", "reason": "uncategorized"}
+ * {"note": "Removed, no replacement at this time.", "reason": "obsoleted"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kDbUser
@@ -510,79 +536,57 @@ static constexpr const char *kDbUser
 
 namespace DbCassandraConsistencyLevelValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kAll
  = "all";
 
-/**
- * none
- */
+
 static constexpr const char *
  kEachQuorum
  = "each_quorum";
 
-/**
- * none
- */
+
 static constexpr const char *
  kQuorum
  = "quorum";
 
-/**
- * none
- */
+
 static constexpr const char *
  kLocalQuorum
  = "local_quorum";
 
-/**
- * none
- */
+
 static constexpr const char *
  kOne
  = "one";
 
-/**
- * none
- */
+
 static constexpr const char *
  kTwo
  = "two";
 
-/**
- * none
- */
+
 static constexpr const char *
  kThree
  = "three";
 
-/**
- * none
- */
+
 static constexpr const char *
  kLocalOne
  = "local_one";
 
-/**
- * none
- */
+
 static constexpr const char *
  kAny
  = "any";
 
-/**
- * none
- */
+
 static constexpr const char *
  kSerial
  = "serial";
 
-/**
- * none
- */
+
 static constexpr const char *
  kLocalSerial
  = "local_serial";
@@ -591,16 +595,12 @@ static constexpr const char *
 
 namespace DbClientConnectionStateValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kIdle
  = "idle";
 
-/**
- * none
- */
+
 static constexpr const char *
  kUsed
  = "used";
@@ -609,16 +609,12 @@ static constexpr const char *
 
 namespace DbClientConnectionsStateValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kIdle
  = "idle";
 
-/**
- * none
- */
+
 static constexpr const char *
  kUsed
  = "used";
@@ -645,37 +641,27 @@ static constexpr const char *
 
 namespace DbCosmosdbConsistencyLevelValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kStrong
  = "Strong";
 
-/**
- * none
- */
+
 static constexpr const char *
  kBoundedStaleness
  = "BoundedStaleness";
 
-/**
- * none
- */
+
 static constexpr const char *
  kSession
  = "Session";
 
-/**
- * none
- */
+
 static constexpr const char *
  kEventual
  = "Eventual";
 
-/**
- * none
- */
+
 static constexpr const char *
  kConsistentPrefix
  = "ConsistentPrefix";
@@ -684,107 +670,77 @@ static constexpr const char *
 
 namespace DbCosmosdbOperationTypeValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kBatch
  = "batch";
 
-/**
- * none
- */
+
 static constexpr const char *
  kCreate
  = "create";
 
-/**
- * none
- */
+
 static constexpr const char *
  kDelete
  = "delete";
 
-/**
- * none
- */
+
 static constexpr const char *
  kExecute
  = "execute";
 
-/**
- * none
- */
+
 static constexpr const char *
  kExecuteJavascript
  = "execute_javascript";
 
-/**
- * none
- */
+
 static constexpr const char *
  kInvalid
  = "invalid";
 
-/**
- * none
- */
+
 static constexpr const char *
  kHead
  = "head";
 
-/**
- * none
- */
+
 static constexpr const char *
  kHeadFeed
  = "head_feed";
 
-/**
- * none
- */
+
 static constexpr const char *
  kPatch
  = "patch";
 
-/**
- * none
- */
+
 static constexpr const char *
  kQuery
  = "query";
 
-/**
- * none
- */
+
 static constexpr const char *
  kQueryPlan
  = "query_plan";
 
-/**
- * none
- */
+
 static constexpr const char *
  kRead
  = "read";
 
-/**
- * none
- */
+
 static constexpr const char *
  kReadFeed
  = "read_feed";
 
-/**
- * none
- */
+
 static constexpr const char *
  kReplace
  = "replace";
 
-/**
- * none
- */
+
 static constexpr const char *
  kUpsert
  = "upsert";
@@ -809,7 +765,11 @@ static constexpr const char *
 
 /**
  * Deprecated, use @code intersystems_cache @endcode instead.
+ *
+ * @deprecated
+ * {"note": "Replaced by @code intersystems_cache @endcode.", "reason": "renamed", "renamed_to": "intersystems_cache"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *
  kCache
  = "cache";
@@ -837,7 +797,11 @@ static constexpr const char *
 
 /**
  * Deprecated, use @code other_sql @endcode instead.
+ *
+ * @deprecated
+ * {"note": "Replaced by @code other_sql @endcode.", "reason": "renamed", "renamed_to": "other_sql"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *
  kCloudscape
  = "cloudscape";
@@ -851,7 +815,11 @@ static constexpr const char *
 
 /**
  * Deprecated, no replacement at this time.
+ *
+ * @deprecated
+ * {"note": "Obsoleted.", "reason": "obsoleted"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *
  kColdfusion
  = "coldfusion";
@@ -928,7 +896,11 @@ static constexpr const char *
 
 /**
  * Deprecated, use @code other_sql @endcode instead.
+ *
+ * @deprecated
+ * {"note": "Replaced by @code other_sql @endcode.", "reason": "renamed", "renamed_to": "other_sql"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *
  kFirstsql
  = "firstsql";
@@ -1011,7 +983,7 @@ static constexpr const char *
  = "interbase";
 
 /**
- * MariaDB (This value has stability level RELEASE CANDIDATE)
+ * MariaDB
  */
 static constexpr const char *
  kMariadb
@@ -1039,7 +1011,7 @@ static constexpr const char *
  = "mongodb";
 
 /**
- * Microsoft SQL Server (This value has stability level RELEASE CANDIDATE)
+ * Microsoft SQL Server
  */
 static constexpr const char *
  kMssql
@@ -1047,13 +1019,17 @@ static constexpr const char *
 
 /**
  * Deprecated, Microsoft SQL Server Compact is discontinued.
+ *
+ * @deprecated
+ * {"note": "Replaced by @code other_sql @endcode.", "reason": "renamed", "renamed_to": "other_sql"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *
  kMssqlcompact
  = "mssqlcompact";
 
 /**
- * MySQL (This value has stability level RELEASE CANDIDATE)
+ * MySQL
  */
 static constexpr const char *
  kMysql
@@ -1102,7 +1078,7 @@ static constexpr const char *
  = "pointbase";
 
 /**
- * PostgreSQL (This value has stability level RELEASE CANDIDATE)
+ * PostgreSQL
  */
 static constexpr const char *
  kPostgresql

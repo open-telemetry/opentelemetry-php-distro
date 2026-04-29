@@ -133,6 +133,9 @@ CreateSyncDoubleMetricRpcClientRequestSize
 
 /**
  * Measures the number of messages received per RPC.
+ *
+ * @deprecated
+ * {"note": "Removed, no replacement at this time.", "reason": "obsoleted"}
  * <p>
  * Should be 1 for all non-streaming RPCs.
  * <p>
@@ -140,13 +143,17 @@ CreateSyncDoubleMetricRpcClientRequestSize
  * <p>
  * histogram
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *kMetricRpcClientRequestsPerRpc
  = "rpc.client.requests_per_rpc";
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *descrMetricRpcClientRequestsPerRpc
  = "Measures the number of messages received per RPC.";
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *unitMetricRpcClientRequestsPerRpc
  = "{count}";
 
+OPENTELEMETRY_DEPRECATED
 static inline nostd::unique_ptr<metrics::Histogram<uint64_t>
 >
 CreateSyncInt64MetricRpcClientRequestsPerRpc
@@ -162,6 +169,7 @@ CreateSyncInt64MetricRpcClientRequestsPerRpc
 );
 }
 
+OPENTELEMETRY_DEPRECATED
 static inline nostd::unique_ptr<metrics::Histogram<double>
 >
 CreateSyncDoubleMetricRpcClientRequestsPerRpc
@@ -227,6 +235,9 @@ CreateSyncDoubleMetricRpcClientResponseSize
 
 /**
  * Measures the number of messages sent per RPC.
+ *
+ * @deprecated
+ * {"note": "Removed, no replacement at this time.", "reason": "obsoleted"}
  * <p>
  * Should be 1 for all non-streaming RPCs.
  * <p>
@@ -234,13 +245,17 @@ CreateSyncDoubleMetricRpcClientResponseSize
  * <p>
  * histogram
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *kMetricRpcClientResponsesPerRpc
  = "rpc.client.responses_per_rpc";
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *descrMetricRpcClientResponsesPerRpc
  = "Measures the number of messages sent per RPC.";
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *unitMetricRpcClientResponsesPerRpc
  = "{count}";
 
+OPENTELEMETRY_DEPRECATED
 static inline nostd::unique_ptr<metrics::Histogram<uint64_t>
 >
 CreateSyncInt64MetricRpcClientResponsesPerRpc
@@ -256,6 +271,7 @@ CreateSyncInt64MetricRpcClientResponsesPerRpc
 );
 }
 
+OPENTELEMETRY_DEPRECATED
 static inline nostd::unique_ptr<metrics::Histogram<double>
 >
 CreateSyncDoubleMetricRpcClientResponsesPerRpc
@@ -370,6 +386,9 @@ CreateSyncDoubleMetricRpcServerRequestSize
 
 /**
  * Measures the number of messages received per RPC.
+ *
+ * @deprecated
+ * {"note": "Removed, no replacement at this time.", "reason": "obsoleted"}
  * <p>
  * Should be 1 for all non-streaming RPCs.
  * <p>
@@ -377,13 +396,17 @@ CreateSyncDoubleMetricRpcServerRequestSize
  * <p>
  * histogram
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *kMetricRpcServerRequestsPerRpc
  = "rpc.server.requests_per_rpc";
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *descrMetricRpcServerRequestsPerRpc
  = "Measures the number of messages received per RPC.";
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *unitMetricRpcServerRequestsPerRpc
  = "{count}";
 
+OPENTELEMETRY_DEPRECATED
 static inline nostd::unique_ptr<metrics::Histogram<uint64_t>
 >
 CreateSyncInt64MetricRpcServerRequestsPerRpc
@@ -399,6 +422,7 @@ CreateSyncInt64MetricRpcServerRequestsPerRpc
 );
 }
 
+OPENTELEMETRY_DEPRECATED
 static inline nostd::unique_ptr<metrics::Histogram<double>
 >
 CreateSyncDoubleMetricRpcServerRequestsPerRpc
@@ -464,6 +488,9 @@ CreateSyncDoubleMetricRpcServerResponseSize
 
 /**
  * Measures the number of messages sent per RPC.
+ *
+ * @deprecated
+ * {"note": "Removed, no replacement at this time.", "reason": "obsoleted"}
  * <p>
  * Should be 1 for all non-streaming RPCs.
  * <p>
@@ -471,13 +498,17 @@ CreateSyncDoubleMetricRpcServerResponseSize
  * <p>
  * histogram
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *kMetricRpcServerResponsesPerRpc
  = "rpc.server.responses_per_rpc";
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *descrMetricRpcServerResponsesPerRpc
  = "Measures the number of messages sent per RPC.";
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *unitMetricRpcServerResponsesPerRpc
  = "{count}";
 
+OPENTELEMETRY_DEPRECATED
 static inline nostd::unique_ptr<metrics::Histogram<uint64_t>
 >
 CreateSyncInt64MetricRpcServerResponsesPerRpc
@@ -493,6 +524,7 @@ CreateSyncInt64MetricRpcServerResponsesPerRpc
 );
 }
 
+OPENTELEMETRY_DEPRECATED
 static inline nostd::unique_ptr<metrics::Histogram<double>
 >
 CreateSyncDoubleMetricRpcServerResponsesPerRpc

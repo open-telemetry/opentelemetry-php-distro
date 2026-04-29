@@ -47,7 +47,7 @@ docker run --rm \
     -v "${BUILD_DIR}/semantic-conventions:/source" \
     -v "${BUILD_DIR}/output:/output" \
     -v "${TEMPLATES_PATH}:/templates" \
-    otel/weaver:v0.13.2 \
+    otel/weaver:v0.23.0 \
     registry generate \
     --registry=/source \
     --templates=/templates \

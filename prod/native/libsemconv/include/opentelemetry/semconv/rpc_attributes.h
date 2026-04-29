@@ -37,7 +37,11 @@ static constexpr const char *kRpcConnectRpcErrorCode
 /**
  * Connect request metadata, @code <key> @endcode being the normalized Connect Metadata key (lowercase), the value being the metadata values.
  * <p>
- * Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all request metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+ * Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured.
+ * Including all request metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+ * <p>
+ * For example, a property @code my-custom-key @endcode with value @code ["1.2.3.4", "1.2.3.5"] @endcode SHOULD be recorded as
+ * the @code rpc.connect_rpc.request.metadata.my-custom-key @endcode attribute with value @code ["1.2.3.4", "1.2.3.5"] @endcode
  */
 static constexpr const char *kRpcConnectRpcRequestMetadata
  = "rpc.connect_rpc.request.metadata";
@@ -45,7 +49,11 @@ static constexpr const char *kRpcConnectRpcRequestMetadata
 /**
  * Connect response metadata, @code <key> @endcode being the normalized Connect Metadata key (lowercase), the value being the metadata values.
  * <p>
- * Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all response metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+ * Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured.
+ * Including all response metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+ * <p>
+ * For example, a property @code my-custom-key @endcode with value @code "attribute_value" @endcode SHOULD be recorded as
+ * the @code rpc.connect_rpc.response.metadata.my-custom-key @endcode attribute with value @code ["attribute_value"] @endcode
  */
 static constexpr const char *kRpcConnectRpcResponseMetadata
  = "rpc.connect_rpc.response.metadata";
@@ -53,7 +61,11 @@ static constexpr const char *kRpcConnectRpcResponseMetadata
 /**
  * gRPC request metadata, @code <key> @endcode being the normalized gRPC Metadata key (lowercase), the value being the metadata values.
  * <p>
- * Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all request metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+ * Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured.
+ * Including all request metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+ * <p>
+ * For example, a property @code my-custom-key @endcode with value @code ["1.2.3.4", "1.2.3.5"] @endcode SHOULD be recorded as
+ * @code rpc.grpc.request.metadata.my-custom-key @endcode attribute with value @code ["1.2.3.4", "1.2.3.5"] @endcode
  */
 static constexpr const char *kRpcGrpcRequestMetadata
  = "rpc.grpc.request.metadata";
@@ -61,7 +73,11 @@ static constexpr const char *kRpcGrpcRequestMetadata
 /**
  * gRPC response metadata, @code <key> @endcode being the normalized gRPC Metadata key (lowercase), the value being the metadata values.
  * <p>
- * Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all response metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+ * Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured.
+ * Including all response metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+ * <p>
+ * For example, a property @code my-custom-key @endcode with value @code ["attribute_value"] @endcode SHOULD be recorded as
+ * the @code rpc.grpc.response.metadata.my-custom-key @endcode attribute with value @code ["attribute_value"] @endcode
  */
 static constexpr const char *kRpcGrpcResponseMetadata
  = "rpc.grpc.response.metadata";
@@ -123,17 +139,13 @@ static constexpr const char *kRpcMessageUncompressedSize
  = "rpc.message.uncompressed_size";
 
 /**
- * The name of the (logical) method being called, must be equal to the $method part in the span name.
- * <p>
- * This is the logical name of the method from the RPC interface perspective, which can be different from the name of any implementing method/function. The @code code.function.name @endcode attribute may be used to store the latter (e.g., method actually executing the call on the server side, RPC client stub method on the client side).
+ * This is the logical name of the method from the RPC interface perspective.
  */
 static constexpr const char *kRpcMethod
  = "rpc.method";
 
 /**
  * The full (logical) name of the service being called, including its package name, if applicable.
- * <p>
- * This is the logical name of the service from the RPC interface perspective, which can be different from the name of any implementing class. The @code code.namespace @endcode attribute may be used to store the latter (despite the attribute name, it may include a class name; e.g., class with method actually executing the call on the server side, RPC client stub class on the client side).
  */
 static constexpr const char *kRpcService
  = "rpc.service";
@@ -147,114 +159,82 @@ static constexpr const char *kRpcSystem
 
 namespace RpcConnectRpcErrorCodeValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kCancelled
  = "cancelled";
 
-/**
- * none
- */
+
 static constexpr const char *
  kUnknown
  = "unknown";
 
-/**
- * none
- */
+
 static constexpr const char *
  kInvalidArgument
  = "invalid_argument";
 
-/**
- * none
- */
+
 static constexpr const char *
  kDeadlineExceeded
  = "deadline_exceeded";
 
-/**
- * none
- */
+
 static constexpr const char *
  kNotFound
  = "not_found";
 
-/**
- * none
- */
+
 static constexpr const char *
  kAlreadyExists
  = "already_exists";
 
-/**
- * none
- */
+
 static constexpr const char *
  kPermissionDenied
  = "permission_denied";
 
-/**
- * none
- */
+
 static constexpr const char *
  kResourceExhausted
  = "resource_exhausted";
 
-/**
- * none
- */
+
 static constexpr const char *
  kFailedPrecondition
  = "failed_precondition";
 
-/**
- * none
- */
+
 static constexpr const char *
  kAborted
  = "aborted";
 
-/**
- * none
- */
+
 static constexpr const char *
  kOutOfRange
  = "out_of_range";
 
-/**
- * none
- */
+
 static constexpr const char *
  kUnimplemented
  = "unimplemented";
 
-/**
- * none
- */
+
 static constexpr const char *
  kInternal
  = "internal";
 
-/**
- * none
- */
+
 static constexpr const char *
  kUnavailable
  = "unavailable";
 
-/**
- * none
- */
+
 static constexpr const char *
  kDataLoss
  = "data_loss";
 
-/**
- * none
- */
+
 static constexpr const char *
  kUnauthenticated
  = "unauthenticated";
@@ -386,16 +366,12 @@ static constexpr int
 
 namespace RpcMessageTypeValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kSent
  = "SENT";
 
-/**
- * none
- */
+
 static constexpr const char *
  kReceived
  = "RECEIVED";
@@ -438,6 +414,20 @@ static constexpr const char *
 static constexpr const char *
  kConnectRpc
  = "connect_rpc";
+
+/**
+ * <a href="https://datatracker.ietf.org/doc/html/rfc5531">ONC RPC (Sun RPC)</a>
+ */
+static constexpr const char *
+ kOncRpc
+ = "onc_rpc";
+
+/**
+ * JSON-RPC
+ */
+static constexpr const char *
+ kJsonrpc
+ = "jsonrpc";
 
 }
 

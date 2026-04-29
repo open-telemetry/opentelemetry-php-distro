@@ -30,7 +30,11 @@ namespace system
 
 /**
  * Deprecated, use @code cpu.logical_number @endcode instead.
+ *
+ * @deprecated
+ * {"note": "Replaced by @code cpu.logical_number @endcode.", "reason": "renamed", "renamed_to": "cpu.logical_number"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *kSystemCpuLogicalNumber
  = "system.cpu.logical_number";
 
@@ -38,7 +42,7 @@ static constexpr const char *kSystemCpuLogicalNumber
  * Deprecated, use @code cpu.mode @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code cpu.mode @endcode", "reason": "uncategorized"}
+ * {"note": "Replaced by @code cpu.mode @endcode.", "reason": "renamed", "renamed_to": "cpu.mode"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kSystemCpuState
@@ -84,7 +88,7 @@ static constexpr const char *kSystemMemoryState
  * Deprecated, use @code network.connection.state @endcode instead.
  *
  * @deprecated
- * {"note": "Removed, report network connection state with @code network.connection.state @endcode attribute", "reason": "uncategorized"}
+ * {"note": "Replaced by @code network.connection.state @endcode.", "reason": "renamed", "renamed_to": "network.connection.state"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kSystemNetworkState
@@ -97,28 +101,42 @@ static constexpr const char *kSystemPagingDirection
  = "system.paging.direction";
 
 /**
+ * The paging fault type
+ */
+static constexpr const char *kSystemPagingFaultType
+ = "system.paging.fault.type";
+
+/**
  * The memory paging state
  */
 static constexpr const char *kSystemPagingState
  = "system.paging.state";
 
 /**
- * The memory paging type
+ * Deprecated, use @code system.paging.fault.type @endcode instead.
+ *
+ * @deprecated
+ * {"note": "Replaced by @code system.paging.fault.type @endcode.", "reason": "renamed", "renamed_to": "system.paging.fault.type"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *kSystemPagingType
  = "system.paging.type";
 
 /**
- * The process state, e.g., <a href="https://man7.org/linux/man-pages/man1/ps.1.html#PROCESS_STATE_CODES">Linux Process State Codes</a>
+ * Deprecated, use @code process.state @endcode instead.
+ *
+ * @deprecated
+ * {"note": "Replaced by @code process.state @endcode.", "reason": "renamed", "renamed_to": "process.state"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *kSystemProcessStatus
  = "system.process.status";
 
 /**
- * Deprecated, use @code system.process.status @endcode instead.
+ * Deprecated, use @code process.state @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code system.process.status @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code process.state @endcode.", "reason": "renamed", "renamed_to": "process.state"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kSystemProcessesStatus
@@ -127,51 +145,37 @@ static constexpr const char *kSystemProcessesStatus
 
 namespace SystemCpuStateValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kUser
  = "user";
 
-/**
- * none
- */
+
 static constexpr const char *
  kSystem
  = "system";
 
-/**
- * none
- */
+
 static constexpr const char *
  kNice
  = "nice";
 
-/**
- * none
- */
+
 static constexpr const char *
  kIdle
  = "idle";
 
-/**
- * none
- */
+
 static constexpr const char *
  kIowait
  = "iowait";
 
-/**
- * none
- */
+
 static constexpr const char *
  kInterrupt
  = "interrupt";
 
-/**
- * none
- */
+
 static constexpr const char *
  kSteal
  = "steal";
@@ -180,23 +184,17 @@ static constexpr const char *
 
 namespace SystemFilesystemStateValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kUsed
  = "used";
 
-/**
- * none
- */
+
 static constexpr const char *
  kFree
  = "free";
 
-/**
- * none
- */
+
 static constexpr const char *
  kReserved
  = "reserved";
@@ -205,44 +203,32 @@ static constexpr const char *
 
 namespace SystemFilesystemTypeValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kFat32
  = "fat32";
 
-/**
- * none
- */
+
 static constexpr const char *
  kExfat
  = "exfat";
 
-/**
- * none
- */
+
 static constexpr const char *
  kNtfs
  = "ntfs";
 
-/**
- * none
- */
+
 static constexpr const char *
  kRefs
  = "refs";
 
-/**
- * none
- */
+
 static constexpr const char *
  kHfsplus
  = "hfsplus";
 
-/**
- * none
- */
+
 static constexpr const char *
  kExt4
  = "ext4";
@@ -252,36 +238,32 @@ static constexpr const char *
 namespace SystemMemoryStateValues
 {
 /**
- * none
+ * Actual used virtual memory in bytes.
  */
 static constexpr const char *
  kUsed
  = "used";
 
-/**
- * none
- */
+
 static constexpr const char *
  kFree
  = "free";
 
 /**
- * none
+ * @deprecated
+ * {"note": "Removed, report shared memory usage with @code metric.system.memory.shared @endcode metric", "reason": "uncategorized"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *
  kShared
  = "shared";
 
-/**
- * none
- */
+
 static constexpr const char *
  kBuffers
  = "buffers";
 
-/**
- * none
- */
+
 static constexpr const char *
  kCached
  = "cached";
@@ -290,86 +272,62 @@ static constexpr const char *
 
 namespace SystemNetworkStateValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kClose
  = "close";
 
-/**
- * none
- */
+
 static constexpr const char *
  kCloseWait
  = "close_wait";
 
-/**
- * none
- */
+
 static constexpr const char *
  kClosing
  = "closing";
 
-/**
- * none
- */
+
 static constexpr const char *
  kDelete
  = "delete";
 
-/**
- * none
- */
+
 static constexpr const char *
  kEstablished
  = "established";
 
-/**
- * none
- */
+
 static constexpr const char *
  kFinWait1
  = "fin_wait_1";
 
-/**
- * none
- */
+
 static constexpr const char *
  kFinWait2
  = "fin_wait_2";
 
-/**
- * none
- */
+
 static constexpr const char *
  kLastAck
  = "last_ack";
 
-/**
- * none
- */
+
 static constexpr const char *
  kListen
  = "listen";
 
-/**
- * none
- */
+
 static constexpr const char *
  kSynRecv
  = "syn_recv";
 
-/**
- * none
- */
+
 static constexpr const char *
  kSynSent
  = "syn_sent";
 
-/**
- * none
- */
+
 static constexpr const char *
  kTimeWait
  = "time_wait";
@@ -378,34 +336,40 @@ static constexpr const char *
 
 namespace SystemPagingDirectionValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kIn
  = "in";
 
-/**
- * none
- */
+
 static constexpr const char *
  kOut
  = "out";
 
 }
 
+namespace SystemPagingFaultTypeValues
+{
+
+static constexpr const char *
+ kMajor
+ = "major";
+
+
+static constexpr const char *
+ kMinor
+ = "minor";
+
+}
+
 namespace SystemPagingStateValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kUsed
  = "used";
 
-/**
- * none
- */
+
 static constexpr const char *
  kFree
  = "free";
@@ -414,16 +378,12 @@ static constexpr const char *
 
 namespace SystemPagingTypeValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kMajor
  = "major";
 
-/**
- * none
- */
+
 static constexpr const char *
  kMinor
  = "minor";
@@ -432,30 +392,22 @@ static constexpr const char *
 
 namespace SystemProcessStatusValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kRunning
  = "running";
 
-/**
- * none
- */
+
 static constexpr const char *
  kSleeping
  = "sleeping";
 
-/**
- * none
- */
+
 static constexpr const char *
  kStopped
  = "stopped";
 
-/**
- * none
- */
+
 static constexpr const char *
  kDefunct
  = "defunct";
@@ -464,30 +416,22 @@ static constexpr const char *
 
 namespace SystemProcessesStatusValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kRunning
  = "running";
 
-/**
- * none
- */
+
 static constexpr const char *
  kSleeping
  = "sleeping";
 
-/**
- * none
- */
+
 static constexpr const char *
  kStopped
  = "stopped";
 
-/**
- * none
- */
+
 static constexpr const char *
  kDefunct
  = "defunct";

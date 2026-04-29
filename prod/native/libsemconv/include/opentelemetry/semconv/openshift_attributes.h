@@ -25,29 +25,21 @@
 namespace opentelemetry {
 namespace semconv
 {
-namespace disk
+namespace openshift
 {
 
 /**
- * The disk IO operation direction.
+ * The name of the cluster quota.
  */
-static constexpr const char *kDiskIoDirection
- = "disk.io.direction";
+static constexpr const char *kOpenshiftClusterquotaName
+ = "openshift.clusterquota.name";
 
+/**
+ * The UID of the cluster quota.
+ */
+static constexpr const char *kOpenshiftClusterquotaUid
+ = "openshift.clusterquota.uid";
 
-namespace DiskIoDirectionValues
-{
-
-static constexpr const char *
- kRead
- = "read";
-
-
-static constexpr const char *
- kWrite
- = "write";
-
-}
 
 
 }

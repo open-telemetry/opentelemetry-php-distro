@@ -150,7 +150,7 @@ static constexpr const char *kVcsRefType
  * Deprecated, use @code vcs.change.id @endcode instead.
  *
  * @deprecated
- * {"note": "Deprecated, use @code vcs.change.id @endcode instead.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code vcs.change.id @endcode.", "reason": "renamed", "renamed_to": "vcs.change.id"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kVcsRepositoryChangeId
@@ -160,7 +160,7 @@ static constexpr const char *kVcsRepositoryChangeId
  * Deprecated, use @code vcs.change.title @endcode instead.
  *
  * @deprecated
- * {"note": "Deprecated, use @code vcs.change.title @endcode instead.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code vcs.change.title @endcode.", "reason": "renamed", "renamed_to": "vcs.change.title"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kVcsRepositoryChangeTitle
@@ -180,7 +180,7 @@ static constexpr const char *kVcsRepositoryName
  * Deprecated, use @code vcs.ref.head.name @endcode instead.
  *
  * @deprecated
- * {"note": "Deprecated, use @code vcs.ref.head.name @endcode instead.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code vcs.ref.head.name @endcode.", "reason": "renamed", "renamed_to": "vcs.ref.head.name"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kVcsRepositoryRefName
@@ -190,7 +190,7 @@ static constexpr const char *kVcsRepositoryRefName
  * Deprecated, use @code vcs.ref.head.revision @endcode instead.
  *
  * @deprecated
- * {"note": "Deprecated, use @code vcs.ref.head.revision @endcode instead.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code vcs.ref.head.revision @endcode.", "reason": "renamed", "renamed_to": "vcs.ref.head.revision"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kVcsRepositoryRefRevision
@@ -200,14 +200,14 @@ static constexpr const char *kVcsRepositoryRefRevision
  * Deprecated, use @code vcs.ref.head.type @endcode instead.
  *
  * @deprecated
- * {"note": "Deprecated, use @code vcs.ref.head.type @endcode instead.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code vcs.ref.head.type @endcode.", "reason": "renamed", "renamed_to": "vcs.ref.head.type"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kVcsRepositoryRefType
  = "vcs.repository.ref.type";
 
 /**
- * The <a href="https://support.google.com/webmasters/answer/10347851?hl=en#:~:text=A%20canonical%20URL%20is%20the,Google%20chooses%20one%20as%20canonical.">canonical URL</a> of the repository providing the complete HTTP(S) address in order to locate and identify the repository through a browser.
+ * The <a href="https://support.google.com/webmasters/answer/10347851">canonical URL</a> of the repository providing the complete HTTP(S) address in order to locate and identify the repository through a browser.
  * <p>
  * In Git Version Control Systems, the canonical URL SHOULD NOT include
  * the @code .git @endcode extension.
@@ -289,11 +289,22 @@ static constexpr const char *
  = "gitlab";
 
 /**
- * <a href="https://gitea.io">Gitea</a>
+ * Deprecated, use @code gitea @endcode instead.
+ *
+ * @deprecated
+ * {"note": "Replaced by @code gitea @endcode.", "reason": "renamed", "renamed_to": "gitea"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *
  kGittea
  = "gittea";
+
+/**
+ * <a href="https://gitea.io">Gitea</a>
+ */
+static constexpr const char *
+ kGitea
+ = "gitea";
 
 /**
  * <a href="https://bitbucket.org">Bitbucket</a>

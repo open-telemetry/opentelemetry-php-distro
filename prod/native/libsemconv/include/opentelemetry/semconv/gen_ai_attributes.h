@@ -50,17 +50,84 @@ static constexpr const char *kGenAiAgentName
  * Deprecated, use Event API to report completions contents.
  *
  * @deprecated
- * {"note": "Removed, no replacement at this time.", "reason": "uncategorized"}
+ * {"note": "Removed, no replacement at this time.", "reason": "obsoleted"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kGenAiCompletion
  = "gen_ai.completion";
 
 /**
+ * The unique identifier for a conversation (session, thread), used to store and correlate messages within this conversation.
+ */
+static constexpr const char *kGenAiConversationId
+ = "gen_ai.conversation.id";
+
+/**
+ * The data source identifier.
+ * <p>
+ * Data sources are used by AI agents and RAG applications to store grounding data. A data source may be an external database, object store, document collection, website, or any other storage system used by the GenAI agent or application. The @code gen_ai.data_source.id @endcode SHOULD match the identifier used by the GenAI system rather than a name specific to the external storage, such as a database or object store. Semantic conventions referencing @code gen_ai.data_source.id @endcode MAY also leverage additional attributes, such as @code db.* @endcode, to further identify and describe the data source.
+ */
+static constexpr const char *kGenAiDataSourceId
+ = "gen_ai.data_source.id";
+
+/**
+ * The number of dimensions the resulting output embeddings should have.
+ */
+static constexpr const char *kGenAiEmbeddingsDimensionCount
+ = "gen_ai.embeddings.dimension.count";
+
+/**
+ * A free-form explanation for the assigned score provided by the evaluator.
+ */
+static constexpr const char *kGenAiEvaluationExplanation
+ = "gen_ai.evaluation.explanation";
+
+/**
+ * The name of the evaluation metric used for the GenAI response.
+ */
+static constexpr const char *kGenAiEvaluationName
+ = "gen_ai.evaluation.name";
+
+/**
+ * Human readable label for evaluation.
+ * <p>
+ * This attribute provides a human-readable interpretation of the evaluation score produced by an evaluator. For example, a score value of 1 could mean "relevant" in one evaluation system and "not relevant" in another, depending on the scoring range and evaluator. The label SHOULD have low cardinality. Possible values depend on the evaluation metric and evaluator used; implementations SHOULD document the possible values.
+ */
+static constexpr const char *kGenAiEvaluationScoreLabel
+ = "gen_ai.evaluation.score.label";
+
+/**
+ * The evaluation score returned by the evaluator.
+ */
+static constexpr const char *kGenAiEvaluationScoreValue
+ = "gen_ai.evaluation.score.value";
+
+/**
+ * The chat history provided to the model as an input.
+ * <p>
+ * Instrumentations MUST follow <a href="/docs/gen-ai/gen-ai-input-messages.json">Input messages JSON schema</a>.
+ * When the attribute is recorded on events, it MUST be recorded in structured
+ * form. When recorded on spans, it MAY be recorded as a JSON string if structured
+ * format is not supported and SHOULD be recorded in structured form otherwise.
+ * <p>
+ * Messages MUST be provided in the order they were sent to the model.
+ * Instrumentations MAY provide a way for users to filter or truncate
+ * input messages.
+ * <blockquote>
+ * [!Warning]
+ * This attribute is likely to contain sensitive information including user/PII data.</blockquote>
+ * <p>
+ * See <a href="/docs/gen-ai/gen-ai-spans.md#recording-content-on-attributes">Recording content on attributes</a>
+ * section for more details.
+ */
+static constexpr const char *kGenAiInputMessages
+ = "gen_ai.input.messages";
+
+/**
  * Deprecated, use @code gen_ai.output.type @endcode.
  *
  * @deprecated
- * {"note": "Replaced by @code gen_ai.output.type @endcode.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code gen_ai.output.type @endcode.", "reason": "renamed", "renamed_to": "gen_ai.output.type"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kGenAiOpenaiRequestResponseFormat
@@ -70,27 +137,39 @@ static constexpr const char *kGenAiOpenaiRequestResponseFormat
  * Deprecated, use @code gen_ai.request.seed @endcode.
  *
  * @deprecated
- * {"note": "Replaced by @code gen_ai.request.seed @endcode attribute.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code gen_ai.request.seed @endcode.", "reason": "renamed", "renamed_to": "gen_ai.request.seed"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kGenAiOpenaiRequestSeed
  = "gen_ai.openai.request.seed";
 
 /**
- * The service tier requested. May be a specific tier, default, or auto.
+ * Deprecated, use @code openai.request.service_tier @endcode.
+ *
+ * @deprecated
+ * {"note": "Replaced by @code openai.request.service_tier @endcode.", "reason": "renamed", "renamed_to": "openai.request.service_tier"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *kGenAiOpenaiRequestServiceTier
  = "gen_ai.openai.request.service_tier";
 
 /**
- * The service tier used for the response.
+ * Deprecated, use @code openai.response.service_tier @endcode.
+ *
+ * @deprecated
+ * {"note": "Replaced by @code openai.response.service_tier @endcode.", "reason": "renamed", "renamed_to": "openai.response.service_tier"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *kGenAiOpenaiResponseServiceTier
  = "gen_ai.openai.response.service_tier";
 
 /**
- * A fingerprint to track any eventual change in the Generative AI environment.
+ * Deprecated, use @code openai.response.system_fingerprint @endcode.
+ *
+ * @deprecated
+ * {"note": "Replaced by @code openai.response.system_fingerprint @endcode.", "reason": "renamed", "renamed_to": "openai.response.system_fingerprint"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *kGenAiOpenaiResponseSystemFingerprint
  = "gen_ai.openai.response.system_fingerprint";
 
@@ -101,6 +180,32 @@ static constexpr const char *kGenAiOpenaiResponseSystemFingerprint
  */
 static constexpr const char *kGenAiOperationName
  = "gen_ai.operation.name";
+
+/**
+ * Messages returned by the model where each message represents a specific model response (choice, candidate).
+ * <p>
+ * Instrumentations MUST follow <a href="/docs/gen-ai/gen-ai-output-messages.json">Output messages JSON schema</a>
+ * <p>
+ * Each message represents a single output choice/candidate generated by
+ * the model. Each message corresponds to exactly one generation
+ * (choice/candidate) and vice versa - one choice cannot be split across
+ * multiple messages or one message cannot contain parts from multiple choices.
+ * <p>
+ * When the attribute is recorded on events, it MUST be recorded in structured
+ * form. When recorded on spans, it MAY be recorded as a JSON string if structured
+ * format is not supported and SHOULD be recorded in structured form otherwise.
+ * <p>
+ * Instrumentations MAY provide a way for users to filter or truncate
+ * output messages.
+ * <blockquote>
+ * [!Warning]
+ * This attribute is likely to contain sensitive information including user/PII data.</blockquote>
+ * <p>
+ * See <a href="/docs/gen-ai/gen-ai-spans.md#recording-content-on-attributes">Recording content on attributes</a>
+ * section for more details.
+ */
+static constexpr const char *kGenAiOutputMessages
+ = "gen_ai.output.messages";
 
 /**
  * Represents the content type requested by the client.
@@ -116,11 +221,36 @@ static constexpr const char *kGenAiOutputType
  * Deprecated, use Event API to report prompt contents.
  *
  * @deprecated
- * {"note": "Removed, no replacement at this time.", "reason": "uncategorized"}
+ * {"note": "Removed, no replacement at this time.", "reason": "obsoleted"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kGenAiPrompt
  = "gen_ai.prompt";
+
+/**
+ * The Generative AI provider as identified by the client or server instrumentation.
+ * <p>
+ * The attribute SHOULD be set based on the instrumentation's best
+ * knowledge and may differ from the actual model provider.
+ * <p>
+ * Multiple providers, including Azure OpenAI, Gemini, and AI hosting platforms
+ * are accessible using the OpenAI REST API and corresponding client libraries,
+ * but may proxy or host models from different providers.
+ * <p>
+ * The @code gen_ai.request.model @endcode, @code gen_ai.response.model @endcode, and @code server.address @endcode
+ * attributes may help identify the actual system in use.
+ * <p>
+ * The @code gen_ai.provider.name @endcode attribute acts as a discriminator that
+ * identifies the GenAI telemetry format flavor specific to that provider
+ * within GenAI semantic conventions.
+ * It SHOULD be set consistently with provider-specific attributes and signals.
+ * For example, GenAI spans, metrics, and events related to AWS Bedrock
+ * should have the @code gen_ai.provider.name @endcode set to @code aws.bedrock @endcode and include
+ * applicable @code aws.bedrock.* @endcode attributes and are not expected to include
+ * @code openai.* @endcode attributes.
+ */
+static constexpr const char *kGenAiProviderName
+ = "gen_ai.provider.name";
 
 /**
  * The target number of candidate completions to return.
@@ -209,22 +339,41 @@ static constexpr const char *kGenAiResponseModel
  = "gen_ai.response.model";
 
 /**
- * The Generative AI product as identified by the client or server instrumentation.
- * <p>
- * The @code gen_ai.system @endcode describes a family of GenAI models with specific model identified
- * by @code gen_ai.request.model @endcode and @code gen_ai.response.model @endcode attributes.
- * <p>
- * The actual GenAI product may differ from the one identified by the client.
- * Multiple systems, including Azure OpenAI and Gemini, are accessible by OpenAI client
- * libraries. In such cases, the @code gen_ai.system @endcode is set to @code openai @endcode based on the
- * instrumentation's best knowledge, instead of the actual system. The @code server.address @endcode
- * attribute may help identify the actual system in use for @code openai @endcode.
- * <p>
- * For custom model, a custom friendly name SHOULD be used.
- * If none of these options apply, the @code gen_ai.system @endcode SHOULD be set to @code _OTHER @endcode.
+ * Deprecated, use @code gen_ai.provider.name @endcode instead.
+ *
+ * @deprecated
+ * {"note": "Replaced by @code gen_ai.provider.name @endcode.", "reason": "renamed", "renamed_to": "gen_ai.provider.name"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *kGenAiSystem
  = "gen_ai.system";
+
+/**
+ * The system message or instructions provided to the GenAI model separately from the chat history.
+ * <p>
+ * This attribute SHOULD be used when the corresponding provider or API
+ * allows to provide system instructions or messages separately from the
+ * chat history.
+ * <p>
+ * Instructions that are part of the chat history SHOULD be recorded in
+ * @code gen_ai.input.messages @endcode attribute instead.
+ * <p>
+ * Instrumentations MUST follow <a href="/docs/gen-ai/gen-ai-system-instructions.json">System instructions JSON schema</a>.
+ * <p>
+ * When recorded on spans, it MAY be recorded as a JSON string if structured
+ * format is not supported and SHOULD be recorded in structured form otherwise.
+ * <p>
+ * Instrumentations MAY provide a way for users to filter or truncate
+ * system instructions.
+ * <blockquote>
+ * [!Warning]
+ * This attribute may contain sensitive information.</blockquote>
+ * <p>
+ * See <a href="/docs/gen-ai/gen-ai-spans.md#recording-content-on-attributes">Recording content on attributes</a>
+ * section for more details.
+ */
+static constexpr const char *kGenAiSystemInstructions
+ = "gen_ai.system_instructions";
 
 /**
  * The type of token being counted.
@@ -233,10 +382,58 @@ static constexpr const char *kGenAiTokenType
  = "gen_ai.token.type";
 
 /**
+ * Parameters passed to the tool call.
+ * <blockquote>
+ * [!WARNING]
+ * This attribute may contain sensitive information.</blockquote>
+ * <p>
+ * It's expected to be an object - in case a serialized string is available
+ * to the instrumentation, the instrumentation SHOULD do the best effort to
+ * deserialize it to an object. When recorded on spans, it MAY be recorded as a JSON string if structured format is not supported and SHOULD be recorded in structured form otherwise.
+ */
+static constexpr const char *kGenAiToolCallArguments
+ = "gen_ai.tool.call.arguments";
+
+/**
  * The tool call identifier.
  */
 static constexpr const char *kGenAiToolCallId
  = "gen_ai.tool.call.id";
+
+/**
+ * The result returned by the tool call (if any and if execution was successful).
+ * <blockquote>
+ * [!WARNING]
+ * This attribute may contain sensitive information.</blockquote>
+ * <p>
+ * It's expected to be an object - in case a serialized string is available
+ * to the instrumentation, the instrumentation SHOULD do the best effort to
+ * deserialize it to an object. When recorded on spans, it MAY be recorded as a JSON string if structured format is not supported and SHOULD be recorded in structured form otherwise.
+ */
+static constexpr const char *kGenAiToolCallResult
+ = "gen_ai.tool.call.result";
+
+/**
+ * The list of source system tool definitions available to the GenAI agent or model.
+ * <p>
+ * The value of this attribute matches source system tool definition format.
+ * <p>
+ * It's expected to be an array of objects where each object represents a tool definition. In case a serialized string is available
+ * to the instrumentation, the instrumentation SHOULD do the best effort to
+ * deserialize it to an array. When recorded on spans, it MAY be recorded as a JSON string if structured format is not supported and SHOULD be recorded in structured form otherwise.
+ * <p>
+ * Since this attribute could be large, it's NOT RECOMMENDED to populate
+ * it by default. Instrumentations MAY provide a way to enable
+ * populating this attribute.
+ */
+static constexpr const char *kGenAiToolDefinitions
+ = "gen_ai.tool.definitions";
+
+/**
+ * The tool description.
+ */
+static constexpr const char *kGenAiToolDescription
+ = "gen_ai.tool.description";
 
 /**
  * Name of the tool utilized by the agent.
@@ -260,7 +457,7 @@ static constexpr const char *kGenAiToolType
  * Deprecated, use @code gen_ai.usage.output_tokens @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code gen_ai.usage.output_tokens @endcode attribute.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code gen_ai.usage.output_tokens @endcode.", "reason": "renamed", "renamed_to": "gen_ai.usage.output_tokens"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kGenAiUsageCompletionTokens
@@ -282,7 +479,7 @@ static constexpr const char *kGenAiUsageOutputTokens
  * Deprecated, use @code gen_ai.usage.input_tokens @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code gen_ai.usage.input_tokens @endcode attribute.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code gen_ai.usage.input_tokens @endcode.", "reason": "renamed", "renamed_to": "gen_ai.usage.input_tokens"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kGenAiUsagePromptTokens
@@ -342,6 +539,13 @@ static constexpr const char *
  = "chat";
 
 /**
+ * Multimodal content generation operation such as <a href="https://ai.google.dev/api/generate-content">Gemini Generate Content</a>
+ */
+static constexpr const char *
+ kGenerateContent
+ = "generate_content";
+
+/**
  * Text completions operation such as <a href="https://platform.openai.com/docs/api-reference/completions">OpenAI Completions API (Legacy)</a>
  */
 static constexpr const char *
@@ -361,6 +565,13 @@ static constexpr const char *
 static constexpr const char *
  kCreateAgent
  = "create_agent";
+
+/**
+ * Invoke GenAI agent
+ */
+static constexpr const char *
+ kInvokeAgent
+ = "invoke_agent";
 
 /**
  * Execute a tool
@@ -403,6 +614,115 @@ static constexpr const char *
 
 }
 
+namespace GenAiProviderNameValues
+{
+/**
+ * <a href="https://openai.com/">OpenAI</a>
+ */
+static constexpr const char *
+ kOpenai
+ = "openai";
+
+/**
+ * Any Google generative AI endpoint
+ */
+static constexpr const char *
+ kGcpGenAi
+ = "gcp.gen_ai";
+
+/**
+ * <a href="https://cloud.google.com/vertex-ai">Vertex AI</a>
+ */
+static constexpr const char *
+ kGcpVertexAi
+ = "gcp.vertex_ai";
+
+/**
+ * <a href="https://cloud.google.com/products/gemini">Gemini</a>
+ */
+static constexpr const char *
+ kGcpGemini
+ = "gcp.gemini";
+
+/**
+ * <a href="https://www.anthropic.com/">Anthropic</a>
+ */
+static constexpr const char *
+ kAnthropic
+ = "anthropic";
+
+/**
+ * <a href="https://cohere.com/">Cohere</a>
+ */
+static constexpr const char *
+ kCohere
+ = "cohere";
+
+/**
+ * Azure AI Inference
+ */
+static constexpr const char *
+ kAzureAiInference
+ = "azure.ai.inference";
+
+/**
+ * <a href="https://azure.microsoft.com/products/ai-services/openai-service/">Azure OpenAI</a>
+ */
+static constexpr const char *
+ kAzureAiOpenai
+ = "azure.ai.openai";
+
+/**
+ * <a href="https://www.ibm.com/products/watsonx-ai">IBM Watsonx AI</a>
+ */
+static constexpr const char *
+ kIbmWatsonxAi
+ = "ibm.watsonx.ai";
+
+/**
+ * <a href="https://aws.amazon.com/bedrock">AWS Bedrock</a>
+ */
+static constexpr const char *
+ kAwsBedrock
+ = "aws.bedrock";
+
+/**
+ * <a href="https://www.perplexity.ai/">Perplexity</a>
+ */
+static constexpr const char *
+ kPerplexity
+ = "perplexity";
+
+/**
+ * <a href="https://x.ai/">xAI</a>
+ */
+static constexpr const char *
+ kXAi
+ = "x_ai";
+
+/**
+ * <a href="https://www.deepseek.com/">DeepSeek</a>
+ */
+static constexpr const char *
+ kDeepseek
+ = "deepseek";
+
+/**
+ * <a href="https://groq.com/">Groq</a>
+ */
+static constexpr const char *
+ kGroq
+ = "groq";
+
+/**
+ * <a href="https://mistral.ai/">Mistral AI</a>
+ */
+static constexpr const char *
+ kMistralAi
+ = "mistral_ai";
+
+}
+
 namespace GenAiSystemValues
 {
 /**
@@ -413,15 +733,44 @@ static constexpr const char *
  = "openai";
 
 /**
+ * Any Google generative AI endpoint
+ */
+static constexpr const char *
+ kGcpGenAi
+ = "gcp.gen_ai";
+
+/**
  * Vertex AI
  */
+static constexpr const char *
+ kGcpVertexAi
+ = "gcp.vertex_ai";
+
+/**
+ * Gemini
+ */
+static constexpr const char *
+ kGcpGemini
+ = "gcp.gemini";
+
+/**
+ * Vertex AI
+ *
+ * @deprecated
+ * {"note": "Replaced by @code gcp.vertex_ai @endcode.", "reason": "renamed", "renamed_to": "gcp.vertex_ai"}
+ */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *
  kVertexAi
  = "vertex_ai";
 
 /**
  * Gemini
+ *
+ * @deprecated
+ * {"note": "Replaced by @code gcp.gemini @endcode.", "reason": "renamed", "renamed_to": "gcp.gemini"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *
  kGemini
  = "gemini";
@@ -442,17 +791,39 @@ static constexpr const char *
 
 /**
  * Azure AI Inference
+ *
+ * @deprecated
+ * {"note": "Replaced by @code azure.ai.inference @endcode.", "reason": "renamed", "renamed_to": "azure.ai.inference"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *
  kAzAiInference
  = "az.ai.inference";
 
 /**
  * Azure OpenAI
+ *
+ * @deprecated
+ * {"note": "Replaced by @code azure.ai.openai @endcode.", "reason": "renamed", "renamed_to": "azure.ai.openai"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *
  kAzAiOpenai
  = "az.ai.openai";
+
+/**
+ * Azure AI Inference
+ */
+static constexpr const char *
+ kAzureAiInference
+ = "azure.ai.inference";
+
+/**
+ * Azure OpenAI
+ */
+static constexpr const char *
+ kAzureAiOpenai
+ = "azure.ai.openai";
 
 /**
  * IBM Watsonx AI
@@ -516,7 +887,11 @@ static constexpr const char *
 
 /**
  * Output tokens (completion, response, etc.)
+ *
+ * @deprecated
+ * {"note": "Replaced by @code output @endcode.", "reason": "renamed", "renamed_to": "output"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *
  kCompletion
  = "output";

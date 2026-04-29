@@ -37,14 +37,14 @@ namespace faas
 {
 
 /**
- * Number of invocation cold starts
+ * Number of invocation cold starts.
  * <p>
  * counter
  */
 static constexpr const char *kMetricFaasColdstarts
  = "faas.coldstarts";
 static constexpr const char *descrMetricFaasColdstarts
- = "Number of invocation cold starts";
+ = "Number of invocation cold starts.";
 static constexpr const char *unitMetricFaasColdstarts
  = "{coldstart}";
 
@@ -110,14 +110,14 @@ CreateAsyncDoubleMetricFaasColdstarts
 
 
 /**
- * Distribution of CPU usage per invocation
+ * Distribution of CPU usage per invocation.
  * <p>
  * histogram
  */
 static constexpr const char *kMetricFaasCpuUsage
  = "faas.cpu_usage";
 static constexpr const char *descrMetricFaasCpuUsage
- = "Distribution of CPU usage per invocation";
+ = "Distribution of CPU usage per invocation.";
 static constexpr const char *unitMetricFaasCpuUsage
  = "s";
 
@@ -154,14 +154,14 @@ CreateSyncDoubleMetricFaasCpuUsage
 
 
 /**
- * Number of invocation errors
+ * Number of invocation errors.
  * <p>
  * counter
  */
 static constexpr const char *kMetricFaasErrors
  = "faas.errors";
 static constexpr const char *descrMetricFaasErrors
- = "Number of invocation errors";
+ = "Number of invocation errors.";
 static constexpr const char *unitMetricFaasErrors
  = "{error}";
 
@@ -227,14 +227,14 @@ CreateAsyncDoubleMetricFaasErrors
 
 
 /**
- * Measures the duration of the function's initialization, such as a cold start
+ * Measures the duration of the function's initialization, such as a cold start.
  * <p>
  * histogram
  */
 static constexpr const char *kMetricFaasInitDuration
  = "faas.init_duration";
 static constexpr const char *descrMetricFaasInitDuration
- = "Measures the duration of the function's initialization, such as a cold start";
+ = "Measures the duration of the function's initialization, such as a cold start.";
 static constexpr const char *unitMetricFaasInitDuration
  = "s";
 
@@ -271,14 +271,14 @@ CreateSyncDoubleMetricFaasInitDuration
 
 
 /**
- * Number of successful invocations
+ * Number of successful invocations.
  * <p>
  * counter
  */
 static constexpr const char *kMetricFaasInvocations
  = "faas.invocations";
 static constexpr const char *descrMetricFaasInvocations
- = "Number of successful invocations";
+ = "Number of successful invocations.";
 static constexpr const char *unitMetricFaasInvocations
  = "{invocation}";
 
@@ -344,14 +344,14 @@ CreateAsyncDoubleMetricFaasInvocations
 
 
 /**
- * Measures the duration of the function's logic execution
+ * Measures the duration of the function's logic execution.
  * <p>
  * histogram
  */
 static constexpr const char *kMetricFaasInvokeDuration
  = "faas.invoke_duration";
 static constexpr const char *descrMetricFaasInvokeDuration
- = "Measures the duration of the function's logic execution";
+ = "Measures the duration of the function's logic execution.";
 static constexpr const char *unitMetricFaasInvokeDuration
  = "s";
 
@@ -388,14 +388,14 @@ CreateSyncDoubleMetricFaasInvokeDuration
 
 
 /**
- * Distribution of max memory usage per invocation
+ * Distribution of max memory usage per invocation.
  * <p>
  * histogram
  */
 static constexpr const char *kMetricFaasMemUsage
  = "faas.mem_usage";
 static constexpr const char *descrMetricFaasMemUsage
- = "Distribution of max memory usage per invocation";
+ = "Distribution of max memory usage per invocation.";
 static constexpr const char *unitMetricFaasMemUsage
  = "By";
 
@@ -432,14 +432,14 @@ CreateSyncDoubleMetricFaasMemUsage
 
 
 /**
- * Distribution of net I/O usage per invocation
+ * Distribution of net I/O usage per invocation.
  * <p>
  * histogram
  */
 static constexpr const char *kMetricFaasNetIo
  = "faas.net_io";
 static constexpr const char *descrMetricFaasNetIo
- = "Distribution of net I/O usage per invocation";
+ = "Distribution of net I/O usage per invocation.";
 static constexpr const char *unitMetricFaasNetIo
  = "By";
 
@@ -476,14 +476,14 @@ CreateSyncDoubleMetricFaasNetIo
 
 
 /**
- * Number of invocation timeouts
+ * Number of invocation timeouts.
  * <p>
  * counter
  */
 static constexpr const char *kMetricFaasTimeouts
  = "faas.timeouts";
 static constexpr const char *descrMetricFaasTimeouts
- = "Number of invocation timeouts";
+ = "Number of invocation timeouts.";
 static constexpr const char *unitMetricFaasTimeouts
  = "{timeout}";
 

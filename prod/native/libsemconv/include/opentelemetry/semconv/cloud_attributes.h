@@ -57,7 +57,7 @@ static constexpr const char *kCloudProvider
  = "cloud.provider";
 
 /**
- * The geographical region the resource is running.
+ * The geographical region within a cloud provider. When associated with a resource, this attribute specifies the region where the resource operates. When calling services or APIs deployed on a cloud, this attribute identifies the region where the called destination is deployed.
  * <p>
  * Refer to your provider's docs to see the available regions, for example <a href="https://www.alibabacloud.com/help/doc-detail/40654.htm">Alibaba Cloud regions</a>, <a href="https://aws.amazon.com/about-aws/global-infrastructure/regions_az/">AWS regions</a>, <a href="https://azure.microsoft.com/global-infrastructure/geographies/">Azure regions</a>, <a href="https://cloud.google.com/about/locations">Google Cloud regions</a>, or <a href="https://www.tencentcloud.com/document/product/213/6091">Tencent Cloud regions</a>.
  */
@@ -79,7 +79,7 @@ static constexpr const char *kCloudRegion
  * with the resolved function version, as the same runtime instance may be invocable with
  * multiple different aliases.</li>
  *   <li><strong>GCP:</strong> The <a href="https://cloud.google.com/iam/docs/full-resource-names">URI of the resource</a></li>
- *   <li><strong>Azure:</strong> The <a href="https://docs.microsoft.com/rest/api/resources/resources/get-by-id">Fully Qualified Resource ID</a> of the invoked function,
+ *   <li><strong>Azure:</strong> The <a href="https://learn.microsoft.com/rest/api/resources/resources/get-by-id">Fully Qualified Resource ID</a> of the invoked function,
  * <em>not</em> the function app, having the form
  * @code /subscriptions/<SUBSCRIPTION_GUID>/resourceGroups/<RG>/providers/Microsoft.Web/sites/<FUNCAPP>/functions/<FUNC> @endcode.
  * This means that a span attribute MUST be used, as an Azure function app can host multiple functions that would usually share
@@ -167,49 +167,49 @@ static constexpr const char *
  */
 static constexpr const char *
  kAzureVm
- = "azure_vm";
+ = "azure.vm";
 
 /**
  * Azure Container Apps
  */
 static constexpr const char *
  kAzureContainerApps
- = "azure_container_apps";
+ = "azure.container_apps";
 
 /**
  * Azure Container Instances
  */
 static constexpr const char *
  kAzureContainerInstances
- = "azure_container_instances";
+ = "azure.container_instances";
 
 /**
  * Azure Kubernetes Service
  */
 static constexpr const char *
  kAzureAks
- = "azure_aks";
+ = "azure.aks";
 
 /**
  * Azure Functions
  */
 static constexpr const char *
  kAzureFunctions
- = "azure_functions";
+ = "azure.functions";
 
 /**
  * Azure App Service
  */
 static constexpr const char *
  kAzureAppService
- = "azure_app_service";
+ = "azure.app_service";
 
 /**
  * Azure Red Hat OpenShift
  */
 static constexpr const char *
  kAzureOpenshift
- = "azure_openshift";
+ = "azure.openshift";
 
 /**
  * Google Bare Metal Solution (BMS)

@@ -29,6 +29,12 @@ namespace app
 {
 
 /**
+ * Unique identifier for a particular build or compilation of the application.
+ */
+static constexpr const char *kAppBuildId
+ = "app.build_id";
+
+/**
  * A unique identifier representing the installation of an application on a specific device
  * <p>
  * Its value SHOULD persist across launches of the same application installation, including through application upgrades.
@@ -48,10 +54,74 @@ namespace app
  *   <li><a href="https://developer.android.com/reference/android/provider/Settings.Secure#ANDROID_ID">@code Settings.getString(Settings.Secure.ANDROID_ID) @endcode</a>.</li>
  * </ul>
  * <p>
- * More information about Android identifier best practices can be found <a href="https://developer.android.com/training/articles/user-data-ids">here</a>.
+ * More information about Android identifier best practices can be found in the <a href="https://developer.android.com/training/articles/user-data-ids">Android user data IDs guide</a>.
  */
 static constexpr const char *kAppInstallationId
  = "app.installation.id";
+
+/**
+ * A number of frame renders that experienced jank.
+ * <p>
+ * Depending on platform limitations, the value provided MAY be approximation.
+ */
+static constexpr const char *kAppJankFrameCount
+ = "app.jank.frame_count";
+
+/**
+ * The time period, in seconds, for which this jank is being reported.
+ */
+static constexpr const char *kAppJankPeriod
+ = "app.jank.period";
+
+/**
+ * The minimum rendering threshold for this jank, in seconds.
+ */
+static constexpr const char *kAppJankThreshold
+ = "app.jank.threshold";
+
+/**
+ * The x (horizontal) coordinate of a screen coordinate, in screen pixels.
+ */
+static constexpr const char *kAppScreenCoordinateX
+ = "app.screen.coordinate.x";
+
+/**
+ * The y (vertical) component of a screen coordinate, in screen pixels.
+ */
+static constexpr const char *kAppScreenCoordinateY
+ = "app.screen.coordinate.y";
+
+/**
+ * An identifier that uniquely differentiates this screen from other screens in the same application.
+ * <p>
+ * A screen represents only the part of the device display drawn by the app. It typically contains multiple widgets or UI components and is larger in scope than individual widgets. Multiple screens can coexist on the same display simultaneously (e.g., split view on tablets).
+ */
+static constexpr const char *kAppScreenId
+ = "app.screen.id";
+
+/**
+ * The name of an application screen.
+ * <p>
+ * A screen represents only the part of the device display drawn by the app. It typically contains multiple widgets or UI components and is larger in scope than individual widgets. Multiple screens can coexist on the same display simultaneously (e.g., split view on tablets).
+ */
+static constexpr const char *kAppScreenName
+ = "app.screen.name";
+
+/**
+ * An identifier that uniquely differentiates this widget from other widgets in the same application.
+ * <p>
+ * A widget is an application component, typically an on-screen visual GUI element.
+ */
+static constexpr const char *kAppWidgetId
+ = "app.widget.id";
+
+/**
+ * The name of an application widget.
+ * <p>
+ * A widget is an application component, typically an on-screen visual GUI element.
+ */
+static constexpr const char *kAppWidgetName
+ = "app.widget.name";
 
 
 

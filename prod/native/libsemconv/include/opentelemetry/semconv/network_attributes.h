@@ -147,79 +147,57 @@ static constexpr const char *kNetworkType
 
 namespace NetworkConnectionStateValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kClosed
  = "closed";
 
-/**
- * none
- */
+
 static constexpr const char *
  kCloseWait
  = "close_wait";
 
-/**
- * none
- */
+
 static constexpr const char *
  kClosing
  = "closing";
 
-/**
- * none
- */
+
 static constexpr const char *
  kEstablished
  = "established";
 
-/**
- * none
- */
+
 static constexpr const char *
  kFinWait1
  = "fin_wait_1";
 
-/**
- * none
- */
+
 static constexpr const char *
  kFinWait2
  = "fin_wait_2";
 
-/**
- * none
- */
+
 static constexpr const char *
  kLastAck
  = "last_ack";
 
-/**
- * none
- */
+
 static constexpr const char *
  kListen
  = "listen";
 
-/**
- * none
- */
+
 static constexpr const char *
  kSynReceived
  = "syn_received";
 
-/**
- * none
- */
+
 static constexpr const char *
  kSynSent
  = "syn_sent";
 
-/**
- * none
- */
+
 static constexpr const char *
  kTimeWait
  = "time_wait";
@@ -379,37 +357,27 @@ static constexpr const char *
 
 namespace NetworkConnectionTypeValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kWifi
  = "wifi";
 
-/**
- * none
- */
+
 static constexpr const char *
  kWired
  = "wired";
 
-/**
- * none
- */
+
 static constexpr const char *
  kCell
  = "cell";
 
-/**
- * none
- */
+
 static constexpr const char *
  kUnavailable
  = "unavailable";
 
-/**
- * none
- */
+
 static constexpr const char *
  kUnknown
  = "unknown";
@@ -418,16 +386,12 @@ static constexpr const char *
 
 namespace NetworkIoDirectionValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kTransmit
  = "transmit";
 
-/**
- * none
- */
+
 static constexpr const char *
  kReceive
  = "receive";

@@ -32,20 +32,20 @@ namespace code
  * Deprecated, use @code code.column.number @endcode
  *
  * @deprecated
- * {"note": "Replaced by @code code.column.number @endcode", "reason": "uncategorized"}
+ * {"note": "Replaced by @code code.column.number @endcode.", "reason": "renamed", "renamed_to": "code.column.number"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kCodeColumn
  = "code.column";
 
 /**
- * The column number in @code code.file.path @endcode best representing the operation. It SHOULD point within the code unit named in @code code.function.name @endcode.
+ * The column number in @code code.file.path @endcode best representing the operation. It SHOULD point within the code unit named in @code code.function.name @endcode. This attribute MUST NOT be used on the Profile signal since the data is already captured in 'message Line'. This constraint is imposed to prevent redundancy and maintain data integrity.
  */
 static constexpr const char *kCodeColumnNumber
  = "code.column.number";
 
 /**
- * The source code file name that identifies the code unit as uniquely as possible (preferably an absolute file path).
+ * The source code file name that identifies the code unit as uniquely as possible (preferably an absolute file path). This attribute MUST NOT be used on the Profile signal since the data is already captured in 'message Function'. This constraint is imposed to prevent redundancy and maintain data integrity.
  */
 static constexpr const char *kCodeFilePath
  = "code.file.path";
@@ -54,7 +54,7 @@ static constexpr const char *kCodeFilePath
  * Deprecated, use @code code.file.path @endcode instead
  *
  * @deprecated
- * {"note": "Replaced by @code code.file.path @endcode", "reason": "uncategorized"}
+ * {"note": "Replaced by @code code.file.path @endcode.", "reason": "renamed", "renamed_to": "code.file.path"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kCodeFilepath
@@ -64,14 +64,14 @@ static constexpr const char *kCodeFilepath
  * Deprecated, use @code code.function.name @endcode instead
  *
  * @deprecated
- * {"note": "Replaced by @code code.function.name @endcode", "reason": "uncategorized"}
+ * {"note": "Value should be included in @code code.function.name @endcode which is expected to be a fully-qualified name.\n", "reason": "uncategorized"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kCodeFunction
  = "code.function";
 
 /**
- * The method or function fully-qualified name without arguments. The value should fit the natural representation of the language runtime, which is also likely the same used within @code code.stacktrace @endcode attribute value.
+ * The method or function fully-qualified name without arguments. The value should fit the natural representation of the language runtime, which is also likely the same used within @code code.stacktrace @endcode attribute value. This attribute MUST NOT be used on the Profile signal since the data is already captured in 'message Function'. This constraint is imposed to prevent redundancy and maintain data integrity.
  * <p>
  * Values and format depends on each language runtime, thus it is impossible to provide an exhaustive list of examples.
  * The values are usually the same (or prefixes of) the ones found in native stack trace representation stored in
@@ -94,7 +94,7 @@ static constexpr const char *kCodeFunctionName
  = "code.function.name";
 
 /**
- * The line number in @code code.file.path @endcode best representing the operation. It SHOULD point within the code unit named in @code code.function.name @endcode.
+ * The line number in @code code.file.path @endcode best representing the operation. It SHOULD point within the code unit named in @code code.function.name @endcode. This attribute MUST NOT be used on the Profile signal since the data is already captured in 'message Line'. This constraint is imposed to prevent redundancy and maintain data integrity.
  */
 static constexpr const char *kCodeLineNumber
  = "code.line.number";
@@ -103,7 +103,7 @@ static constexpr const char *kCodeLineNumber
  * Deprecated, use @code code.line.number @endcode instead
  *
  * @deprecated
- * {"note": "Replaced by @code code.line.number @endcode", "reason": "uncategorized"}
+ * {"note": "Replaced by @code code.line.number @endcode.", "reason": "renamed", "renamed_to": "code.line.number"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kCodeLineno
@@ -113,14 +113,14 @@ static constexpr const char *kCodeLineno
  * Deprecated, namespace is now included into @code code.function.name @endcode
  *
  * @deprecated
- * {"note": "Value should be included in @code code.function.name @endcode which is expected to be a fully-qualified name.", "reason": "uncategorized"}
+ * {"note": "Value should be included in @code code.function.name @endcode which is expected to be a fully-qualified name.\n", "reason": "uncategorized"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kCodeNamespace
  = "code.namespace";
 
 /**
- * A stacktrace as a string in the natural representation for the language runtime. The representation is identical to <a href="/docs/exceptions/exceptions-spans.md#stacktrace-representation">@code exception.stacktrace @endcode</a>.
+ * A stacktrace as a string in the natural representation for the language runtime. The representation is identical to <a href="/docs/exceptions/exceptions-spans.md#stacktrace-representation">@code exception.stacktrace @endcode</a>. This attribute MUST NOT be used on the Profile signal since the data is already captured in 'message Location'. This constraint is imposed to prevent redundancy and maintain data integrity.
  */
 static constexpr const char *kCodeStacktrace
  = "code.stacktrace";

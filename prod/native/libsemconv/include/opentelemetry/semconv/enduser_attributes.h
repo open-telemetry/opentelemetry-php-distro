@@ -54,7 +54,7 @@ static constexpr const char *kEnduserPseudoId
  * Deprecated, use @code user.roles @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code user.roles @endcode attribute.", "reason": "uncategorized"}
+ * {"note": "Use @code user.roles @endcode instead.", "reason": "uncategorized"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kEnduserRole
@@ -64,7 +64,7 @@ static constexpr const char *kEnduserRole
  * Deprecated, no replacement at this time.
  *
  * @deprecated
- * {"note": "Removed.", "reason": "uncategorized"}
+ * {"note": "Removed, no replacement at this time.", "reason": "obsoleted"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kEnduserScope

@@ -43,13 +43,13 @@ static constexpr const char *kProcessCommand
  = "process.command";
 
 /**
- * All the command arguments (including the command/executable itself) as received by the process. On Linux-based systems (and some other Unixoid systems supporting procfs), can be set according to the list of null-delimited strings extracted from @code proc/[pid]/cmdline @endcode. For libc-based executables, this would be the full argv vector passed to @code main @endcode.
+ * All the command arguments (including the command/executable itself) as received by the process. On Linux-based systems (and some other Unixoid systems supporting procfs), can be set according to the list of null-delimited strings extracted from @code proc/[pid]/cmdline @endcode. For libc-based executables, this would be the full argv vector passed to @code main @endcode. SHOULD NOT be collected by default unless there is sanitization that excludes sensitive data.
  */
 static constexpr const char *kProcessCommandArgs
  = "process.command_args";
 
 /**
- * The full command used to launch the process as a single string representing the full command. On Windows, can be set to the result of @code GetCommandLineW @endcode. Do not set this if you have to assemble it just for monitoring; use @code process.command_args @endcode instead.
+ * The full command used to launch the process as a single string representing the full command. On Windows, can be set to the result of @code GetCommandLineW @endcode. Do not set this if you have to assemble it just for monitoring; use @code process.command_args @endcode instead. SHOULD NOT be collected by default unless there is sanitization that excludes sensitive data.
  */
 static constexpr const char *kProcessCommandLine
  = "process.command_line";
@@ -58,13 +58,13 @@ static constexpr const char *kProcessCommandLine
  * Specifies whether the context switches for this data point were voluntary or involuntary.
  */
 static constexpr const char *kProcessContextSwitchType
- = "process.context_switch_type";
+ = "process.context_switch.type";
 
 /**
  * Deprecated, use @code cpu.mode @endcode instead.
  *
  * @deprecated
- * {"note": "Replaced by @code cpu.mode @endcode", "reason": "uncategorized"}
+ * {"note": "Replaced by @code cpu.mode @endcode.", "reason": "renamed", "renamed_to": "cpu.mode"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kProcessCpuState
@@ -75,6 +75,21 @@ static constexpr const char *kProcessCpuState
  */
 static constexpr const char *kProcessCreationTime
  = "process.creation.time";
+
+/**
+ * Process environment variables, @code <key> @endcode being the environment variable name, the value being the environment variable value.
+ * <p>
+ * Examples:
+ * <ul>
+ *   <li>an environment variable @code USER @endcode with value @code "ubuntu" @endcode SHOULD be recorded
+ * as the @code process.environment_variable.USER @endcode attribute with value @code "ubuntu" @endcode.</li>
+ *   <li>an environment variable @code PATH @endcode with value @code "/usr/local/bin:/usr/bin" @endcode
+ * SHOULD be recorded as the @code process.environment_variable.PATH @endcode attribute
+ * with value @code "/usr/local/bin:/usr/bin" @endcode.</li>
+ * </ul>
+ */
+static constexpr const char *kProcessEnvironmentVariable
+ = "process.environment_variable";
 
 /**
  * The GNU build ID as found in the @code .note.gnu.build-id @endcode ELF section (hex string).
@@ -98,7 +113,7 @@ static constexpr const char *kProcessExecutableBuildIdHtlhash
  * "Deprecated, use @code process.executable.build_id.htlhash @endcode instead."
  *
  * @deprecated
- * {"note": "Replaced by @code process.executable.build_id.htlhash @endcode", "reason": "uncategorized"}
+ * {"note": "Replaced by @code process.executable.build_id.htlhash @endcode.", "reason": "renamed", "renamed_to": "process.executable.build_id.htlhash"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kProcessExecutableBuildIdProfiling
@@ -155,8 +170,12 @@ static constexpr const char *kProcessOwner
  = "process.owner";
 
 /**
- * The type of page fault for this data point. Type @code major @endcode is for major/hard page faults, and @code minor @endcode is for minor/soft page faults.
+ * Deprecated, use @code system.paging.fault.type @endcode instead.
+ *
+ * @deprecated
+ * {"note": "Replaced by @code system.paging.fault.type @endcode.", "reason": "renamed", "renamed_to": "system.paging.fault.type"}
  */
+OPENTELEMETRY_DEPRECATED
 static constexpr const char *kProcessPagingFaultType
  = "process.paging.fault_type";
 
@@ -221,6 +240,12 @@ static constexpr const char *kProcessSessionLeaderPid
  = "process.session_leader.pid";
 
 /**
+ * The process state, e.g., <a href="https://man7.org/linux/man-pages/man1/ps.1.html#PROCESS_STATE_CODES">Linux Process State Codes</a>
+ */
+static constexpr const char *kProcessState
+ = "process.state";
+
+/**
  * Process title (proctitle)
  * <p>
  * In many Unix-like systems, process title (proctitle), is the string that represents the name or command line of a running process, displayed by system monitoring tools like ps, top, and htop.
@@ -257,16 +282,12 @@ static constexpr const char *kProcessWorkingDirectory
 
 namespace ProcessContextSwitchTypeValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kVoluntary
  = "voluntary";
 
-/**
- * none
- */
+
 static constexpr const char *
  kInvoluntary
  = "involuntary";
@@ -275,23 +296,17 @@ static constexpr const char *
 
 namespace ProcessCpuStateValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kSystem
  = "system";
 
-/**
- * none
- */
+
 static constexpr const char *
  kUser
  = "user";
 
-/**
- * none
- */
+
 static constexpr const char *
  kWait
  = "wait";
@@ -300,19 +315,39 @@ static constexpr const char *
 
 namespace ProcessPagingFaultTypeValues
 {
-/**
- * none
- */
+
 static constexpr const char *
  kMajor
  = "major";
 
-/**
- * none
- */
+
 static constexpr const char *
  kMinor
  = "minor";
+
+}
+
+namespace ProcessStateValues
+{
+
+static constexpr const char *
+ kRunning
+ = "running";
+
+
+static constexpr const char *
+ kSleeping
+ = "sleeping";
+
+
+static constexpr const char *
+ kStopped
+ = "stopped";
+
+
+static constexpr const char *
+ kDefunct
+ = "defunct";
 
 }
 

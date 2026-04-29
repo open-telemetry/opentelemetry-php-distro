@@ -61,7 +61,7 @@ static constexpr const char *kOtelComponentType
  * Deprecated. Use the @code otel.scope.name @endcode attribute
  *
  * @deprecated
- * {"note": "Use the @code otel.scope.name @endcode attribute.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code otel.scope.name @endcode.", "reason": "renamed", "renamed_to": "otel.scope.name"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kOtelLibraryName
@@ -71,7 +71,7 @@ static constexpr const char *kOtelLibraryName
  * Deprecated. Use the @code otel.scope.version @endcode attribute.
  *
  * @deprecated
- * {"note": "Use the @code otel.scope.version @endcode attribute.", "reason": "uncategorized"}
+ * {"note": "Replaced by @code otel.scope.version @endcode.", "reason": "renamed", "renamed_to": "otel.scope.version"}
  */
 OPENTELEMETRY_DEPRECATED
 static constexpr const char *kOtelLibraryVersion
@@ -84,10 +84,22 @@ static constexpr const char *kOtelScopeName
  = "otel.scope.name";
 
 /**
+ * The schema URL of the instrumentation scope.
+ */
+static constexpr const char *kOtelScopeSchemaUrl
+ = "otel.scope.schema_url";
+
+/**
  * The version of the instrumentation scope - (@code InstrumentationScope.Version @endcode in OTLP).
  */
 static constexpr const char *kOtelScopeVersion
  = "otel.scope.version";
+
+/**
+ * Determines whether the span has a parent span, and if so, <a href="https://opentelemetry.io/docs/specs/otel/trace/api/#isremote">whether it is a remote parent</a>
+ */
+static constexpr const char *kOtelSpanParentOrigin
+ = "otel.span.parent.origin";
 
 /**
  * The result value of the sampler for this span
@@ -111,28 +123,28 @@ static constexpr const char *kOtelStatusDescription
 namespace OtelComponentTypeValues
 {
 /**
- * The builtin SDK Batching Span Processor
+ * The builtin SDK batching span processor
  */
 static constexpr const char *
  kBatchingSpanProcessor
  = "batching_span_processor";
 
 /**
- * The builtin SDK Simple Span Processor
+ * The builtin SDK simple span processor
  */
 static constexpr const char *
  kSimpleSpanProcessor
  = "simple_span_processor";
 
 /**
- * The builtin SDK Batching LogRecord Processor
+ * The builtin SDK batching log record processor
  */
 static constexpr const char *
  kBatchingLogProcessor
  = "batching_log_processor";
 
 /**
- * The builtin SDK Simple LogRecord Processor
+ * The builtin SDK simple log record processor
  */
 static constexpr const char *
  kSimpleLogProcessor
@@ -160,25 +172,92 @@ static constexpr const char *
  = "otlp_http_json_span_exporter";
 
 /**
- * OTLP LogRecord exporter over gRPC with protobuf serialization
+ * Zipkin span exporter over HTTP
+ */
+static constexpr const char *
+ kZipkinHttpSpanExporter
+ = "zipkin_http_span_exporter";
+
+/**
+ * OTLP log record exporter over gRPC with protobuf serialization
  */
 static constexpr const char *
  kOtlpGrpcLogExporter
  = "otlp_grpc_log_exporter";
 
 /**
- * OTLP LogRecord exporter over HTTP with protobuf serialization
+ * OTLP log record exporter over HTTP with protobuf serialization
  */
 static constexpr const char *
  kOtlpHttpLogExporter
  = "otlp_http_log_exporter";
 
 /**
- * OTLP LogRecord exporter over HTTP with JSON serialization
+ * OTLP log record exporter over HTTP with JSON serialization
  */
 static constexpr const char *
  kOtlpHttpJsonLogExporter
  = "otlp_http_json_log_exporter";
+
+/**
+ * The builtin SDK periodically exporting metric reader
+ */
+static constexpr const char *
+ kPeriodicMetricReader
+ = "periodic_metric_reader";
+
+/**
+ * OTLP metric exporter over gRPC with protobuf serialization
+ */
+static constexpr const char *
+ kOtlpGrpcMetricExporter
+ = "otlp_grpc_metric_exporter";
+
+/**
+ * OTLP metric exporter over HTTP with protobuf serialization
+ */
+static constexpr const char *
+ kOtlpHttpMetricExporter
+ = "otlp_http_metric_exporter";
+
+/**
+ * OTLP metric exporter over HTTP with JSON serialization
+ */
+static constexpr const char *
+ kOtlpHttpJsonMetricExporter
+ = "otlp_http_json_metric_exporter";
+
+/**
+ * Prometheus metric exporter over HTTP with the default text-based format
+ */
+static constexpr const char *
+ kPrometheusHttpTextMetricExporter
+ = "prometheus_http_text_metric_exporter";
+
+}
+
+namespace OtelSpanParentOriginValues
+{
+/**
+ * The span does not have a parent, it is a root span
+ */
+static constexpr const char *
+ kNone
+ = "none";
+
+/**
+ * The span has a parent and the parent's span context <a href="https://opentelemetry.io/docs/specs/otel/trace/api/#isremote">isRemote()</a> is false
+ */
+static constexpr const char *
+ kLocal
+ = "local";
+
+/**
+ * The span has a parent and the parent's span context <a href="https://opentelemetry.io/docs/specs/otel/trace/api/#isremote">isRemote()</a> is true
+ */
+static constexpr const char *
+ kRemote
+ = "remote";
 
 }
 
