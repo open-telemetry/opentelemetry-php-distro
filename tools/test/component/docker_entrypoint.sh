@@ -93,6 +93,11 @@ function start_syslog_and_set_related_config () {
 }
 
 function extract_log_ending () {
+    last_test_case_log_lines_count=-1
+    last_test_case_log_file=""
+    small_tail_lines_count=100
+    small_tail_log_file=""
+
     if [ ! -f "${composer_run_component_tests_log_file}" ]; then
         end_github_workflow_log_group "${current_github_workflow_log_group_name}"
         return
@@ -103,7 +108,6 @@ function extract_log_ending () {
     # If there are no test case start lines or the number of lines extracted above is more than ${small_tail_lines_count}
     # then we print only the last ${small_tail_lines_count} lines of the log
 
-    last_test_case_log_lines_count=-1
     last_test_case_log_file=/otel_php_distro_tests/logs/composer_-_run_component_tests_-_last_test_case.log
     local last_starting_test_case_line=''
     if grep -n -E "^Starting test case: " "${composer_run_component_tests_log_file}" &> /dev/null ; then
@@ -120,7 +124,6 @@ function extract_log_ending () {
         tail -n "${last_test_case_log_lines_count}" "${composer_run_component_tests_log_file}" > "${last_test_case_log_file}"
     fi
 
-    small_tail_lines_count=100
     small_tail_log_file="/otel_php_distro_tests/logs/composer_-_run_component_tests_-_last_${small_tail_lines_count}_lines.log"
 
     if [[ "${last_test_case_log_lines_count}" -eq -1 ]] || [[ "${last_test_case_log_lines_count}" -gt "${small_tail_lines_count}" ]]; then

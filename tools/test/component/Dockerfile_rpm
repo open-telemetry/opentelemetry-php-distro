@@ -17,10 +17,10 @@ RUN echo "PHP_VERSION: ${PHP_VERSION}"
 RUN dnf -y module reset php \
     &&  if [[ ${PHP_VERSION} < "8.4" ]] ; then \
             echo "PHP version (${PHP_VERSION}) is before 8.4" \
-            dnf -y module install php:remi-${PHP_VERSION} ; \
+            && dnf -y module install php:remi-${PHP_VERSION} ; \
         else \
             echo "PHP version (${PHP_VERSION}) is or after 8.4" \
-            dnf -y module enable php:remi-${PHP_VERSION} \
+            && dnf -y module enable php:remi-${PHP_VERSION} \
         ; fi
 
 RUN dnf -y update \
