@@ -209,6 +209,12 @@ final class PhpPartFacade
     private static function prepareForOTelSdk(): void
     {
         self::setEnvVar('OTEL_PHP_AUTOLOAD_ENABLED', 'true');
+
+        // Unset COMPOSER_DEV_MODE to prevent OTel SDK's ComposerHandler::isRunning() from returning true,
+        // which would skip SdkAutoloader::autoload() and result in no TracerProvider being created.
+        // Currently this is handled by the test infrastructure (AppCodeHostParams::filterBaseEnvVars),
+        // but if the issue occurs in production deployments, uncomment the line below.
+        // putenv('COMPOSER_DEV_MODE');
     }
 
     private static function registerAutoloaderForVendorDir(): void

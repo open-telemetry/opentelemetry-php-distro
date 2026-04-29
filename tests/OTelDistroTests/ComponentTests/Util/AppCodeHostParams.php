@@ -154,6 +154,13 @@ class AppCodeHostParams implements LoggableInterface
                     }
                 }
 
+                // Drop Composer environment variables that interfere with OTel SDK initialization
+                // COMPOSER_DEV_MODE causes ComposerHandler::isRunning() to return true,
+                // which prevents SdkAutoloader::autoload() from being called
+                if (TextUtil::isPrefixOfIgnoreCase('COMPOSER_', $envVarName)) {
+                    return false;
+                }
+
                 // Keep the rest
                 return true;
             },
