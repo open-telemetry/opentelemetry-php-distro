@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e205d9e7e65c516667970c1db96a796f",
+    "content-hash": "4949bdba977c3e578e71f2fd89d9528b",
     "packages": [
         {
             "name": "brick/math",
@@ -959,31 +959,31 @@
         },
         {
             "name": "open-telemetry/opentelemetry-auto-laravel",
-            "version": "1.1.0",
+            "version": "1.7.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/opentelemetry-php/contrib-auto-laravel.git",
-                "reference": "9ce166edd0f5b09f645263bf46e62e13a1396b03"
+                "reference": "4dbf215ac9caee21a7b4c2f1d819a3bf4bbba6bb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/opentelemetry-php/contrib-auto-laravel/zipball/9ce166edd0f5b09f645263bf46e62e13a1396b03",
-                "reference": "9ce166edd0f5b09f645263bf46e62e13a1396b03",
+                "url": "https://api.github.com/repos/opentelemetry-php/contrib-auto-laravel/zipball/4dbf215ac9caee21a7b4c2f1d819a3bf4bbba6bb",
+                "reference": "4dbf215ac9caee21a7b4c2f1d819a3bf4bbba6bb",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
                 "ext-opentelemetry": "*",
-                "laravel/framework": "^6.0 || ^7.0 || ^8.0 || ^9.0 || ^10.0 || ^11.0",
-                "open-telemetry/api": "^1.0",
-                "open-telemetry/sem-conv": "^1.30",
+                "laravel/framework": "^6.0 || ^7.0 || ^8.0 || ^9.0 || ^10.0 || ^11.0 || ^12.0 || ^13.0",
+                "open-telemetry/api": "^1.8",
+                "open-telemetry/sem-conv": "^1.38",
                 "php": "^8.1"
             },
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^3.50",
                 "guzzlehttp/guzzle": "*",
                 "nunomaduro/collision": "*",
-                "open-telemetry/sdk": "^1.0",
+                "open-telemetry/sdk": "^1.8",
                 "orchestra/testbench": ">=7.41.3",
                 "phan/phan": "^5.0",
                 "php-http/mock-client": "*",
@@ -993,6 +993,10 @@
                 "psalm/plugin-phpunit": "^0.19.2",
                 "spatie/laravel-ignition": "*",
                 "vimeo/psalm": "6.4.0"
+            },
+            "suggest": {
+                "open-telemetry/opentelemetry-propagation-server-timing": "Automatically propagate the context to the client through server-timing headers.",
+                "open-telemetry/opentelemetry-propagation-traceresponse": "Automatically propagate the context to the client through trace-response headers."
             },
             "type": "library",
             "autoload": {
@@ -1008,7 +1012,7 @@
                 "Apache-2.0"
             ],
             "description": "OpenTelemetry auto-instrumentation for Laravel",
-            "homepage": "https://opentelemetry.io/docs/php",
+            "homepage": "https://opentelemetry.io/docs/languages/php/",
             "keywords": [
                 "instrumentation",
                 "laravel",
@@ -1018,9 +1022,9 @@
                 "tracing"
             ],
             "support": {
-                "source": "https://github.com/opentelemetry-php/contrib-auto-laravel/tree/1.1.0"
+                "source": "https://github.com/opentelemetry-php/contrib-auto-laravel/tree/1.7.0"
             },
-            "time": "2025-02-25T04:59:59+00:00"
+            "time": "2026-04-29T13:32:51+00:00"
         },
         {
             "name": "open-telemetry/opentelemetry-auto-mysqli",

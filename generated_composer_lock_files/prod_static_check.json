@@ -15,7 +15,7 @@
         "open-telemetry/exporter-otlp": "1.4.0",
         "open-telemetry/opentelemetry-auto-curl": "0.2.0",
         "open-telemetry/opentelemetry-auto-http-async": "1.2.0",
-        "open-telemetry/opentelemetry-auto-laravel": "1.1.0",
+        "open-telemetry/opentelemetry-auto-laravel": "1.7.0",
         "open-telemetry/opentelemetry-auto-mysqli": "0.4.0",
         "open-telemetry/opentelemetry-auto-pdo": "0.4.0",
         "open-telemetry/opentelemetry-auto-postgresql": "dev-main",

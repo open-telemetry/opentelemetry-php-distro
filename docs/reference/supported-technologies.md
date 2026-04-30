@@ -32,7 +32,7 @@ Supported PHP versions: `8.1` to `8.4`.
 
 ## Instrumented frameworks
 
-- Laravel `6.x` to `11.x`
+- Laravel `6.x` to `13.x`
 - Slim `4.x`
 
 ## Instrumented libraries
