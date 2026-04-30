@@ -1,5 +1,9 @@
 #pragma once
 
+// Native reimplementation of OpenTelemetry\Contrib\Otlp\LogsConverter
+// Compatible with open-telemetry/exporter-otlp 1.4.0
+// When updating, also update native_otlp_exporters_based_on_php_impl_version in project.properties
+
 #include "opentelemetry/proto/collector/logs/v1/logs_service.pb.h"
 #include "opentelemetry/proto/logs/v1/logs.pb.h"
 #include "opentelemetry/proto/common/v1/common.pb.h"
@@ -113,6 +117,11 @@ private:
         auto severityText = log.callMethod("getSeverityText"sv);
         if (severityText.isString()) {
             out->set_severity_text(severityText.getStringView());
+        }
+
+        auto eventName = log.callMethod("getEventName"sv);
+        if (eventName.isString()) {
+            out->set_event_name(eventName.getStringView());
         }
 
         auto attributes = log.callMethod("getAttributes"sv);

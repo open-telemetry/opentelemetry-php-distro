@@ -1,5 +1,9 @@
 #pragma once
 
+// Native reimplementation of OpenTelemetry\Contrib\Otlp\MetricConverter
+// Compatible with open-telemetry/exporter-otlp 1.4.0
+// When updating, also update native_otlp_exporters_based_on_php_impl_version in project.properties
+
 #include "opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h"
 #include "opentelemetry/proto/metrics/v1/metrics.pb.h"
 #include "opentelemetry/proto/common/v1/common.pb.h"
@@ -158,6 +162,8 @@ void convertMetricData(AutoZval const &data, opentelemetry::proto::metrics::v1::
         out->set_time_unix_nano(point.readProperty("timestamp").getLong());
         out->set_count(point.readProperty("count").getLong());
         out->set_sum(point.readProperty("sum").getNumberAsDouble());
+        out->set_min(point.readProperty("min").getNumberAsDouble());
+        out->set_max(point.readProperty("max").getNumberAsDouble());
 
         for (auto const &val : point.readProperty("bucketCounts")) {
             out->add_bucket_counts(val.getLong());

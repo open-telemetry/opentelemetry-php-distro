@@ -32,12 +32,14 @@ final class MetricExporter implements PushMetricExporterInterface, AggregationTe
     }
 
     /** @phpstan-ignore-next-line */
+    #[\Override]
     public function temporality(MetricMetadataInterface $metric): Temporality|string|null
     {
         return $this->temporality ?? $metric->temporality();
     }
 
     /** @inheritDoc */
+    #[\Override]
     public function export(iterable $batch): bool
     {
         /**
@@ -79,11 +81,13 @@ final class MetricExporter implements PushMetricExporterInterface, AggregationTe
             )->await();
     }
 
+    #[\Override]
     public function shutdown(): bool
     {
         return $this->transport->shutdown();
     }
 
+    #[\Override]
     public function forceFlush(): bool
     {
         return $this->transport->forceFlush();

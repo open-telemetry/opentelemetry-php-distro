@@ -28,6 +28,7 @@ final class SpanExporter implements SpanExporterInterface
     }
 
     /** @inheritDoc */
+    #[\Override]
     public function export(iterable $batch, ?CancellationInterface $cancellation = null): FutureInterface
     {
         /**
@@ -69,11 +70,13 @@ final class SpanExporter implements SpanExporterInterface
             );
     }
 
+    #[\Override]
     public function shutdown(?CancellationInterface $cancellation = null): bool
     {
         return $this->transport->shutdown($cancellation);
     }
 
+    #[\Override]
     public function forceFlush(?CancellationInterface $cancellation = null): bool
     {
         return $this->transport->forceFlush($cancellation);

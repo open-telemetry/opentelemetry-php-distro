@@ -10,6 +10,7 @@ use OpenTelemetry\SDK\Common\Export\TransportFactoryInterface;
 
 class NativeHttpTransportFactory implements TransportFactoryInterface
 {
+    #[\Override]
     public function create(
         string $endpoint,
         string $contentType,

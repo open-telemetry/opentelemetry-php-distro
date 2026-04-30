@@ -1,5 +1,9 @@
 #pragma once
 
+// Native reimplementation of OpenTelemetry\Contrib\Otlp\SpanConverter
+// Compatible with open-telemetry/exporter-otlp 1.4.0
+// When updating, also update native_otlp_exporters_based_on_php_impl_version in project.properties
+
 #include "opentelemetry/proto/trace/v1/trace.pb.h"
 #include "opentelemetry/proto/collector/trace/v1/trace_service.pb.h"
 
