@@ -42,7 +42,7 @@ final class ComponentTestsEnvVarsForAppCodeTest extends TestCaseBase
          * @return iterable<string, string[]>
          */
         $genInheritedEnvVarsVariants = function (): iterable {
-            yield 'Unrelated to OTel/EDOT' => ['HOME', 'SHELL', 'XDG_SESSION_TYPE'];
+            yield 'Unrelated to OTel/Distro' => ['HOME', 'SHELL', 'XDG_SESSION_TYPE'];
 
             yield 'All options for tests' => array_map(fn($optName) => $optName->name, OptionForTestsName::cases());
         };
