@@ -38,7 +38,7 @@ class CMakeConan(ConanFile):
 
     def requirements(self):
         if self.options.get_safe("with_openssl", default=False):
-            self.requires("openssl/[>=1.1 <4]")
+            self.requires("openssl/[>=3.6.2 <4]")
         self.requires("zlib/[>=1.2.11 <2]")
 
     def validate_build(self):
