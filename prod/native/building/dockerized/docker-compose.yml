@@ -12,7 +12,7 @@ services:
         pull_policy: never
 
     build_linux-x86-64_conan:
-        image: otel/opentelemetry-php-distro-dev:native-build-linux-x86-64-gcc15.2.0-v0.0.2-conancache-v0.0.1
+        image: otel/opentelemetry-php-distro-dev:native-build-linux-x86-64-gcc15.2.0-v0.0.2-conancache-v0.0.2
         depends_on:
           - build_linux-x86-64
         build:
@@ -38,7 +38,7 @@ services:
         pull_policy: never
 
     build_linuxmusl-x86-64_conan:
-        image: otel/opentelemetry-php-distro-dev:native-build-linuxmusl-x86-64-gcc15.2.0-v0.0.2-conancache-v0.0.1
+        image: otel/opentelemetry-php-distro-dev:native-build-linuxmusl-x86-64-gcc15.2.0-v0.0.2-conancache-v0.0.2
         depends_on:
           - build_linuxmusl-x86-64
         build:
@@ -65,7 +65,7 @@ services:
         pull_policy: never
 
     build_linux-arm64_conan:
-        image: otel/opentelemetry-php-distro-dev:native-build-linux-arm64-gcc15.2.0-v0.0.2-conancache-v0.0.1
+        image: otel/opentelemetry-php-distro-dev:native-build-linux-arm64-gcc15.2.0-v0.0.2-conancache-v0.0.2
         platform: linux/arm64
         depends_on:
           - build_linux-arm64
@@ -94,7 +94,7 @@ services:
         pull_policy: never
 
     build_linuxmusl-arm64_conan:
-        image: otel/opentelemetry-php-distro-dev:native-build-linuxmusl-arm64-gcc15.2.0-v0.0.2-conancache-v0.0.1
+        image: otel/opentelemetry-php-distro-dev:native-build-linuxmusl-arm64-gcc15.2.0-v0.0.2-conancache-v0.0.2
         platform: linux/arm64
         depends_on:
           - build_linuxmusl-arm64
