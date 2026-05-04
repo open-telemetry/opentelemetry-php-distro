@@ -40,7 +40,7 @@ The goal is to provide a consistent, packaged, and testable way to enable teleme
 - Inferred spans and automatic root span creation
 - URL grouping for transaction/root spans
 - Native OTLP protobuf serialization (no separate `ext-protobuf` requirement)
-- Support for PHP `8.1` to `8.4`
+- Support for PHP `8.1` to `8.5`
 
 ## Quick start (60s)
 
@@ -66,7 +66,7 @@ OpenTelemetry PHP Distro is complementary to `opentelemetry-php` and `openteleme
 
 ## Supported matrix
 
-- PHP: `8.1`, `8.2`, `8.3`, `8.4`
+- PHP: `8.1`, `8.2`, `8.3`, `8.4`, `8.5`
 - Package types: `deb`, `rpm`, `apk`
 - Build architectures used in tooling: `linux-x86-64`, `linuxmusl-x86-64`, `linux-arm64`, `linuxmusl-arm64`
 

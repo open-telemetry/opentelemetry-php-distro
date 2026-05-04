@@ -32,13 +32,14 @@ RUN dnf -y update \
         php-json \
         php-mbstring \
         php-mysqli \
-        php-opcache \
         php-pgsql \
         php-zip \
         procps \
         which \
         zip
 
+# OPcache is built into PHP core since 8.5
+RUN if [[ "${PHP_VERSION}" < "8.5" ]]; then dnf -y install php-opcache; fi
 
 WORKDIR /
 

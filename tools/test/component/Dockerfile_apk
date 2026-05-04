@@ -16,9 +16,11 @@ RUN apk update \
 
 RUN docker-php-ext-install \
         mysqli \
-        opcache \
         pgsql \
         zip
+
+# OPcache is built into PHP core since 8.5
+RUN if [ "$(php -r 'echo PHP_VERSION_ID;')" -lt 80500 ]; then docker-php-ext-install opcache; fi
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 

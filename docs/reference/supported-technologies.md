@@ -14,7 +14,7 @@ For unsupported areas, use manual OpenTelemetry instrumentation.
 
 ## PHP versions
 
-Supported PHP versions: `8.1` to `8.4`.
+Supported PHP versions: `8.1` to `8.5`.
 
 ## Supported SAPIs
 
