@@ -53,7 +53,7 @@ if ($before != $after) {
 echo 'Test completed';
 ?>
 --EXPECTF--
-Deprecated: %s
+%a
 array(18): {
 key: 0 => 'bool false'
 key: 1 => 'float key'
