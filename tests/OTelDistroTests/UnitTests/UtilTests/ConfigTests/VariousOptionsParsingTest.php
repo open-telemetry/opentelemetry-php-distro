@@ -7,7 +7,6 @@ namespace OTelDistroTests\UnitTests\UtilTests\ConfigTests;
 use OpenTelemetry\Distro\Util\TextUtil;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\Config\BoolOptionParser;
-use OTelDistroTests\Util\Config\ConfigSnapshotForTests;
 use OTelDistroTests\Util\Config\CustomOptionParser;
 use OTelDistroTests\Util\Config\DurationOptionMetadata;
 use OTelDistroTests\Util\Config\DurationOptionParser;
@@ -111,13 +110,13 @@ class VariousOptionsParsingTest extends TestCaseBase
     }
 
     /**
-     * @return array<string|null, array<string, OptionMetadata<mixed>>>
+     * @return list<array<string, OptionMetadata<mixed>>>
      */
     private static function snapshotClassToOptionsMeta(): array
     {
         return [
-            ConfigSnapshotForTests::class => OptionsForTestsMetadata::get(),
-            null                          => self::additionalOptionMetas(),
+            OptionsForTestsMetadata::get(),
+            self::additionalOptionMetas(),
         ];
     }
 

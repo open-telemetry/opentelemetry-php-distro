@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
-if ($argc !== 3) {
+if ($_SERVER['argc'] !== 3) {
     fwrite(STDERR, "Usage: php tools/build/fix_scoped_composer_autoload.php <namespace_prefix> <vendor_dir>\n");
     exit(1);
 }
 
-$prefix = $argv[1];
-$vendorDir = $argv[2];
+assert(is_array($_SERVER['argv']));
+/** @var string $prefix */
+$prefix = $_SERVER['argv'][1];
+/** @var string $vendorDir */
+$vendorDir = $_SERVER['argv'][2];
 if (!preg_match('/^[A-Za-z_][A-Za-z0-9_\\\\]*$/', $prefix)) {
     fwrite(STDERR, "Invalid namespace prefix: $prefix\n");
     exit(1);

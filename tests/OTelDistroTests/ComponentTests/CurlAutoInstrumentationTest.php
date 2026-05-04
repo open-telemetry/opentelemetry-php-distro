@@ -131,6 +131,7 @@ final class CurlAutoInstrumentationTest extends ComponentTestCaseBase
 
         $notFinalHeaders12 = self::genHeaders([1, 2]);
         $notFinalHeader2Key = array_key_last($notFinalHeaders12);
+        self::assertNotNull($notFinalHeader2Key);
         $notFinalHeaders12[$notFinalHeader2Key] .= '_NOT_FINAL_VALUE';
         self::assertTrue($curlHandle->setOptArray([CURLOPT_HTTPHEADER => self::convertHeadersToCurlFormat($notFinalHeaders12), CURLOPT_POST => true]));
 

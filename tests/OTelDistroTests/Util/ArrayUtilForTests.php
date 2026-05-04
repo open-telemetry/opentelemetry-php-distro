@@ -30,7 +30,9 @@ final class ArrayUtilForTests
      */
     public static function getFirstValue(array $array): mixed
     {
-        return $array[array_key_first($array)];
+        $key = array_key_first($array);
+        assert($key !== null);
+        return $array[$key];
     }
 
     /**
