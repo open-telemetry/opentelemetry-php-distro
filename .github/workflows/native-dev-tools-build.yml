@@ -57,7 +57,7 @@ jobs:
 
       - name: Log into Docker.io
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           username: ${{ vars.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN_PHP_DISTRO }}
