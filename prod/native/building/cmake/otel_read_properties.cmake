@@ -1,6 +1,10 @@
 
 function(otel_read_properties PROPERTIES_FILENAME PROPERTIES_PREFIX)
     message(STATUS "Reading properties from: ${PROPERTIES_FILENAME}")
+
+    # Re-run configure automatically when the properties file changes
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PROPERTIES_FILENAME}")
+
     file(STRINGS ${PROPERTIES_FILENAME} _OTEL_PROJECT_PROPERTIES)
 
     foreach(line IN LISTS _OTEL_PROJECT_PROPERTIES)

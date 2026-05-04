@@ -1,17 +1,41 @@
 set (_Target  semconv)
 
 
-set(SCHEMA_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/include/opentelemetry/semconv/schema_url.h")
 set(EXPECTED_VERSION "${_PROJECT_PROPERTIES_OTEL_SEMCONV_VERSION}")
+set(EXPECTED_WEAVER "${_PROJECT_PROPERTIES_OTEL_WEAVER_VERSION}")
+set(TEMPLATES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/templates")
+set(SEMCONV_INCLUDE_DIR "${CMAKE_BINARY_DIR}/_deps/semconv-generate/include-${EXPECTED_VERSION}")
+set(GENERATED_SCHEMA_HEADER "${SEMCONV_INCLUDE_DIR}/opentelemetry/semconv/schema_url.h")
 
-file(READ "${SCHEMA_HEADER}" SCHEMA_CONTENT)
-
-string(REGEX MATCH "schemas/v([0-9]+\\.[0-9]+\\.[0-9]+)" _ UNUSED "${SCHEMA_CONTENT}")
-set(ACTUAL_VERSION "${CMAKE_MATCH_1}")
-
-if(NOT ACTUAL_VERSION STREQUAL EXPECTED_VERSION)
-    message(FATAL_ERROR "Semantic convention schema version mismatch: expected ${EXPECTED_VERSION}, but found ${ACTUAL_VERSION}.\nRun ./tools/build/generate_semconv.sh from repo root to regenerate files.")
+# Check if weaver version changed since last generation
+set(WEAVER_STAMP_FILE "${CMAKE_BINARY_DIR}/_deps/semconv-generate/weaver_version.stamp")
+set(WEAVER_CHANGED FALSE)
+if(EXISTS "${WEAVER_STAMP_FILE}")
+    file(READ "${WEAVER_STAMP_FILE}" STAMPED_WEAVER_VERSION)
+    string(STRIP "${STAMPED_WEAVER_VERSION}" STAMPED_WEAVER_VERSION)
+    if(NOT STAMPED_WEAVER_VERSION STREQUAL EXPECTED_WEAVER)
+        set(WEAVER_CHANGED TRUE)
+    endif()
 endif()
+
+if(NOT EXISTS "${GENERATED_SCHEMA_HEADER}" OR WEAVER_CHANGED)
+    if(WEAVER_CHANGED)
+        message(STATUS "Weaver version changed: ${STAMPED_WEAVER_VERSION} -> ${EXPECTED_WEAVER}. Regenerating...")
+    else()
+        message(STATUS "Semconv headers not found in build tree. Generating v${EXPECTED_VERSION}...")
+    endif()
+    include(otel_generate_semconv)
+    otel_generate_semconv(
+        "${EXPECTED_VERSION}"
+        "${EXPECTED_WEAVER}"
+        "${TEMPLATES_PATH}"
+        SEMCONV_INCLUDE_DIR
+    )
+endif()
+
+# Always record current weaver version so changes are detected on next configure
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/_deps/semconv-generate")
+file(WRITE "${WEAVER_STAMP_FILE}" "${EXPECTED_WEAVER}")
 
 add_library (${_Target} INTERFACE)
 
@@ -21,5 +45,5 @@ target_compile_definitions(${_Target} INTERFACE OPENTELEMETRY_DEPRECATED=/*depre
 
 target_include_directories(${_Target}
     INTERFACE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${SEMCONV_INCLUDE_DIR}>
 )
