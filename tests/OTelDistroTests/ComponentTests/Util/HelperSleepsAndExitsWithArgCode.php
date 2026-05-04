@@ -64,7 +64,6 @@ final class HelperSleepsAndExitsWithArgCode extends SpawnedProcessBase
          */
         /** @var list<string> $argv */
         global $argv;
-        Assert::assertIsArray($argv, 'register_argc_argv must be enabled for $argv to be available');
         $dbgCtx->add(compact('argv'));
         AssertEx::countAtLeast(3, $argv);
 
