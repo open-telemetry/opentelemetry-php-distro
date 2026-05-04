@@ -12,6 +12,7 @@ use OpenTelemetry\Distro\Log\NativeLogWriter;
 use OpenTelemetry\Distro\Util\BoolUtil;
 use OpenTelemetry\Distro\Util\HiddenConstructorTrait;
 use OpenTelemetry\API\Globals;
+use OpenTelemetry\Distro\Util\TextUtil;
 use OpenTelemetry\SDK\Registry;
 use OpenTelemetry\SDK\SdkAutoloader;
 use OpenTelemetry\API\Trace\Span;
@@ -48,6 +49,7 @@ final class PhpPartFacade
     private ?InferredSpans $inferredSpans = null;
 
     private const IS_DISTRO_ENABLED_ENV_VAR_NAME = 'OTEL_PHP_ENABLED';
+    public const USER_BOOTSTRAP_PHP_FILE_OPT_NAME = 'user_bootstrap_php_file';
 
     /**
      * Called by the extension
@@ -63,8 +65,8 @@ final class PhpPartFacade
         self::$wasBootstrapCalled = true;
 
         require __DIR__ . DIRECTORY_SEPARATOR . 'BootstrapStageLogger.php';
-        require __DIR__ . \DIRECTORY_SEPARATOR . 'Util/StaticClassTrait.php';
-        require __DIR__ . \DIRECTORY_SEPARATOR . 'Util/BoolUtil.php';
+        require __DIR__ . DIRECTORY_SEPARATOR . 'Util/StaticClassTrait.php';
+        require __DIR__ . DIRECTORY_SEPARATOR . 'Util/BoolUtil.php';
 
         BootstrapStageLogger::configure($maxEnabledLogLevel, __DIR__, __NAMESPACE__);
         self::logDebug(__LINE__, __FUNCTION__, 'Starting bootstrap sequence...', compact('nativePartVersion', 'maxEnabledLogLevel', 'requestInitStartTime'));
@@ -88,6 +90,8 @@ final class PhpPartFacade
 
             self::registerAutoloaderForVendorDir();
 
+            // User's bootstrap .php file might register remote config handler so it has to be called before remote config handler
+            self::loadUserBootstrapPhpFile();
             // RemoteConfigHandler::fetchAndApply depends on OTel SDK so it has to be called after autoloader for OTel SDK is registered
             RemoteConfigHandler::fetchAndApply();
             // OverrideOTelSdkResourceAttributes::register depends on OTel SDK so it has to be called after autoloader for OTel SDK is registered
@@ -212,7 +216,7 @@ final class PhpPartFacade
 
         // Unset COMPOSER_DEV_MODE to prevent OTel SDK's ComposerHandler::isRunning() from returning true,
         // which would skip SdkAutoloader::autoload() and result in no TracerProvider being created.
-        // Currently this is handled by the test infrastructure (AppCodeHostParams::filterBaseEnvVars),
+        // Currently, this is handled by the test infrastructure (AppCodeHostParams::filterBaseEnvVars),
         // but if the issue occurs in production deployments, uncomment the line below.
         // putenv('COMPOSER_DEV_MODE');
     }
@@ -349,6 +353,36 @@ final class PhpPartFacade
         }
 
         $span->end();
+    }
+
+    private static function loadUserBootstrapPhpFile(): void
+    {
+        /**
+         * Use fully qualified names for functions implemented by the extension to make sure scoper correctly detects them
+         * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
+         */
+        $userBootstrapPhpFile = \OpenTelemetry\Distro\get_config_option_by_name(self::USER_BOOTSTRAP_PHP_FILE_OPT_NAME);
+        if (!is_string($userBootstrapPhpFile)) {
+            self::logError(
+                __LINE__,
+                __FUNCTION__,
+                self::USER_BOOTSTRAP_PHP_FILE_OPT_NAME . ' configuration option value is not a string',
+                ['actual type' => get_debug_type($userBootstrapPhpFile), 'actual value' => $userBootstrapPhpFile]
+            );
+            return;
+        }
+        if (TextUtil::isEmptyString($userBootstrapPhpFile)) {
+            self::logDebug(__LINE__, __FUNCTION__, self::USER_BOOTSTRAP_PHP_FILE_OPT_NAME . ' configuration option is not set');
+            return;
+        }
+
+        if (!file_exists($userBootstrapPhpFile)) {
+            self::logError(__LINE__, __FUNCTION__, self::USER_BOOTSTRAP_PHP_FILE_OPT_NAME . " configuration option value is a path $userBootstrapPhpFile that does not exist");
+            return;
+        }
+        self::logDebug(__LINE__, __FUNCTION__, 'Before require', compact('userBootstrapPhpFile'));
+        require $userBootstrapPhpFile;
+        self::logDebug(__LINE__, __FUNCTION__, 'After require', compact('userBootstrapPhpFile'));
     }
 
     /**

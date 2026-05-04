@@ -34,6 +34,7 @@ enum OptionForProdName
     case resource_attributes;
     case transaction_span_enabled;
     case transaction_span_enabled_cli;
+    case user_bootstrap_php_file;
 
     private const OTEL_ENV_VAR_NAME_PREFIX = 'OTEL_';
     private const OTEL_PHP_ENV_VAR_NAME_PREFIX = 'OTEL_PHP_';
@@ -65,6 +66,7 @@ enum OptionForProdName
             self::resource_attributes->name               => self::OTEL_ENV_VAR_NAME_PREFIX,
             self::transaction_span_enabled->name          => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
             self::transaction_span_enabled_cli->name      => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
+            self::user_bootstrap_php_file->name           => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
         ];
     }
 

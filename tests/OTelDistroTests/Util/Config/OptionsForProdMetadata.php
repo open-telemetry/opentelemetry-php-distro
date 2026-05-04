@@ -54,6 +54,7 @@ final class OptionsForProdMetadata
             [OptionForProdName::resource_attributes, new NullableStringOptionMetadata()],
             [OptionForProdName::transaction_span_enabled, new BoolOptionMetadata(OptionsForProdDefaultValues::TRANSACTION_SPAN_ENABLED)],
             [OptionForProdName::transaction_span_enabled_cli, new BoolOptionMetadata(OptionsForProdDefaultValues::TRANSACTION_SPAN_ENABLED_CLI)],
+            [OptionForProdName::user_bootstrap_php_file, new NullableStringOptionMetadata()],
         ];
         $this->optionsNameValueMap = self::convertPairsToMap($optNameMetaPairs, OptionForProdName::cases());
     }

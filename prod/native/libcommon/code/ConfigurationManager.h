@@ -109,6 +109,7 @@ private:
         BUILD_OTEL_PHP_OPTION_METADATA(OTEL_PHP_INFERRED_SPANS_SAMPLING_INTERVAL, OptionMetadata::type::duration, false),
         BUILD_OTEL_PHP_OPTION_METADATA(OTEL_PHP_INFERRED_SPANS_MIN_DURATION, OptionMetadata::type::duration, false),
         BUILD_OTEL_PHP_OPTION_METADATA(OTEL_PHP_DEPENDENCY_AUTOLOADER_GUARD_ENABLED, OptionMetadata::type::boolean, false),
+        BUILD_OTEL_PHP_OPTION_METADATA(OTEL_PHP_USER_BOOTSTRAP_PHP_FILE, OptionMetadata::type::string, false),
         BUILD_OTEL_PHP_OPTION_METADATA(OTEL_PHP_OPENTELEMETRY_EXTENSION_EMULATION_ENABLED, OptionMetadata::type::boolean, false),
         BUILD_OTEL_PHP_OPTION_METADATA(OTEL_PHP_NATIVE_OTLP_SERIALIZER_ENABLED, OptionMetadata::type::boolean, false),
         BUILD_OTEL_PHP_OPTION_METADATA(OTEL_PHP_OPAMP_HEADERS, OptionMetadata::type::string, false),
@@ -152,8 +153,7 @@ private:
         BUILD_OPTION_METADATA(OTEL_EXPORTER_OTLP_ENDPOINT, OptionMetadata::type::string, false),
         BUILD_OPTION_METADATA(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OptionMetadata::type::string, false),
         BUILD_OPTION_METADATA(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OptionMetadata::type::string, false),
-        BUILD_OPTION_METADATA(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OptionMetadata::type::string, false)
-
+        BUILD_OPTION_METADATA(OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OptionMetadata::type::string, false),
         };
 
     // clang-format on

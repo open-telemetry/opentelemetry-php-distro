@@ -86,15 +86,15 @@ class ComponentTestCaseBase extends TestCaseBase
         $loggerProxyDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
         $logger->addAllContext(compact('appCodeArgs'));
 
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Calling $appCodeImpl() ...');
+        $loggerProxyDebug?->log(__LINE__, 'Calling $appCodeImpl() ...');
         try {
             $appCodeContextData = [];
             if ($appCodeImpl !== null) {
                 $appCodeContextData = $appCodeImpl();
             }
-            $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Call to $appCodeImpl() finished successfully');
+            $loggerProxyDebug?->log(__LINE__, 'Call to $appCodeImpl() finished successfully');
         } catch (Throwable $throwable) {
-            $loggerProxyDebug && $loggerProxyDebug->logThrowable(__LINE__, $throwable, 'Call to $appCodeImpl() thrown');
+            $loggerProxyDebug?->logThrowable(__LINE__, $throwable, 'Call to $appCodeImpl() thrown');
             ArrayUtilForTests::addAssertingKeyNew(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY, false, /* in,out */ $appCodeContextData);
             ArrayUtilForTests::addAssertingKeyNew(self::THROWABLE_FROM_APP_CODE_KEY, LoggableToString::convert($throwable), /* in,out */ $appCodeContextData);
             AppCodeContextDataUtil::writeDataToTempFile($appCodeContextData, $appCodeArgs);
@@ -482,5 +482,19 @@ class ComponentTestCaseBase extends TestCaseBase
     {
         $appCodeParams->setProdOption(OptionForProdName::transaction_span_enabled, true);
         $appCodeParams->setProdOption(OptionForProdName::transaction_span_enabled_cli, true);
+    }
+
+    protected static function copyProdOptionsToAppCodeHostParams(MixedMap $testArgs, AppCodeHostParams $appCodeParams): void
+    {
+        DebugContext::getCurrentScope(/* out */ $dbgCtx);
+        $dbgCtx->pushSubScope();
+        foreach ($testArgs as $testArgKey => $testArgVal) {
+            if ((($optName = OptionForProdName::tryToFindByName($testArgKey)) !== null) && ($testArgVal !== OptionsForProdMetadata::get()[$optName->name]->defaultValue())) {
+                $dbgCtx->resetTopSubScope(compact('testArgKey', 'testArgVal'));
+                self::assertTrue(is_string($testArgVal) || is_int($testArgVal) || is_float($testArgVal) || is_bool($testArgVal));
+                $appCodeParams->setProdOption($optName, $testArgVal);
+            }
+        }
+        $dbgCtx->popSubScope();
     }
 }

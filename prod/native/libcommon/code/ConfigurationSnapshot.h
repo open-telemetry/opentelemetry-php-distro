@@ -31,6 +31,9 @@
 
 #define OTEL_PHP_DEPENDENCY_AUTOLOADER_GUARD_ENABLED dependency_autoloader_guard_enabled
 
+// This ooption is used by PHP part
+#define OTEL_PHP_USER_BOOTSTRAP_PHP_FILE user_bootstrap_php_file
+
 #define OTEL_PHP_OPENTELEMETRY_EXTENSION_EMULATION_ENABLED opentelemetry_extension_emulation_enabled
 
 #define OTEL_PHP_NATIVE_OTLP_SERIALIZER_ENABLED native_otlp_serializer_enabled
@@ -111,6 +114,7 @@ struct ConfigurationSnapshot {
     bool OTEL_PHP_DEPENDENCY_AUTOLOADER_GUARD_ENABLED = false;
     bool OTEL_PHP_OPENTELEMETRY_EXTENSION_EMULATION_ENABLED = true;
     bool OTEL_PHP_NATIVE_OTLP_SERIALIZER_ENABLED = true;
+    std::string OTEL_PHP_USER_BOOTSTRAP_PHP_FILE;
 
     std::string OTEL_PHP_OPAMP_HEADERS;
     std::string OTEL_PHP_OPAMP_ENDPOINT;

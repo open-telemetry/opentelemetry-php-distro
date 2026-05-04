@@ -36,6 +36,7 @@ final class ConfigSnapshotForProd implements LoggableInterface
     private readonly ?string $resourceAttributes; // @phpstan-ignore property.uninitializedReadonly
     private readonly bool $transactionSpanEnabled; // @phpstan-ignore property.uninitializedReadonly
     private readonly bool $transactionSpanEnabledCli; // @phpstan-ignore property.uninitializedReadonly
+    private readonly ?string $userBootstrapPhpFile; // @phpstan-ignore property.uninitializedReadonly
 
     /**
      * @param array<string, mixed> $optNameToParsedValue
