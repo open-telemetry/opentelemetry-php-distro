@@ -1,3 +1,12 @@
+## 0.4.0
+
+- Enabled support for PHP 8.5 ([#58](https://github.com/open-telemetry/opentelemetry-php-distro/issues/58)) (PR [#77](https://github.com/open-telemetry/opentelemetry-php-distro/pull/77))
+- Added user bootstrap config option (PR [#76](https://github.com/open-telemetry/opentelemetry-php-distro/pull/76))
+- Automate C++ semconv header generation during CMake configure ([#63](https://github.com/open-telemetry/opentelemetry-php-distro/issues/63)) (PR [#75](https://github.com/open-telemetry/opentelemetry-php-distro/pull/75))
+- Update Laravel instrumentation to 1.7.0 (PR [#65](https://github.com/open-telemetry/opentelemetry-php-distro/pull/65))
+- Update SDK and instrumentation modules (PR [#62](https://github.com/open-telemetry/opentelemetry-php-distro/pull/62))
+- fix: selection of PHP version in component test docker image (PR [#61](https://github.com/open-telemetry/opentelemetry-php-distro/pull/61))
+
 ## 0.3.0
 
 - fix: internal inferred spans filtering for scoped namespace (PR [#56](https://github.com/open-telemetry/opentelemetry-php-distro/pull/56))
