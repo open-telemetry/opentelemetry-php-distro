@@ -50,6 +50,12 @@ final class ConfigSnapshotForTests implements LoggableInterface
     public readonly ?string $mysqlPassword; // @phpstan-ignore property.uninitializedReadonly
     public readonly ?string $mysqlDb; // @phpstan-ignore property.uninitializedReadonly
 
+    public readonly ?string $postgresqlHost; // @phpstan-ignore property.uninitializedReadonly
+    public readonly ?int $postgresqlPort; // @phpstan-ignore property.uninitializedReadonly
+    public readonly ?string $postgresqlUser; // @phpstan-ignore property.uninitializedReadonly
+    public readonly ?string $postgresqlPassword; // @phpstan-ignore property.uninitializedReadonly
+    public readonly ?string $postgresqlDb; // @phpstan-ignore property.uninitializedReadonly
+
     /**
      * @param array<string, mixed> $optNameToParsedValue
      */

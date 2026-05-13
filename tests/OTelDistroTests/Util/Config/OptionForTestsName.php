@@ -39,6 +39,12 @@ enum OptionForTestsName
     case mysql_password;
     case mysql_db;
 
+    case postgresql_host;
+    case postgresql_port;
+    case postgresql_user;
+    case postgresql_password;
+    case postgresql_db;
+
     public const ENV_VAR_NAME_PREFIX = 'OTEL_PHP_TESTS_';
 
     public function toEnvVarName(): string

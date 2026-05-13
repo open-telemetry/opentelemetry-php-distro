@@ -55,6 +55,12 @@ final class OptionsForTestsMetadata
             [OptionForTestsName::mysql_user, new NullableStringOptionMetadata()],
             [OptionForTestsName::mysql_password, new NullableStringOptionMetadata()],
             [OptionForTestsName::mysql_db, new NullableStringOptionMetadata()],
+
+            [OptionForTestsName::postgresql_host, new NullableStringOptionMetadata()],
+            [OptionForTestsName::postgresql_port, new NullableIntOptionMetadata(1, 65535)],
+            [OptionForTestsName::postgresql_user, new NullableStringOptionMetadata()],
+            [OptionForTestsName::postgresql_password, new NullableStringOptionMetadata()],
+            [OptionForTestsName::postgresql_db, new NullableStringOptionMetadata()],
         ];
         $this->optionsNameValueMap = self::convertPairsToMap($optNameMetaPairs, OptionForTestsName::cases());
     }

@@ -15,10 +15,26 @@ services:
         networks:
             - otel-php-distro-tests-component-network
 
+    otel-php-distro-tests-component-postgresql:
+        image: postgres:17.5
+        restart: always
+        environment:
+            - POSTGRES_DB=${OTEL_PHP_TESTS_POSTGRESQL_DB}
+            - POSTGRES_USER=${OTEL_PHP_TESTS_POSTGRESQL_USER}
+            - POSTGRES_PASSWORD=${OTEL_PHP_TESTS_POSTGRESQL_PASSWORD}
+        healthcheck:
+            test: [ "CMD-SHELL", "PGPASSWORD=${OTEL_PHP_TESTS_POSTGRESQL_PASSWORD} psql -U ${OTEL_PHP_TESTS_POSTGRESQL_USER} -d ${OTEL_PHP_TESTS_POSTGRESQL_DB} -h 127.0.0.1 -c 'SELECT 1'" ]
+            timeout: 5s
+            retries: 60
+        networks:
+            - otel-php-distro-tests-component-network
+
     otel-php-distro-tests-component-wait-for-all-services-to-start:
         image: busybox
         depends_on:
             otel-php-distro-tests-component-mysql:
+                condition: service_healthy
+            otel-php-distro-tests-component-postgresql:
                 condition: service_healthy
 
 networks:
