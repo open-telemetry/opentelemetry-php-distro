@@ -102,7 +102,8 @@ opentelemetry_distro.enabled=true
 | --- | --- | --- | --- |
 | `OTEL_PHP_OPAMP_ENDPOINT` | (empty) | HTTP/HTTPS URL ending with `/v1/opamp` | OpAMP endpoint |
 | `OTEL_PHP_OPAMP_HEADERS` | (empty) | `key=value,key2=value2` | OpAMP request headers |
-| `OTEL_PHP_OPAMP_HEARTBEAT_INTERVAL` | `30s` | Duration (`ms`, `s`, `m`) | OpAMP heartbeat interval |
+| `OTEL_PHP_OPAMP_HEARTBEAT_INTERVAL` | 30s | Duration (`ms`, `s`, `m`) | The interval between heartbeat messages sent to the OpAMP server.|
+| `OTEL_PHP_OPAMP_POLLING_INTERVAL`   | 30s | Duration (`ms`, `s`, `m`) | The interval at which the agent polls the OpAMP server for updated configuration. Independent from the heartbeat interval. |
 | `OTEL_PHP_OPAMP_SEND_TIMEOUT` | `10s` | Duration (`ms`, `s`, `m`) | OpAMP send timeout |
 | `OTEL_PHP_OPAMP_SEND_MAX_RETRIES` | `3` | Integer >= 0 | Retry count |
 | `OTEL_PHP_OPAMP_SEND_RETRY_DELAY` | `10s` | Duration (`ms`, `s`, `m`) | Retry delay |
