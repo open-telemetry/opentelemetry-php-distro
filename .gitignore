@@ -38,8 +38,8 @@ prod/native/_build/
 # Built documentation
 html_docs
 
-# Packaging artifacts and generated unit test reports
-build/*
+# Generated artifacts and unit test reports
+_BUILT/*
 
 # Backup files when using sed
 .bck

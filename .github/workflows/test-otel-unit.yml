@@ -9,7 +9,8 @@ permissions:
   contents: read
 
 env:
-  BUILD_PACKAGES: build/packages
+  BUILT_PACKAGES_DIR: _BUILT/packages
+  OTEL_UNIT_RESULTS_DIR: _BUILT/otel_unit_results
 
 jobs:
   generate-php-versions:
@@ -31,17 +32,17 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           pattern: packages-linux-x86-64
-          path: ${{ env.BUILD_PACKAGES }}
+          path: ${{ env.BUILT_PACKAGES_DIR }}
 
       - name: Run otel instrumentation unit tests
         continue-on-error: true
         run: |
-          PACKAGE_FILE=$(find ${{ env.BUILD_PACKAGES }} -name opentelemetry-php-distro*amd64.deb)
-          ./tools/build/test_otel_unit_tests_in_docker.sh --php_versions "${PHP_VERSION}" --results_path "build/otel_unit_results" --deb_package ${PACKAGE_FILE}
+          PACKAGE_FILE=$(find ${{ env.BUILT_PACKAGES_DIR }} -name opentelemetry-php-distro*amd64.deb)
+          ./tools/build/test_otel_unit_tests_in_docker.sh --php_versions "${PHP_VERSION}" --results_path "${{ env.OTEL_UNIT_RESULTS_DIR }}" --deb_package ${PACKAGE_FILE}
 
       - name: Generate test summary
         if: always()
-        run: ./tools/build/junit_summary.py --path-to-test-results "build/otel_unit_results/**/*.xml" --header "Test summary for PHP ${PHP_VERSION}" >>$GITHUB_STEP_SUMMARY
+        run: ./tools/build/junit_summary.py --path-to-test-results "${{ env.OTEL_UNIT_RESULTS_DIR }}/**/*.xml" --header "Test summary for PHP ${PHP_VERSION}" >> $GITHUB_STEP_SUMMARY
 
       - uses: actions/upload-artifact@v6
         if: always()
@@ -49,4 +50,4 @@ jobs:
         with:
           name: test-otel-unit-${{ matrix.php-version }}
           path: |
-            build/otel_unit_results/*
+            ${{ env.OTEL_UNIT_RESULTS_DIR }}/*

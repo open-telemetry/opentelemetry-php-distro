@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 env:
-  BUILD_PACKAGES_SUB_DIR: build/packages
-  COMPONENT_TESTS_LOGS_SUB_DIR: build/component_tests_logs
+  BUILT_PACKAGES_SUB_DIR: _BUILT/packages
+  COMPONENT_TESTS_LOGS_SUB_DIR: _BUILT/component_tests_logs
 
 jobs:
   generate-component-tests-matrix:
@@ -32,14 +32,14 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           pattern: packages-*
-          path: ${{ env.BUILD_PACKAGES_SUB_DIR }}
+          path: ${{ env.BUILT_PACKAGES_SUB_DIR }}
 
       - name: Run component tests
         continue-on-error: false
         run: |
-          mv "${PWD}/${{ env.BUILD_PACKAGES_SUB_DIR }}/"*/* "${PWD}/${{ env.BUILD_PACKAGES_SUB_DIR }}/"
-          rm -rf "${PWD}/${{ env.BUILD_PACKAGES_SUB_DIR }}/packages-"*
-          ./tools/test/component/test_packages_one_matrix_row_in_docker.sh --matrix_row "${MATRIX_ROW}" --packages_dir "${PWD}/${{ env.BUILD_PACKAGES_SUB_DIR }}" --logs_dir "${PWD}/${{ env.COMPONENT_TESTS_LOGS_SUB_DIR }}"
+          mv "${PWD}/${{ env.BUILT_PACKAGES_SUB_DIR }}/"*/* "${PWD}/${{ env.BUILT_PACKAGES_SUB_DIR }}/"
+          rm -rf "${PWD}/${{ env.BUILT_PACKAGES_SUB_DIR }}/packages-"*
+          ./tools/test/component/test_packages_one_matrix_row_in_docker.sh --matrix_row "${MATRIX_ROW}" --packages_dir "${PWD}/${{ env.BUILT_PACKAGES_SUB_DIR }}" --logs_dir "${PWD}/${{ env.COMPONENT_TESTS_LOGS_SUB_DIR }}"
       - uses: actions/upload-artifact@v6
         if: always()
         continue-on-error: false

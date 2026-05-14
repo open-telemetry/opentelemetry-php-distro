@@ -43,7 +43,7 @@ parse_args() {
     done
 }
 
-RESULTS_PATH="${PWD}/build/test_phpt_results"
+RESULTS_PATH="${PWD}/_BUILT/test_phpt_results"
 
 parse_args "$@"
 
