@@ -30,8 +30,5 @@ jobs:
         with:
           name: php-dependencies
           path: |
-            prod/php/vendor_*
-            prod/php/OpenTelemetry/Distro/PhpPartVersion.php
-            prod/php/OpenTelemetry/Distro/Log/LogFeature.php
-            prod/php/ScoperConfig.php
+            _GENERATED/prod_php
             NOTICE

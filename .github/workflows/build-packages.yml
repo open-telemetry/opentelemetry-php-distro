@@ -57,7 +57,6 @@ jobs:
         run: |
           source "./tools/read_properties.sh"
           read_properties project.properties PROJECT_PROPERTIES
-
           ./tools/build/build_packages.sh --package_version ${PROJECT_PROPERTIES_VERSION} --build_architecture ${{ matrix.arch }} --package_goarchitecture ${{ matrix.goarch }} --package_types '${{ matrix.packages }}' --package_sha '${{ github.sha }}'
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:

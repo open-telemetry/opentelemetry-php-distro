@@ -20,7 +20,6 @@ composer.lock
 composer.phar
 vendor/
 tests/vendor/
-prod/php/vendor_*/
 
 # PHP_CodeSniffer
 .php_cs.cache
@@ -32,13 +31,14 @@ prod/php/vendor_*/
 prod/native/extension/phpt/results/
 prod/native/phpbridge_extension/phpt/results/
 
-#native build folder
+# native build folder
 prod/native/_build/
 
 # Built documentation
 html_docs
 
-# Packaging artifacts and generated unit test reports
+# Generated artifacts and unit test reports
+_GENERATED/
 build/*
 
 # Backup files when using sed
