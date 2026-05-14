@@ -23,6 +23,9 @@ on:
 permissions:
   contents: read
 
+env:
+  TEST_PHPT_RESULTS_SUB_DIR: _BUILT/test_phpt_results
+
 jobs:
   setup-build-matrix:
     uses: ./.github/workflows/build-arch-matrix-generator.yml
@@ -56,10 +59,10 @@ jobs:
           source ./tools/read_properties.sh
           read_properties project.properties PROJECT_PROPERTIES
           PHP_VERSIONS=${PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS//[()]/}
-          ./tools/build/test_phpt.sh --build_architecture ${BUILD_ARCHITECTURE} --results_path ${PWD}/build/test_phpt_results --php_versions "${PHP_VERSIONS}"
+          ./tools/build/test_phpt.sh --build_architecture ${BUILD_ARCHITECTURE} --results_path "${PWD}/${{ env.TEST_PHPT_RESULTS_SUB_DIR }}" --php_versions "${PHP_VERSIONS}"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: failure()
         with:
           name: test-phpt-failures-${{ matrix.arch }}
           path: |
-            build/test_phpt_results/*
+            ${{ env.TEST_PHPT_RESULTS_SUB_DIR }}/*

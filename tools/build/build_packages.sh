@@ -187,7 +187,7 @@ if [[ -n "${BUILD_ARCHITECTURE}" ]] && [[ "${BUILD_ARCHITECTURE}" =~ arm64$ ]]; 
 fi
 echo "Running on platform ${DOCKER_PLATFORM}";
 
-mkdir -p "${PWD}/build/packages"
+mkdir -p "${PWD}/_BUILT/packages"
 
 for pkg_type in "${PACKAGE_TYPES[@]}"
 do
@@ -196,7 +196,7 @@ do
     echo "Building package type: ${pkg_type}"
     echo "Effective package version for ${pkg_type}: ${EFFECTIVE_PACKAGE_VERSION}"
 
-    PACKAGE_VERSION="${EFFECTIVE_PACKAGE_VERSION}" envsubst <packaging/nfpm.yaml >"${PWD}/build/packages/nfpm.yaml"
+    PACKAGE_VERSION="${EFFECTIVE_PACKAGE_VERSION}" envsubst <packaging/nfpm.yaml > "${PWD}/_BUILT/packages/nfpm.yaml"
 
     docker run --rm \
         --platform ${DOCKER_PLATFORM} \
@@ -205,9 +205,9 @@ do
         -e PACKAGE_GOARCHITECTURE="${PACKAGE_GOARCHITECTURE}" \
         -e PACKAGE_SHA="${PACKAGE_SHA}" \
         -v "${PWD}:/source" \
-        -w /source/packaging goreleaser/nfpm package -f /source/build/packages/nfpm.yaml -t "/source/build/packages" -p "${pkg_type}" | tee /tmp/nfpm_output.txt
+        -w /source/packaging goreleaser/nfpm package -f /source/build/packages/nfpm.yaml -t "/source/_BUILT/packages" -p "${pkg_type}" | tee /tmp/nfpm_output.txt
 
-    PKG_FILENAME=$(grep "created package: " /tmp/nfpm_output.txt | sed 's/^.*: \/source\/build\/packages\///')
+    PKG_FILENAME=$(grep "created package: " /tmp/nfpm_output.txt | sed 's/^.*: \/source\/_BUILT\/packages\///')
 
     if [ -z "${PKG_FILENAME}" ]; then
         echo "Error creating package"
@@ -215,7 +215,7 @@ do
     fi
 
     # create sha512 file
-    pushd "${PWD}/build/packages"
+    pushd "${PWD}/_BUILT/packages"
     sha512sum "${PKG_FILENAME}" >"${PKG_FILENAME}".sha512
     popd
 
@@ -223,16 +223,16 @@ do
 
 done
 
-rm "${PWD}/build/packages/nfpm.yaml"
+rm "${PWD}/_BUILT/packages/nfpm.yaml"
 
 echo "Creating debug symbols artifacts"
 DBGSYM_FILE="opentelemetry-php-distro-debugsymbols-${BUILD_ARCHITECTURE}.tar.gz"
-DBGSYM_PATH="${PWD}/build/packages/${DBGSYM_FILE}"
+DBGSYM_PATH="${PWD}/_BUILT/packages/${DBGSYM_FILE}"
 
 pushd "prod/native/_build/${BUILD_ARCHITECTURE}-release"
 tar --transform 's/.*\///g' -zcvf "${DBGSYM_PATH}" extension/code/*.debug loader/code/*.debug
 popd
 
-pushd "${PWD}/build/packages"
+pushd "${PWD}/_BUILT/packages"
 sha512sum "${DBGSYM_FILE}" >"${DBGSYM_FILE}.sha512"
 popd

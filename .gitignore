@@ -39,7 +39,7 @@ html_docs
 
 # Generated artifacts and unit test reports
 _GENERATED/
-build/*
+_BUILT/*
 
 # Backup files when using sed
 .bck

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-RESULTS_PATH="${PWD}/build/otel_test_results"
+RESULTS_PATH="${PWD}/_BUILT/otel_test_results"
 
 show_help() {
     echo "Usage: $0 --build_architecture <architecture> --php_versions <versions> --results_path <path> --deb_package <package.deb> "
