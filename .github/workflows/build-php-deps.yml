@@ -30,5 +30,5 @@ jobs:
         with:
           name: php-dependencies
           path: |
-            _GENERATED/prod_php
+            _BUILT/prod_php
             NOTICE
