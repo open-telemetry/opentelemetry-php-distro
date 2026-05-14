@@ -1,6 +1,6 @@
 ---
 
-name: build-php-deps
+name: build-php-for-package
 
 on:
   workflow_call: ~
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  build-php-deps:
+  build-php-for-package:
     name: build-php-dependencies
     runs-on: ubuntu-latest
     timeout-minutes: 300
@@ -25,10 +25,10 @@ jobs:
           source ./tools/read_properties.sh
           read_properties project.properties PROJECT_PROPERTIES
           PHP_VERSIONS=${PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS//[()]/}
-          ./tools/build/build_php_deps.sh --php_versions "${PHP_VERSIONS}"
+          ./tools/build/build_php_for_package.sh --php_versions "${PHP_VERSIONS}"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: php-dependencies
           path: |
-            _BUILT/prod_php
+            _BUILT/php-for-package
             NOTICE

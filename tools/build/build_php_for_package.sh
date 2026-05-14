@@ -124,8 +124,8 @@ verify_vendor_dir() {
 }
 
 function on_script_exit() {
-    if [ -n "${_BUILD_PHP_DEPS_TEMP_DIR+x}" ] && [ -d "${_BUILD_PHP_DEPS_TEMP_DIR}" ]; then
-        delete_temp_dir "${_BUILD_PHP_DEPS_TEMP_DIR}"
+    if [ -n "${_BUILD_PHP_FOR_PACKAGE_TEMP_DIR+x}" ] && [ -d "${_BUILD_PHP_FOR_PACKAGE_TEMP_DIR}" ]; then
+        delete_temp_dir "${_BUILD_PHP_FOR_PACKAGE_TEMP_DIR}"
     fi
 }
 
@@ -184,18 +184,18 @@ main() {
 
     trap on_script_exit EXIT
 
-    _BUILD_PHP_DEPS_TEMP_DIR="$(mktemp -d)"
-    echo "_BUILD_PHP_DEPS_TEMP_DIR: ${_BUILD_PHP_DEPS_TEMP_DIR}"
+    _BUILD_PHP_FOR_PACKAGE_TEMP_DIR="$(mktemp -d)"
+    echo "_BUILD_PHP_FOR_PACKAGE_TEMP_DIR: ${_BUILD_PHP_FOR_PACKAGE_TEMP_DIR}"
 
     for _PHP_VERSION_WITHOUT_DOT in "${PHP_VERSIONS_WITHOUT_DOT[@]}"; do
         local _PHP_VERSION_WITH_DOT
         _PHP_VERSION_WITH_DOT=$(convert_no_dot_to_dot_separated_version "${_PHP_VERSION_WITHOUT_DOT}")
 
-        local _VENDOR_DIR="${repo_root_dir}/prod/php/vendor_${_PHP_VERSION_WITHOUT_DOT}"
+        local -r _PHP_VERSION_DST_DIR="${repo_root_dir}/_BUILT/php-for-package/${_PHP_VERSION_WITHOUT_DOT}"
+        mkdir -p "${_PHP_VERSION_DST_DIR}"
 
         # --- Common scoper setup ---
         local _SCOPER_PREFIX="${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX:?}"
-        local _DISTRO_PATH="${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX:?}"
         local _PHP_SCOPER_VERSION="0.18.19"
         if [ "${_PHP_VERSION_WITHOUT_DOT}" = "81" ]; then
             _PHP_SCOPER_VERSION="0.17.7"
@@ -212,12 +212,12 @@ main() {
 
         local COPY_REPO_TO_TMP_CMD="mkdir -p /tmp/repo && cd /read_only_repo_root && for entry in *; do [ \"\${entry}\" = \"NOTICE\" ] && continue; cp -r \"\${entry}\" /tmp/repo/; done && cd /tmp/repo"
 
-        local SCOPE_DISTRO_CMD="OTEL_PHP_SCOPER_PREFIX='${_SCOPER_PREFIX}' php -d error_reporting='E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED' /usr/local/bin/php-scoper.phar add-prefix --force --config=/tmp/repo/tools/build/php-scoper.inc.php --output-dir=/tmp/repo/${_DISTRO_PATH}_scoped /tmp/repo/prod/php/OpenTelemetry"
+        local SCOPE_DISTRO_CMD="OTEL_PHP_SCOPER_PREFIX='${_SCOPER_PREFIX}' php -d error_reporting='E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED' /usr/local/bin/php-scoper.phar add-prefix --force --config=/tmp/repo/tools/build/php-scoper.inc.php --output-dir=/tmp/repo/prod_php_OpenTelemetry_scoped /tmp/repo/prod/php/OpenTelemetry"
 
         # --- Build docker mount args and command from blocks ---
         local docker_mount_args=(
             -v "${repo_root_dir}/:/read_only_repo_root/:ro"
-            -v "${_VENDOR_DIR}/:/from_docker_host/dst/vendor/"
+            -v "${_BUILT_PHP_FOR_PACKAGE_DIR}/:/from_docker_host/dst/_BUILT_PHP_FOR_PACKAGE_DIR/"
         )
         local docker_sh_cmd=""
 
@@ -236,7 +236,7 @@ main() {
                 && ${SCOPE_DISTRO_CMD} \
                 && rm -rf /from_docker_host/dst/vendor/${_DISTRO_PATH} \
                 && mkdir -p /from_docker_host/dst/vendor/${_DISTRO_PATH} \
-                && cp -r /tmp/repo/${_DISTRO_PATH}_scoped/. /from_docker_host/dst/vendor/${_DISTRO_PATH}/ \
+                && cp -r /tmp/repo/prod_php_OpenTelemetry_scoped/. /from_docker_host/dst/vendor/${_DISTRO_PATH}/ \
                 && chown -R ${current_user_id}:${current_user_group_id} /from_docker_host/dst/vendor/${_DISTRO_PATH}/ \
                 && chmod -R +r,u+w /from_docker_host/dst/vendor/${_DISTRO_PATH}/ \
             "
@@ -262,7 +262,7 @@ main() {
             fi
 
             mkdir -p "${_VENDOR_DIR}"
-            local _TEMP_NOT_SCOPED_VENDOR_DIR="${_BUILD_PHP_DEPS_TEMP_DIR}/temp_not_scoped_vendor_${_PHP_VERSION_WITHOUT_DOT}"
+            local _TEMP_NOT_SCOPED_VENDOR_DIR="${_BUILD_PHP_FOR_PACKAGE_TEMP_DIR}/temp_not_scoped_vendor_${_PHP_VERSION_WITHOUT_DOT}"
             mkdir -p "${_TEMP_NOT_SCOPED_VENDOR_DIR}"
 
             docker_mount_args+=(

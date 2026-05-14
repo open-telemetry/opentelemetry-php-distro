@@ -45,13 +45,13 @@ jobs:
     with:
       build_arch: all
 
-  build-php-deps:
-    uses: ./.github/workflows/build-php-deps.yml
+  build-php-for-package:
+    uses: ./.github/workflows/build-php-for-package.yml
 
   build-packages:
     needs:
       - build-native
-      - build-php-deps
+      - build-php-for-package
     uses: ./.github/workflows/build-packages.yml
     with:
       build_arch: all
