@@ -107,22 +107,22 @@ test_package() {
 
     case "${_PKG_TYPE}" in
         "apk")
-            local INSTALL_SMOKE="apk add --allow-untrusted --verbose --no-cache  /source/build/packages/${_PKG_FILENAME} && php /source/packaging/test/smokeTest.php ${_SCOPE_NAME}"
+            local INSTALL_SMOKE="apk add --allow-untrusted --verbose --no-cache  /source/_BUILT/packages/${_PKG_FILENAME} && php /source/packaging/test/smokeTest.php ${_SCOPE_NAME}"
             local UNINSTALL_SMOKE="apk del --verbose --no-cache opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php ${_SCOPE_NAME}"
             docker run --rm \
                 --platform "${_DOCKER_PLATFORM}" \
                 -v "${PWD}:/source" \
                 -e OTEL_PHP_LOG_LEVEL_STDERR=error \
-                "php:${_PHP_VERSION}-alpine" sh -c "ls /source/build/packages && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
+                "php:${_PHP_VERSION}-alpine" sh -c "ls /source/_BUILT/packages && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
         ;;
         "deb")
-            local INSTALL_SMOKE="dpkg -i  /source/build/packages/${_PKG_FILENAME} && php /source/packaging/test/smokeTest.php ${_SCOPE_NAME}"
+            local INSTALL_SMOKE="dpkg -i  /source/_BUILT/packages/${_PKG_FILENAME} && php /source/packaging/test/smokeTest.php ${_SCOPE_NAME}"
             local UNINSTALL_SMOKE="dpkg --purge opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php ${_SCOPE_NAME}"
             docker run --rm \
                 --platform "${_DOCKER_PLATFORM}" \
                 -v "${PWD}:/source" \
                 -e OTEL_PHP_LOG_LEVEL_STDERR=error \
-                "php:${_PHP_VERSION}" sh -c "ls /source/build/packages && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
+                "php:${_PHP_VERSION}" sh -c "ls /source/_BUILT/packages && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
         ;;
         "rpm")
             local INSTALL_PHP="cat /etc/redhat-release \
@@ -136,14 +136,14 @@ test_package() {
             && dnf clean all \
             && dnf install --setopt=install_weak_deps=False -y php${_PHP_VERSION_NO_DOT} php${_PHP_VERSION_NO_DOT}-syspaths"
 
-            local INSTALL_SMOKE="rpm -ivh /source/build/packages/${_PKG_FILENAME} && php /source/packaging/test/smokeTest.php ${_SCOPE_NAME}"
+            local INSTALL_SMOKE="rpm -ivh /source/_BUILT/packages/${_PKG_FILENAME} && php /source/packaging/test/smokeTest.php ${_SCOPE_NAME}"
             local UNINSTALL_SMOKE="rpm -ve opentelemetry-php-distro && php /source/packaging/test/smokeTestUninstalled.php ${_SCOPE_NAME}"
 
             docker run --rm \
                 --platform "${_DOCKER_PLATFORM}" \
                 -v "${PWD}:/source" \
                 -e OTEL_PHP_LOG_LEVEL_STDERR=error \
-                redhat/ubi9 sh -c "ls /source/build/packages && ${INSTALL_PHP} && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
+                redhat/ubi9 sh -c "ls /source/_BUILT/packages && ${INSTALL_PHP} && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
         ;;
         *)
             echo -e "\033[0;33mPackage ${_PKG_FILENAME} can't be tested because smoke test is not implemented\033[0;39m"
@@ -205,7 +205,7 @@ do
         -e PACKAGE_GOARCHITECTURE="${PACKAGE_GOARCHITECTURE}" \
         -e PACKAGE_SHA="${PACKAGE_SHA}" \
         -v "${PWD}:/source" \
-        -w /source/packaging goreleaser/nfpm package -f /source/build/packages/nfpm.yaml -t "/source/_BUILT/packages" -p "${pkg_type}" | tee /tmp/nfpm_output.txt
+        -w /source/packaging goreleaser/nfpm package -f /source/_BUILT/packages/nfpm.yaml -t "/source/_BUILT/packages" -p "${pkg_type}" | tee /tmp/nfpm_output.txt
 
     PKG_FILENAME=$(grep "created package: " /tmp/nfpm_output.txt | sed 's/^.*: \/source\/_BUILT\/packages\///')
 
