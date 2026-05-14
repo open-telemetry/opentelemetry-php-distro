@@ -4,6 +4,7 @@ set -e -u -o pipefail
 
 SKIP_NOTICE=false
 SKIP_VERIFY=false
+DEV_ONLY_RESCOPE_DISTRO=false
 current_user_id="$(id -u)"
 current_user_group_id="$(id -g)"
 
@@ -11,12 +12,14 @@ show_help() {
     echo "Usage: $0 --php_versions <versions>"
     echo
     echo "Arguments:"
-    echo "  --php_versions           Required. List of PHP versions separated by spaces (e.g., '81 82 83 84')."
-    echo "  --skip_notice            Optional. Skip notice file generator. Default: false (i.e., NOTICE file is generated)."
-    echo "  --skip_verify            Optional. Skip verify step. Default: false (i.e., verify step is executed)."
+    echo "  --php_versions             Required. List of PHP versions separated by spaces (e.g., '81 82 83 84 85')."
+    echo "  --skip_notice              Optional. Skip notice file generator. Default: false (i.e., NOTICE file is generated)."
+    echo "  --skip_verify              Optional. Skip verify step. Default: false (i.e., verify step is executed)."
+    echo "  --dev_only_rescope_distro  Optional. Only re-scope distro code (prod/php/OpenTelemetry). Skips composer install and notice."
     echo
     echo "Example:"
-    echo "  $0 --php_versions '81 82 83 84' --skip_notice"
+    echo "  $0 --php_versions '81 82 83 84 85' --skip_notice"
+    echo "  $0 --php_versions '84' --dev_only_rescope_distro"
 }
 
 # Function to parse arguments
@@ -34,6 +37,9 @@ parse_args() {
             ;;
         --skip_verify)
             SKIP_VERIFY=true
+            ;;
+        --dev_only_rescope_distro)
+            DEV_ONLY_RESCOPE_DISTRO=true
             ;;
         --help)
             show_help
@@ -185,50 +191,15 @@ main() {
         local _PHP_VERSION_WITH_DOT
         _PHP_VERSION_WITH_DOT=$(convert_no_dot_to_dot_separated_version "${_PHP_VERSION_WITHOUT_DOT}")
 
-        echo "Getting PHP dependencies for PHP version ${_PHP_VERSION_WITH_DOT} ..."
-
-        if [ "$SKIP_NOTICE" = "false" ]; then
-            echo "This project depends on following packages for PHP ${_PHP_VERSION_WITH_DOT}" >>NOTICE
-        fi
-
-        local COMPOSER_LOCK_FILENAME
-        COMPOSER_LOCK_FILENAME="$(build_generated_composer_lock_file_name "prod" "${_PHP_VERSION_WITHOUT_DOT}")"
-        local COMPOSER_LOCK_FULL_PATH="${_PROJECT_PROPERTIES_GENERATED_LOCK_FILES_FOLDER:?}/${COMPOSER_LOCK_FILENAME}"
-
-        INSTALLED_SEMCONV_VERSION=$(jq -r '.packages[] | select(.name == "open-telemetry/sem-conv") | .version' "${COMPOSER_LOCK_FULL_PATH}")
-
-        INSTALLED_MAJOR_MINOR=${INSTALLED_SEMCONV_VERSION%.*}
-        EXPECTED_MAJOR_MINOR=${_PROJECT_PROPERTIES_OTEL_SEMCONV_VERSION%.*}
-
-        if [[ "$INSTALLED_MAJOR_MINOR" != "$EXPECTED_MAJOR_MINOR" ]]; then
-            echo "PHP side semantic conventions version $INSTALLED_MAJOR_MINOR doesn't match native version $EXPECTED_MAJOR_MINOR"
-            exit 1
-        fi
-
         local _VENDOR_DIR="${repo_root_dir}/prod/php/vendor_${_PHP_VERSION_WITHOUT_DOT}"
-        mkdir -p "${_VENDOR_DIR}"
-        local _TEMP_NOT_SCOPED_VENDOR_DIR="${_BUILD_PHP_DEPS_TEMP_DIR}/temp_not_scoped_vendor_${_PHP_VERSION_WITHOUT_DOT}"
-        mkdir -p "${_TEMP_NOT_SCOPED_VENDOR_DIR}"
 
+        # --- Common scoper setup ---
         local _SCOPER_PREFIX="${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX:?}"
         local _DISTRO_PATH="${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX:?}"
         local _PHP_SCOPER_VERSION="0.18.19"
         if [ "${_PHP_VERSION_WITHOUT_DOT}" = "81" ]; then
             _PHP_SCOPER_VERSION="0.17.7"
         fi
-        local SCOPER_CMD="\
-            && echo 'Scoping PHP dependencies with prefix ${_SCOPER_PREFIX}' \
-            && curl -fLsS -o /usr/local/bin/php-scoper.phar https://github.com/humbug/php-scoper/releases/download/${_PHP_SCOPER_VERSION}/php-scoper.phar \
-            && cd /tmp/repo/vendor \
-            && OTEL_PHP_SCOPER_PREFIX='${_SCOPER_PREFIX}' php -d error_reporting='E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED' /usr/local/bin/php-scoper.phar add-prefix --force --config=/tmp/repo/tools/build/php-scoper.inc.php --output-dir=/tmp/repo/vendor-scoped \
-            && rm -rf /tmp/repo/vendor \
-            && cd /tmp/repo \
-            && php ./tools/build/fix_scoped_composer_autoload.php '${_SCOPER_PREFIX}' /tmp/repo/vendor-scoped \
-            && OTEL_PHP_SCOPER_PREFIX='${_SCOPER_PREFIX}' php -d error_reporting='E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED' /usr/local/bin/php-scoper.phar add-prefix --force --config=/tmp/repo/tools/build/php-scoper.inc.php --output-dir=/tmp/repo/${_DISTRO_PATH}_scoped /tmp/repo/prod/php/OpenTelemetry \
-            && mkdir -p /tmp/repo/vendor-scoped/${_DISTRO_PATH} \
-            && cp -r /tmp/repo/${_DISTRO_PATH}_scoped/. /tmp/repo/vendor-scoped/${_DISTRO_PATH}/ \
-            && mv /tmp/repo/vendor-scoped /tmp/repo/vendor \
-        "
 
         local PHP_docker_image
         PHP_docker_image=$(build_light_PHP_docker_image_name_for_version_no_dot "${_PHP_VERSION_WITHOUT_DOT}")
@@ -236,26 +207,88 @@ main() {
         local docker_run_env_vars_cmd_line_args=()
         build_docker_env_vars_command_line_part docker_run_env_vars_cmd_line_args
 
-        docker run --rm \
-            "${docker_run_env_vars_cmd_line_args[@]}" \
-            -v "${repo_root_dir}/:/read_only_repo_root/:ro" \
-            -v "${_VENDOR_DIR}/:/from_docker_host/dst/vendor/" \
-            -v "${_TEMP_NOT_SCOPED_VENDOR_DIR}/:/from_docker_host/dst/not_scoped_vendor/" \
-            "${docker_notice_mount_args[@]}" \
-            -w "/" \
-            "${PHP_docker_image}" \
-            sh -c "\
+        # --- Reusable command blocks ---
+        local INSTALL_SCOPER_CMD="curl -fLsS -o /usr/local/bin/php-scoper.phar https://github.com/humbug/php-scoper/releases/download/${_PHP_SCOPER_VERSION}/php-scoper.phar"
+
+        local COPY_REPO_TO_TMP_CMD="mkdir -p /tmp/repo && cd /read_only_repo_root && for entry in *; do [ \"\${entry}\" = \"NOTICE\" ] && continue; cp -r \"\${entry}\" /tmp/repo/; done && cd /tmp/repo"
+
+        local SCOPE_DISTRO_CMD="OTEL_PHP_SCOPER_PREFIX='${_SCOPER_PREFIX}' php -d error_reporting='E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED' /usr/local/bin/php-scoper.phar add-prefix --force --config=/tmp/repo/tools/build/php-scoper.inc.php --output-dir=/tmp/repo/${_DISTRO_PATH}_scoped /tmp/repo/prod/php/OpenTelemetry"
+
+        # --- Build docker mount args and command from blocks ---
+        local docker_mount_args=(
+            -v "${repo_root_dir}/:/read_only_repo_root/:ro"
+            -v "${_VENDOR_DIR}/:/from_docker_host/dst/vendor/"
+        )
+        local docker_sh_cmd=""
+
+        if [ "${DEV_ONLY_RESCOPE_DISTRO}" = "true" ]; then
+            echo "Re-scoping distro code only for PHP version ${_PHP_VERSION_WITH_DOT} ..."
+
+            if [ ! -d "${_VENDOR_DIR}" ]; then
+                echo "Error: vendor dir ${_VENDOR_DIR} does not exist. Run full build first."
+                exit 1
+            fi
+
+            docker_sh_cmd="\
+                ${INSTALL_SCOPER_CMD} \
+                && ${COPY_REPO_TO_TMP_CMD} \
+                && echo 'Re-scoping distro code with prefix ${_SCOPER_PREFIX}' \
+                && ${SCOPE_DISTRO_CMD} \
+                && rm -rf /from_docker_host/dst/vendor/${_DISTRO_PATH} \
+                && mkdir -p /from_docker_host/dst/vendor/${_DISTRO_PATH} \
+                && cp -r /tmp/repo/${_DISTRO_PATH}_scoped/. /from_docker_host/dst/vendor/${_DISTRO_PATH}/ \
+                && chown -R ${current_user_id}:${current_user_group_id} /from_docker_host/dst/vendor/${_DISTRO_PATH}/ \
+                && chmod -R +r,u+w /from_docker_host/dst/vendor/${_DISTRO_PATH}/ \
+            "
+        else
+            echo "Getting PHP dependencies for PHP version ${_PHP_VERSION_WITH_DOT} ..."
+
+            if [ "$SKIP_NOTICE" = "false" ]; then
+                echo "This project depends on following packages for PHP ${_PHP_VERSION_WITH_DOT}" >>NOTICE
+            fi
+
+            local COMPOSER_LOCK_FILENAME
+            COMPOSER_LOCK_FILENAME="$(build_generated_composer_lock_file_name "prod" "${_PHP_VERSION_WITHOUT_DOT}")"
+            local COMPOSER_LOCK_FULL_PATH="${_PROJECT_PROPERTIES_GENERATED_LOCK_FILES_FOLDER:?}/${COMPOSER_LOCK_FILENAME}"
+
+            INSTALLED_SEMCONV_VERSION=$(jq -r '.packages[] | select(.name == "open-telemetry/sem-conv") | .version' "${COMPOSER_LOCK_FULL_PATH}")
+
+            INSTALLED_MAJOR_MINOR=${INSTALLED_SEMCONV_VERSION%.*}
+            EXPECTED_MAJOR_MINOR=${_PROJECT_PROPERTIES_OTEL_SEMCONV_VERSION%.*}
+
+            if [[ "$INSTALLED_MAJOR_MINOR" != "$EXPECTED_MAJOR_MINOR" ]]; then
+                echo "PHP side semantic conventions version $INSTALLED_MAJOR_MINOR doesn't match native version $EXPECTED_MAJOR_MINOR"
+                exit 1
+            fi
+
+            mkdir -p "${_VENDOR_DIR}"
+            local _TEMP_NOT_SCOPED_VENDOR_DIR="${_BUILD_PHP_DEPS_TEMP_DIR}/temp_not_scoped_vendor_${_PHP_VERSION_WITHOUT_DOT}"
+            mkdir -p "${_TEMP_NOT_SCOPED_VENDOR_DIR}"
+
+            docker_mount_args+=(
+                -v "${_TEMP_NOT_SCOPED_VENDOR_DIR}/:/from_docker_host/dst/not_scoped_vendor/"
+            )
+            docker_mount_args+=("${docker_notice_mount_args[@]}")
+
+            docker_sh_cmd="\
                 apk update && apk add bash \
                 && curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin \
                 && cd /read_only_repo_root/ && php ./tools/build/verify_generated_composer_lock_files.php \
-                && mkdir -p /tmp/repo \
-                && cd /read_only_repo_root \
-                && for entry in *; do [ "\${entry}" = "NOTICE" ] && continue; cp -r "\${entry}" /tmp/repo/; done \
-                && cd /tmp/repo/ \
+                && ${COPY_REPO_TO_TMP_CMD} \
                 && rm -rf composer.json composer.lock ./vendor/ ./prod/php/vendor_* \
                 && php ./tools/build/select_json_lock_and_install_PHP_deps.php prod \
                 && cp -r ./vendor/. /from_docker_host/dst/not_scoped_vendor/ \
-                ${SCOPER_CMD} \
+                && echo 'Scoping PHP dependencies with prefix ${_SCOPER_PREFIX}' \
+                && ${INSTALL_SCOPER_CMD} \
+                && cd /tmp/repo/vendor \
+                && OTEL_PHP_SCOPER_PREFIX='${_SCOPER_PREFIX}' php -d error_reporting='E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED' /usr/local/bin/php-scoper.phar add-prefix --force --config=/tmp/repo/tools/build/php-scoper.inc.php --output-dir=/tmp/repo/vendor-scoped \
+                && rm -rf /tmp/repo/vendor \
+                && cd /tmp/repo \
+                && php ./tools/build/fix_scoped_composer_autoload.php '${_SCOPER_PREFIX}' /tmp/repo/vendor-scoped \
+                && ${SCOPE_DISTRO_CMD} \
+                && mkdir -p /tmp/repo/vendor-scoped/${_DISTRO_PATH} \
+                && cp -r /tmp/repo/${_DISTRO_PATH}_scoped/. /tmp/repo/vendor-scoped/${_DISTRO_PATH}/ \
+                && mv /tmp/repo/vendor-scoped /tmp/repo/vendor \
                 && cp -r ./vendor/. /from_docker_host/dst/vendor/ \
                 && chown -R ${current_user_id}:${current_user_group_id} /from_docker_host/dst/not_scoped_vendor/ \
                 && chmod -R +r,u+w /from_docker_host/dst/not_scoped_vendor/ \
@@ -264,8 +297,16 @@ main() {
                 ${GEN_NOTICE} \
                 ${NOTICE_APPEND_CMD} \
             "
+        fi
 
-        if [ "${SKIP_VERIFY}" = "false" ]; then
+        docker run --rm \
+            "${docker_run_env_vars_cmd_line_args[@]}" \
+            "${docker_mount_args[@]}" \
+            -w "/" \
+            "${PHP_docker_image}" \
+            sh -c "${docker_sh_cmd}"
+
+        if [ "${DEV_ONLY_RESCOPE_DISTRO}" = "false" ] && [ "${SKIP_VERIFY}" = "false" ]; then
             verify_vendor_dir \
                 "${_PHP_VERSION_WITHOUT_DOT}" \
                 "${_TEMP_NOT_SCOPED_VENDOR_DIR}" \
