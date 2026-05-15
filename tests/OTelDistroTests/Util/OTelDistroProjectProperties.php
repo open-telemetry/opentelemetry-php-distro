@@ -16,19 +16,22 @@ final class OTelDistroProjectProperties
 {
     use SingletonInstanceTrait;
 
-    /** @var PhpVersionInfo[] */
+    /** @var list<PhpVersionInfo> */
     public readonly array $supportedPhpVersions;
 
-    /** @var string[] */
+    /** @var list<PhpVersionInfo> */
+    public readonly array $supportedPhpVersionsSorted;
+
+    /** @var list<string> */
     public readonly array $supportedPackageTypes;
 
     /** @var string */
     public readonly string $testAllPhpVersionsWithPackageType;
 
-    /** @var string[] */
+    /** @var list<string> */
     public readonly array $testAppCodeHostKindsShortNames;
 
-    /** @var string[] */
+    /** @var list<string> */
     public readonly array $testGroupsShortNames;
 
     private function __construct()
@@ -39,15 +42,15 @@ final class OTelDistroProjectProperties
         Assert::assertFileExists($fileFullPath);
         Assert::assertNotFalse($fileContents = file_get_contents($fileFullPath));
 
-        /** @var ?array<PhpVersionInfo> $supportedPhpVersions */
+        /** @var ?list<PhpVersionInfo> $supportedPhpVersions */
         $supportedPhpVersions = null;
-        /** @var ?array<string> $supportedPackageTypes */
+        /** @var ?list<string> $supportedPackageTypes */
         $supportedPackageTypes = null;
         /** @var ?string $testAllPhpVersionsWithPackageType */
         $testAllPhpVersionsWithPackageType = null;
-        /** @var ?array<string> $testAppCodeHostKindsShortNames */
+        /** @var ?list<string> $testAppCodeHostKindsShortNames */
         $testAppCodeHostKindsShortNames = null;
-        /** @var ?array<string> $testGroupsShortNames */
+        /** @var ?list<string> $testGroupsShortNames */
         $testGroupsShortNames = null;
 
         foreach (TextUtilForTests::iterateLines($fileContents, keepEndOfLine: false) as $line) {
@@ -86,6 +89,9 @@ final class OTelDistroProjectProperties
         }
 
         $this->supportedPhpVersions = AssertEx::notNull($supportedPhpVersions);
+        $supportedPhpVersionsSorted = $supportedPhpVersions;
+        usort(/* ref */ $supportedPhpVersionsSorted, fn($a, $b) => $a->compare($b));
+        $this->supportedPhpVersionsSorted = $supportedPhpVersionsSorted;
         $this->supportedPackageTypes = AssertEx::notNull($supportedPackageTypes);
         $this->testAllPhpVersionsWithPackageType = AssertEx::notNull($testAllPhpVersionsWithPackageType);
         $this->testAppCodeHostKindsShortNames = AssertEx::notNull($testAppCodeHostKindsShortNames);
@@ -93,7 +99,7 @@ final class OTelDistroProjectProperties
     }
 
     /**
-     * @return string[]
+     * @return list<string>
      */
     private static function parseArray(string $propValue): array
     {
@@ -108,7 +114,7 @@ final class OTelDistroProjectProperties
     }
 
     /**
-     * @return PhpVersionInfo[]
+     * @return list<PhpVersionInfo>
      */
     private static function parseSupportedPhpVersions(string $propValue): array
     {
@@ -119,6 +125,8 @@ final class OTelDistroProjectProperties
 
     /**
      * @return array<string, string>
+     *
+     * @noinspection PhpUnused
      */
     public static function loadAsMap(): array
     {
@@ -145,35 +153,23 @@ final class OTelDistroProjectProperties
 
     public function getLowestSupportedPhpVersion(): PhpVersionInfo
     {
-        /** @var ?PhpVersionInfo $result */
-        $result = null;
-        foreach ($this->supportedPhpVersions as $current) {
-            if ($result === null || $current->isLessThan($result)) {
-                $result = $current;
-            }
-        }
-        return AssertEx::notNull($result);
+        return ArrayUtilForTests::getFirstValue($this->supportedPhpVersionsSorted);
+    }
+
+    public function getOneBeforeHighestSupportedPhpVersion(): PhpVersionInfo
+    {
+        $supportedPhpVersionsCount = count($this->supportedPhpVersions);
+        Assert::assertGreaterThanOrEqual(2, $supportedPhpVersionsCount);
+        return $this->supportedPhpVersionsSorted[$supportedPhpVersionsCount - 2];
     }
 
     public function getHighestSupportedPhpVersion(): PhpVersionInfo
     {
-        /** @var ?PhpVersionInfo $result */
-        $result = null;
-        foreach ($this->supportedPhpVersions as $current) {
-            if ($result === null || $current->isGreaterThan($result)) {
-                $result = $current;
-            }
-        }
-        return AssertEx::notNull($result);
+        return ArrayUtilForTests::getLastValue($this->supportedPhpVersionsSorted);
     }
 
     public function isSupportedPhpVersion(PhpVersionInfo $phpVersion): bool
     {
-        foreach ($this->supportedPhpVersions as $current) {
-            if ($current->isEqual($phpVersion)) {
-                return true;
-            }
-        }
-        return false;
+        return (array_find($this->supportedPhpVersions, fn($v) => $v->isEqual($phpVersion)) != null);
     }
 }

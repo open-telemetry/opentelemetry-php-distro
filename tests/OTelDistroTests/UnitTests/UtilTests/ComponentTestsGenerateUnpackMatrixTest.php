@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OTelDistroTests\UnitTests\UtilTests;
 
 use OpenTelemetry\Distro\Util\ArrayUtil;
+use OpenTelemetry\DistroTools\Build\BuildToolsUtil;
 use OTelDistroTests\Util\ArrayUtilForTests;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\Config\OptionForProdName;
@@ -29,6 +30,8 @@ final class ComponentTestsGenerateUnpackMatrixTest extends TestCaseBase implemen
     use LoggableTrait;
 
     private const PACKAGE_TYPE_APK = 'apk';
+    private const PACKAGE_TYPE_DEB = 'deb';
+    private const PACKAGE_TYPE_RPM = 'rpm';
 
     private const UNPACKED_PHP_VERSION_ENV_VAR_NAME = OptionForTestsName::ENV_VAR_NAME_PREFIX . 'PHP_VERSION';
     private const UNPACKED_PACKAGE_TYPE_ENV_VAR_NAME = OptionForTestsName::ENV_VAR_NAME_PREFIX . 'PACKAGE_TYPE';
@@ -75,27 +78,6 @@ final class ComponentTestsGenerateUnpackMatrixTest extends TestCaseBase implemen
     /**
      * @return iterable<string>
      */
-    private static function generateRowsToTestIncreasedLogLevel(): iterable
-    {
-        AssertEx::countAtLeast(2, OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames);
-        AssertEx::countAtLeast(2, OTelDistroProjectProperties::singletonInstance()->testGroupsShortNames);
-
-        $phpVersion = OTelDistroProjectProperties::singletonInstance()->getLowestSupportedPhpVersion();
-        $packageType = OTelDistroProjectProperties::singletonInstance()->testAllPhpVersionsWithPackageType;
-        $testAppCodeHostKindShortName = OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames[0];
-        $testGroupShortName = OTelDistroProjectProperties::singletonInstance()->testGroupsShortNames[0];
-        yield "{$phpVersion->asDotSeparated()},$packageType,$testAppCodeHostKindShortName,$testGroupShortName,prod_log_level_syslog=TRACE";
-
-        $phpVersion = OTelDistroProjectProperties::singletonInstance()->getHighestSupportedPhpVersion();
-        $packageType = self::PACKAGE_TYPE_APK;
-        $testAppCodeHostKindShortName = OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames[1];
-        $testGroupShortName = OTelDistroProjectProperties::singletonInstance()->testGroupsShortNames[1];
-        yield "{$phpVersion->asDotSeparated()},$packageType,$testAppCodeHostKindShortName,$testGroupShortName,prod_log_level_syslog=DEBUG";
-    }
-
-    /**
-     * @return iterable<string>
-     */
     private static function generateRowsToTestHighestSupportedPhpVersionWithOtherPackageTypes(): iterable
     {
         $packageTypeToExclude = OTelDistroProjectProperties::singletonInstance()->testAllPhpVersionsWithPackageType;
@@ -124,12 +106,38 @@ final class ComponentTestsGenerateUnpackMatrixTest extends TestCaseBase implemen
     /**
      * @return iterable<string>
      */
+    private static function generateRowsToTestSpecialUseCases(): iterable
+    {
+        AssertEx::countAtLeast(2, OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames);
+        AssertEx::countAtLeast(2, OTelDistroProjectProperties::singletonInstance()->testGroupsShortNames);
+
+        $phpVersion = OTelDistroProjectProperties::singletonInstance()->getLowestSupportedPhpVersion();
+        $packageType = OTelDistroProjectProperties::singletonInstance()->testAllPhpVersionsWithPackageType;
+        $testAppCodeHostKindShortName = OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames[0];
+        $testGroupShortName = OTelDistroProjectProperties::singletonInstance()->testGroupsShortNames[0];
+        yield "{$phpVersion->asDotSeparated()},$packageType,$testAppCodeHostKindShortName,$testGroupShortName,prod_log_level_syslog=TRACE,scoped_deps_enabled=false";
+
+        $phpVersion = OTelDistroProjectProperties::singletonInstance()->getHighestSupportedPhpVersion();
+        $packageType = self::PACKAGE_TYPE_APK;
+        $testAppCodeHostKindShortName = OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames[1];
+        $testGroupShortName = OTelDistroProjectProperties::singletonInstance()->testGroupsShortNames[1];
+        yield "{$phpVersion->asDotSeparated()},$packageType,$testAppCodeHostKindShortName,$testGroupShortName,prod_log_level_syslog=DEBUG";
+
+        $phpVersion = OTelDistroProjectProperties::singletonInstance()->getOneBeforeHighestSupportedPhpVersion();
+        $packageType = self::PACKAGE_TYPE_RPM;
+        $testAppCodeHostKindShortName = OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames[0];
+        yield "{$phpVersion->asDotSeparated()},$packageType,$testAppCodeHostKindShortName,$testGroupShortName,scoped_deps_enabled=false";
+    }
+
+    /**
+     * @return iterable<string>
+     */
     private static function generateExpectedMatrix(): iterable
     {
         yield from self::generateRowsToTestAllPhpVersionsWithOnePackageType();
         yield from self::generateRowsToTestHighestSupportedPhpVersionWithOtherPackageTypes();
 
-        yield from self::generateRowsToTestIncreasedLogLevel();
+        yield from self::generateRowsToTestSpecialUseCases();
     }
 
     /**
@@ -185,6 +193,9 @@ final class ComponentTestsGenerateUnpackMatrixTest extends TestCaseBase implemen
         switch ($key) {
             case 'prod_log_level_syslog':
                 ArrayUtilForTests::addAssertingKeyNew(OptionForProdName::log_level_syslog->toEnvVarName(), $value, /* ref */ $result);
+                break;
+            case 'scoped_deps_enabled':
+                ArrayUtilForTests::addAssertingKeyNew(OptionForProdName::scoped_deps_enabled->toEnvVarName(), $value, /* ref */ $result);
                 break;
             default:
                 $dbgCtx->add(['key' => $key, 'value' => $value]);
@@ -259,7 +270,8 @@ final class ComponentTestsGenerateUnpackMatrixTest extends TestCaseBase implemen
 
         $expectedEnvVars = self::unpackRowToEnvVars($matrixRow);
 
-        $cmd = $unpackAndPrintEnvVarsScriptFullPath . ' ' . $matrixRow;
+        $cmd = BuildToolsUtil::buildShellCommand([$unpackAndPrintEnvVarsScriptFullPath, $matrixRow]);
+        $dbgCtx->add(compact('cmd'));
         $actualEnvVarNameValueLines = self::execCommand($cmd);
         self::assertNotEmpty($actualEnvVarNameValueLines);
         $actualEnvVars = [];

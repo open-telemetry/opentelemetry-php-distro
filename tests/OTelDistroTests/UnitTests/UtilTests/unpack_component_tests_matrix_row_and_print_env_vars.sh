@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e -o pipefail
+set -e -u -o pipefail
 #set -x
 
 this_script_dir="$( dirname "${BASH_SOURCE[0]}" )"
