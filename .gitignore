@@ -34,11 +34,11 @@ prod/native/phpbridge_extension/phpt/results/
 # native build folder
 prod/native/_build/
 
-# Built documentation
-html_docs
-
 # Generated artifacts and unit test reports
 _BUILT/
+
+# Built documentation
+html_docs
 
 # Backup files when using sed
 .bck
