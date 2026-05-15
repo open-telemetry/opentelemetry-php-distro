@@ -89,7 +89,7 @@ To ensure the instrumentation is fully successful, it is required to download an
 
 ```bash
 cd opentelemetry-php-distro
-  ./tools/build/build_php_for_package.sh --php_versions '81 82 83 84'
+  ./tools/build/build_php_code_for_packages.sh --php_versions '81 82 83 84'
 ```
 
 ### Building Packages

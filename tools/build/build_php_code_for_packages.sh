@@ -124,8 +124,8 @@ verify_vendor_dir() {
 }
 
 function on_script_exit() {
-    if [ -n "${_BUILD_PHP_FOR_PACKAGE_TEMP_DIR+x}" ] && [ -d "${_BUILD_PHP_FOR_PACKAGE_TEMP_DIR}" ]; then
-        delete_temp_dir "${_BUILD_PHP_FOR_PACKAGE_TEMP_DIR}"
+    if [ -n "${_BUILD_PHP_CODE_FOR_PACKAGES_TEMP_DIR+x}" ] && [ -d "${_BUILD_PHP_CODE_FOR_PACKAGES_TEMP_DIR}" ]; then
+        delete_temp_dir "${_BUILD_PHP_CODE_FOR_PACKAGES_TEMP_DIR}"
     fi
 }
 
@@ -170,10 +170,10 @@ main() {
     local docker_notice_mount_args=()
     if [ "${SKIP_NOTICE}" = "false" ]; then
         docker_notice_mount_args=(
-            -v "${repo_root_dir}/NOTICE:/from_docker_host/dst/NOTICE"
+            -v "${repo_root_dir}/NOTICE:/docker_host_dst_NOTICE"
         )
         NOTICE_APPEND_CMD="\
-            && if [ -f ./NOTICE ]; then cat ./NOTICE >> /from_docker_host/dst/NOTICE; fi \
+            && if [ -f ./NOTICE ]; then cat ./NOTICE >> /docker_host_dst_NOTICE; fi \
         "
     fi
 
@@ -184,15 +184,19 @@ main() {
 
     trap on_script_exit EXIT
 
-    _BUILD_PHP_FOR_PACKAGE_TEMP_DIR="$(mktemp -d)"
-    echo "_BUILD_PHP_FOR_PACKAGE_TEMP_DIR: ${_BUILD_PHP_FOR_PACKAGE_TEMP_DIR}"
+    _BUILD_PHP_CODE_FOR_PACKAGES_TEMP_DIR="$(mktemp -d)"
+    echo "_BUILD_PHP_CODE_FOR_PACKAGES_TEMP_DIR: ${_BUILD_PHP_CODE_FOR_PACKAGES_TEMP_DIR}"
+
+    # See prod/php/bootstrap_php_part.php for final layout of PHP code after for the packages
+
+    local -r _BUILT_PHP_CODE_FOR_PACKAGES_DIR="${repo_root_dir}/_BUILT/php_code_for_packages"
+    mkdir -p "${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}"
+    # Copy files (but not subdirectories which at the moment is only prod/php/OpenTelemetry/)
+    cp "${repo_root_dir}/prod/php/"*.php "${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}/"
 
     for _PHP_VERSION_WITHOUT_DOT in "${PHP_VERSIONS_WITHOUT_DOT[@]}"; do
         local _PHP_VERSION_WITH_DOT
         _PHP_VERSION_WITH_DOT=$(convert_no_dot_to_dot_separated_version "${_PHP_VERSION_WITHOUT_DOT}")
-
-        local -r _PHP_VERSION_DST_DIR="${repo_root_dir}/_BUILT/php-for-package/${_PHP_VERSION_WITHOUT_DOT}"
-        mkdir -p "${_PHP_VERSION_DST_DIR}"
 
         # --- Common scoper setup ---
         local _SCOPER_PREFIX="${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX:?}"
@@ -212,20 +216,21 @@ main() {
 
         local COPY_REPO_TO_TMP_CMD="mkdir -p /tmp/repo && cd /read_only_repo_root && for entry in *; do [ \"\${entry}\" = \"NOTICE\" ] && continue; cp -r \"\${entry}\" /tmp/repo/; done && cd /tmp/repo"
 
-        local SCOPE_DISTRO_CMD="OTEL_PHP_SCOPER_PREFIX='${_SCOPER_PREFIX}' php -d error_reporting='E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED' /usr/local/bin/php-scoper.phar add-prefix --force --config=/tmp/repo/tools/build/php-scoper.inc.php --output-dir=/tmp/repo/prod_php_OpenTelemetry_scoped /tmp/repo/prod/php/OpenTelemetry"
+        local _SCOPED_DISTRO_TEMP_IN_DOCKER_DIR="/tmp/repo/prod_php_OpenTelemetry_scoped"
+        local SCOPE_DISTRO_CMD="OTEL_PHP_SCOPER_PREFIX='${_SCOPER_PREFIX}' php -d error_reporting='E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED' /usr/local/bin/php-scoper.phar add-prefix --force --config=/tmp/repo/tools/build/php-scoper.inc.php --output-dir=${_SCOPED_DISTRO_TEMP_IN_DOCKER_DIR} /tmp/repo/prod/php/OpenTelemetry"
 
         # --- Build docker mount args and command from blocks ---
         local docker_mount_args=(
             -v "${repo_root_dir}/:/read_only_repo_root/:ro"
-            -v "${_BUILT_PHP_FOR_PACKAGE_DIR}/:/from_docker_host/dst/_BUILT_PHP_FOR_PACKAGE_DIR/"
+            -v "${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}/:/docker_host_dst_php_code_for_packages/"
         )
         local docker_sh_cmd=""
 
         if [ "${DEV_ONLY_RESCOPE_DISTRO}" = "true" ]; then
             echo "Re-scoping distro code only for PHP version ${_PHP_VERSION_WITH_DOT} ..."
 
-            if [ ! -d "${_VENDOR_DIR}" ]; then
-                echo "Error: vendor dir ${_VENDOR_DIR} does not exist. Run full build first."
+            if [ ! -d "${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}/${_PHP_VERSION_WITHOUT_DOT}" ]; then
+                echo "Error: vendor dir ${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}/${_PHP_VERSION_WITHOUT_DOT} does not exist. Run full build first."
                 exit 1
             fi
 
@@ -234,11 +239,12 @@ main() {
                 && ${COPY_REPO_TO_TMP_CMD} \
                 && echo 'Re-scoping distro code with prefix ${_SCOPER_PREFIX}' \
                 && ${SCOPE_DISTRO_CMD} \
-                && rm -rf /from_docker_host/dst/vendor/${_DISTRO_PATH} \
-                && mkdir -p /from_docker_host/dst/vendor/${_DISTRO_PATH} \
-                && cp -r /tmp/repo/prod_php_OpenTelemetry_scoped/. /from_docker_host/dst/vendor/${_DISTRO_PATH}/ \
-                && chown -R ${current_user_id}:${current_user_group_id} /from_docker_host/dst/vendor/${_DISTRO_PATH}/ \
-                && chmod -R +r,u+w /from_docker_host/dst/vendor/${_DISTRO_PATH}/ \
+                && rm -rf /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/OpenTelemetry \
+                && mkdir -p /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/OpenTelemetry \
+                && cp -r ${_SCOPED_DISTRO_TEMP_IN_DOCKER_DIR}/. /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/OpenTelemetry/ \
+                \
+                && chown -R ${current_user_id}:${current_user_group_id} /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/OpenTelemetry/ \
+                && chmod -R +r,u+w /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/OpenTelemetry/ \
             "
         else
             echo "Getting PHP dependencies for PHP version ${_PHP_VERSION_WITH_DOT} ..."
@@ -251,22 +257,23 @@ main() {
             COMPOSER_LOCK_FILENAME="$(build_generated_composer_lock_file_name "prod" "${_PHP_VERSION_WITHOUT_DOT}")"
             local COMPOSER_LOCK_FULL_PATH="${_PROJECT_PROPERTIES_GENERATED_LOCK_FILES_FOLDER:?}/${COMPOSER_LOCK_FILENAME}"
 
-            INSTALLED_SEMCONV_VERSION=$(jq -r '.packages[] | select(.name == "open-telemetry/sem-conv") | .version' "${COMPOSER_LOCK_FULL_PATH}")
+            local _SEMCONV_INSTALLED_VERSION
+            _SEMCONV_INSTALLED_VERSION=$(jq -r '.packages[] | select(.name == "open-telemetry/sem-conv") | .version' "${COMPOSER_LOCK_FULL_PATH}")
 
-            INSTALLED_MAJOR_MINOR=${INSTALLED_SEMCONV_VERSION%.*}
-            EXPECTED_MAJOR_MINOR=${_PROJECT_PROPERTIES_OTEL_SEMCONV_VERSION%.*}
+            local _SEMCONV_INSTALLED_MAJOR_MINOR=${_SEMCONV_INSTALLED_VERSION%.*}
+            local _SEMCONV_EXPECTED_MAJOR_MINOR=${_PROJECT_PROPERTIES_OTEL_SEMCONV_VERSION%.*}
 
-            if [[ "$INSTALLED_MAJOR_MINOR" != "$EXPECTED_MAJOR_MINOR" ]]; then
-                echo "PHP side semantic conventions version $INSTALLED_MAJOR_MINOR doesn't match native version $EXPECTED_MAJOR_MINOR"
+            if [[ "$_SEMCONV_INSTALLED_MAJOR_MINOR" != "$_SEMCONV_EXPECTED_MAJOR_MINOR" ]]; then
+                echo "PHP side semantic conventions version $_SEMCONV_INSTALLED_MAJOR_MINOR doesn't match native version $_SEMCONV_EXPECTED_MAJOR_MINOR"
                 exit 1
             fi
 
-            mkdir -p "${_VENDOR_DIR}"
-            local _TEMP_NOT_SCOPED_VENDOR_DIR="${_BUILD_PHP_FOR_PACKAGE_TEMP_DIR}/temp_not_scoped_vendor_${_PHP_VERSION_WITHOUT_DOT}"
+            local _TEMP_NOT_SCOPED_VENDOR_DIR="${_BUILD_PHP_CODE_FOR_PACKAGES_TEMP_DIR}/temp_not_scoped_vendor"
+            rm -rf "${_TEMP_NOT_SCOPED_VENDOR_DIR}"
             mkdir -p "${_TEMP_NOT_SCOPED_VENDOR_DIR}"
 
             docker_mount_args+=(
-                -v "${_TEMP_NOT_SCOPED_VENDOR_DIR}/:/from_docker_host/dst/not_scoped_vendor/"
+                -v "${_TEMP_NOT_SCOPED_VENDOR_DIR}/:/docker_host_dst_not_scoped_vendor/"
             )
             docker_mount_args+=("${docker_notice_mount_args[@]}")
 
@@ -275,9 +282,9 @@ main() {
                 && curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin \
                 && cd /read_only_repo_root/ && php ./tools/build/verify_generated_composer_lock_files.php \
                 && ${COPY_REPO_TO_TMP_CMD} \
-                && rm -rf composer.json composer.lock ./vendor/ ./prod/php/vendor_* \
+                && rm -rf composer.json composer.lock ./vendor/ \
                 && php ./tools/build/select_json_lock_and_install_PHP_deps.php prod \
-                && cp -r ./vendor/. /from_docker_host/dst/not_scoped_vendor/ \
+                && cp -r ./vendor/. /docker_host_dst_not_scoped_vendor/ \
                 && echo 'Scoping PHP dependencies with prefix ${_SCOPER_PREFIX}' \
                 && ${INSTALL_SCOPER_CMD} \
                 && cd /tmp/repo/vendor \
@@ -285,15 +292,21 @@ main() {
                 && rm -rf /tmp/repo/vendor \
                 && cd /tmp/repo \
                 && php ./tools/build/fix_scoped_composer_autoload.php '${_SCOPER_PREFIX}' /tmp/repo/vendor-scoped \
-                && ${SCOPE_DISTRO_CMD} \
-                && mkdir -p /tmp/repo/vendor-scoped/${_DISTRO_PATH} \
-                && cp -r /tmp/repo/${_DISTRO_PATH}_scoped/. /tmp/repo/vendor-scoped/${_DISTRO_PATH}/ \
                 && mv /tmp/repo/vendor-scoped /tmp/repo/vendor \
-                && cp -r ./vendor/. /from_docker_host/dst/vendor/ \
-                && chown -R ${current_user_id}:${current_user_group_id} /from_docker_host/dst/not_scoped_vendor/ \
-                && chmod -R +r,u+w /from_docker_host/dst/not_scoped_vendor/ \
-                && chown -R ${current_user_id}:${current_user_group_id} /from_docker_host/dst/vendor/ \
-                && chmod -R +r,u+w /from_docker_host/dst/vendor/ \
+                && rm -rf /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/vendor \
+                && mkdir -p /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/vendor \
+                && cp -r ./vendor/. /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/vendor/ \
+                \
+                && echo 'Scoping distro code with prefix ${_SCOPER_PREFIX}' \
+                && ${SCOPE_DISTRO_CMD} \
+                && rm -rf /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/OpenTelemetry \
+                && mkdir -p /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/OpenTelemetry \
+                && cp -r ${_SCOPED_DISTRO_TEMP_IN_DOCKER_DIR}/. /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/OpenTelemetry/ \
+                \
+                && chown -R ${current_user_id}:${current_user_group_id} /docker_host_dst_not_scoped_vendor/ \
+                && chmod -R +r,u+w /docker_host_dst_not_scoped_vendor/ \
+                && chown -R ${current_user_id}:${current_user_group_id} /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/ \
+                && chmod -R +r,u+w /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/ \
                 ${GEN_NOTICE} \
                 ${NOTICE_APPEND_CMD} \
             "
@@ -310,7 +323,7 @@ main() {
             verify_vendor_dir \
                 "${_PHP_VERSION_WITHOUT_DOT}" \
                 "${_TEMP_NOT_SCOPED_VENDOR_DIR}" \
-                "${_VENDOR_DIR}" \
+                "${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}/${_PHP_VERSION_WITHOUT_DOT}/vendor" \
                 "${_PROJECT_PROPERTIES_OTEL_PROTO_VERSION}" \
                 "${_PROJECT_PROPERTIES_NATIVE_OTLP_EXPORTERS_BASED_ON_PHP_IMPL_VERSION}"
         fi

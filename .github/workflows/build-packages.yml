@@ -52,7 +52,7 @@ jobs:
           path: prod/native/_build/${{ matrix.arch }}-release/
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-            name: php-dependencies
+            name: php-code-for-packages
       - name: Build packages
         run: |
           source "./tools/read_properties.sh"

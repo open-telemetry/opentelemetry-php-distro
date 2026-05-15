@@ -33,14 +33,14 @@ contents:
 - src: /source/prod/native/_build/${BUILD_ARCHITECTURE}-release/extension/code/opentelemetry_php_distro_*.so
   dst: /opt/opentelemetry/php/distro/
   expand: true
-- src: /source/prod/php
+- src: /source/_BUILT/php_code_for_packages
   dst: /opt/opentelemetry/php/distro/php
   type: tree
   packager: rpm
-- src: /source/prod/php
+- src: /source/_BUILT/php_code_for_packages
   dst: /opt/opentelemetry/php/distro/php
   packager: deb
-- src: /source/prod/php
+- src: /source/_BUILT/php_code_for_packages
   dst: /opt/opentelemetry/php/distro/php
   packager: apk
 - src: /source/packaging/configs/opentelemetry_distro_custom_template.ini
