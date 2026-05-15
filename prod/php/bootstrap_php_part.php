@@ -23,7 +23,7 @@ $otelDistroDir = $prodPhpDir . DIRECTORY_SEPARATOR . 'OpenTelemetry' . DIRECTORY
 
 require __DIR__ . DIRECTORY_SEPARATOR . 'ScoperConfig.php';
 /** @noinspection PhpFullyQualifiedNameUsageInspection */
-$scopePrefixIfEnabled = \OpenTelemetry\Distro\get_config_option_by_name('debug_scoper_enabled') ? (OTelDistroScoperConfig::PREFIX . '\\') : '';
+$scopePrefixIfEnabled = \OpenTelemetry\Distro\get_config_option_by_name('scoped_deps_enabled') ? (OTelDistroScoperConfig::PREFIX . '\\') : '';
 
 require $otelDistroDir . DIRECTORY_SEPARATOR . 'ProdPhpDir.php';
 /**

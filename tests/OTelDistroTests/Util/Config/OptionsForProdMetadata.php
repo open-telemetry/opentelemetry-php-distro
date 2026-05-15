@@ -38,7 +38,7 @@ final class OptionsForProdMetadata
         $optNameMetaPairs = [
             [OptionForProdName::autoload_enabled, new BoolOptionMetadata(false)],
             [OptionForProdName::bootstrap_php_part_file, new NullableStringOptionMetadata()],
-            [OptionForProdName::debug_scoper_enabled, new BoolOptionMetadata(true)],
+            [OptionForProdName::scoped_deps_enabled, new BoolOptionMetadata(true)],
             [OptionForProdName::disabled_instrumentations, new NullableWildcardListOptionMetadata()],
             [OptionForProdName::enabled, new BoolOptionMetadata(true)],
             [OptionForProdName::exporter_otlp_endpoint, new NullableStringOptionMetadata()],
