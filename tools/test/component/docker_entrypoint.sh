@@ -201,7 +201,7 @@ function main() {
     export repo_root_dir="/tmp/repo"
     cp -r /read_only_repo_root/* "${repo_root_dir}/"
     cd "${repo_root_dir}/"
-    rm -rf composer.json composer.lock ./vendor/ ./prod/php/vendor_*
+    rm -rf composer.json composer.lock ./vendor/
     source "./tools/shared.sh"
 
     echo 'Before setting PHP_INI_SCAN_DIR'

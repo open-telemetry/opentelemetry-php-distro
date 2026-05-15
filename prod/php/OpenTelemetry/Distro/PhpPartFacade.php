@@ -83,8 +83,8 @@ final class PhpPartFacade
         }
 
         try {
-            require __DIR__ . DIRECTORY_SEPARATOR . 'AutoloaderDistroOTelClasses.php';
-            AutoloaderDistroOTelClasses::register(__NAMESPACE__, __DIR__);
+            require __DIR__ . DIRECTORY_SEPARATOR . 'AutoloaderForClassesInDirectory.php';
+            AutoloaderForClassesInDirectory::register(dirRootNamespace: __NAMESPACE__, dirFullPath: __DIR__);
 
             InstrumentationBridge::singletonInstance()->bootstrap();
             self::prepareForOTelSdk();

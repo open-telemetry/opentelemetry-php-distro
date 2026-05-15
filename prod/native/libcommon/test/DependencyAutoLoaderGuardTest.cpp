@@ -29,16 +29,16 @@ public:
 TEST_F(DependencyAutoLoaderGuardTest, discardAppFileBecauseItWasDeliveredByDistro) {
     EXPECT_CALL(*bridge_, getPhpVersionMajorMinor()).Times(::testing::Exactly(1)).WillOnce(::testing::Return(std::pair<int, int>(8, 4)));
 
-    guard_.setBootstrapPath("/otel/prod/php/bootstrap.php");
+    guard_.setBootstrapPath("/opt/opentelemetry/php/distro/php/bootstrap_php_part.php");
 
-    ASSERT_FALSE(guard_.shouldDiscardFileCompilation("/otel/prod/php/vendor_84/first-package/test.php"));  // file from otel distro scope - no action
-    ASSERT_FALSE(guard_.shouldDiscardFileCompilation("/otel/prod/php/vendor_84/second-package/test.php")); // file from otel distro scope - no action
+    ASSERT_FALSE(guard_.shouldDiscardFileCompilation("/opt/opentelemetry/php/distro/php/84/vendor/first-package/test.php"));  // file from otel distro scope - no action
+    ASSERT_FALSE(guard_.shouldDiscardFileCompilation("/opt/opentelemetry/php/distro/php/84/vendor/second-package/test.php")); // file from otel distro scope - no action
 
     // clang-format off
     EXPECT_CALL(*bridge_, getNewlyCompiledFiles(::testing::_, 0, 0)).Times(::testing::Exactly(1)).WillOnce(
         ::testing::DoAll(
-            ::testing::InvokeArgument<0>("/otel/prod/php/vendor_84/first-package/test.php"sv), // we have that file in cache
-            ::testing::InvokeArgument<0>("/otel/prod/php/vendor_84/second-package/test.php"sv), // we have that file in cache
+            ::testing::InvokeArgument<0>("/opt/opentelemetry/php/distro/php/84/vendor/first-package/test.php"sv), // we have that file in cache
+            ::testing::InvokeArgument<0>("/opt/opentelemetry/php/distro/php/84/vendor/second-package/test.php"sv), // we have that file in cache
             ::testing::Return(std::pair<int, int>(2, 1)))); // returns index in class/file hashmaps
     // clang-format on
 
@@ -48,16 +48,16 @@ TEST_F(DependencyAutoLoaderGuardTest, discardAppFileBecauseItWasDeliveredByDistr
 TEST_F(DependencyAutoLoaderGuardTest, discardSecondAppFileBecauseItWasDeliveredByDistro) {
     EXPECT_CALL(*bridge_, getPhpVersionMajorMinor()).Times(::testing::Exactly(1)).WillOnce(::testing::Return(std::pair<int, int>(8, 4)));
 
-    guard_.setBootstrapPath("/otel/prod/php/bootstrap.php");
+    guard_.setBootstrapPath("/opt/opentelemetry/php/distro/php/bootstrap_php_part.php");
 
-    ASSERT_FALSE(guard_.shouldDiscardFileCompilation("/otel/prod/php/vendor_84/first-package/test.php"));  // file from otel distro scope - no action
-    ASSERT_FALSE(guard_.shouldDiscardFileCompilation("/otel/prod/php/vendor_84/second-package/test.php")); // file from otel distro scope - no action
+    ASSERT_FALSE(guard_.shouldDiscardFileCompilation("/opt/opentelemetry/php/distro/php/84/vendor/first-package/test.php"));  // file from otel distro scope - no action
+    ASSERT_FALSE(guard_.shouldDiscardFileCompilation("/opt/opentelemetry/php/distro/php/84/vendor/second-package/test.php")); // file from otel distro scope - no action
 
     // clang-format off
     EXPECT_CALL(*bridge_, getNewlyCompiledFiles(::testing::_, 0, 0)).Times(::testing::Exactly(1)).WillOnce(
         ::testing::DoAll(
-            ::testing::InvokeArgument<0>("/otel/prod/php/vendor_84/first-package/test.php"sv), // we have that file in cache
-            ::testing::InvokeArgument<0>("/otel/prod/php/vendor_84/second-package/test.php"sv), // we have that file in cache
+            ::testing::InvokeArgument<0>("/opt/opentelemetry/php/distro/php/84/vendor/first-package/test.php"sv), // we have that file in cache
+            ::testing::InvokeArgument<0>("/opt/opentelemetry/php/distro/php/84/vendor/second-package/test.php"sv), // we have that file in cache
             ::testing::Return(std::pair<int, int>(2, 1)))); // returns index in class/file hashmaps
     // clang-format on
 
@@ -67,17 +67,17 @@ TEST_F(DependencyAutoLoaderGuardTest, discardSecondAppFileBecauseItWasDeliveredB
 TEST_F(DependencyAutoLoaderGuardTest, getCompiledFilesListProgressively) {
     EXPECT_CALL(*bridge_, getPhpVersionMajorMinor()).Times(::testing::Exactly(1)).WillOnce(::testing::Return(std::pair<int, int>(8, 4)));
 
-    guard_.setBootstrapPath("/otel/prod/php/bootstrap.php");
+    guard_.setBootstrapPath("/opt/opentelemetry/php/distro/php/bootstrap_php_part.php");
 
-    ASSERT_FALSE(guard_.shouldDiscardFileCompilation("/otel/prod/php/vendor_84/first-package/test.php"));  // file from otel distro scope - no action
-    ASSERT_FALSE(guard_.shouldDiscardFileCompilation("/otel/prod/php/vendor_84/second-package/test.php")); // file from otel distro scope - no action
+    ASSERT_FALSE(guard_.shouldDiscardFileCompilation("/opt/opentelemetry/php/distro/php/84/vendor/first-package/test.php"));  // file from otel distro scope - no action
+    ASSERT_FALSE(guard_.shouldDiscardFileCompilation("/opt/opentelemetry/php/distro/php/84/vendor/second-package/test.php")); // file from otel distro scope - no action
 
     ::testing::InSequence s;
 
     // clang-format off
     EXPECT_CALL(*bridge_, getNewlyCompiledFiles(::testing::_, 0, 0)).Times(::testing::Exactly(1)).WillOnce(
         ::testing::DoAll(
-            ::testing::InvokeArgument<0>("/otel/prod/php/vendor_84/first-package/test.php"sv), // we have that file in cache
+            ::testing::InvokeArgument<0>("/opt/opentelemetry/php/distro/php/84/vendor/first-package/test.php"sv), // we have that file in cache
             ::testing::Return(std::pair<int, int>(10, 20)))); // returns index in class/file hashmaps
     // clang-format on
 
@@ -86,7 +86,7 @@ TEST_F(DependencyAutoLoaderGuardTest, getCompiledFilesListProgressively) {
     // clang-format off
     EXPECT_CALL(*bridge_, getNewlyCompiledFiles(::testing::_, 10, 20)).Times(::testing::Exactly(1)).WillOnce(
         ::testing::DoAll(
-            ::testing::InvokeArgument<0>("/otel/prod/php/vendor_84/second-package/test.php"sv), // we have that file in cache
+            ::testing::InvokeArgument<0>("/opt/opentelemetry/php/distro/php/84/vendor/second-package/test.php"sv), // we have that file in cache
             ::testing::Return(std::pair<int, int>(11, 21)))); // returns index in class/file hashmaps
     // clang-format on
 
@@ -103,16 +103,16 @@ TEST_F(DependencyAutoLoaderGuardTest, getCompiledFilesListProgressively) {
 
 TEST_F(DependencyAutoLoaderGuardTest, fileNotInVendorFolder) {
     EXPECT_CALL(*bridge_, getPhpVersionMajorMinor()).Times(::testing::Exactly(1)).WillOnce(::testing::Return(std::pair<int, int>(8, 4)));
-    guard_.setBootstrapPath("/otel/prod/php/bootstrap.php");
+    guard_.setBootstrapPath("/opt/opentelemetry/php/distro/php/bootstrap_php_part.php");
 
-    ASSERT_FALSE(guard_.shouldDiscardFileCompilation("/otel/prod/php/vendor_84/first-package/test.php")); // file from otel distro scope - no action
+    ASSERT_FALSE(guard_.shouldDiscardFileCompilation("/opt/opentelemetry/php/distro/php/84/vendor/first-package/test.php")); // file from otel distro scope - no action
 
     ::testing::InSequence s;
 
     // clang-format off
     EXPECT_CALL(*bridge_, getNewlyCompiledFiles(::testing::_, 0, 0)).Times(::testing::Exactly(1)).WillOnce(
         ::testing::DoAll(
-            ::testing::InvokeArgument<0>("/otel/prod/php/vendor_84/first-package/test.php"sv), // we have that file in cache
+            ::testing::InvokeArgument<0>("/opt/opentelemetry/php/distro/php/84/vendor/first-package/test.php"sv), // we have that file in cache
             ::testing::Return(std::pair<int, int>(10, 20)))); // returns index in class/file hashmaps
     // clang-format on
 
@@ -122,18 +122,18 @@ TEST_F(DependencyAutoLoaderGuardTest, fileNotInVendorFolder) {
 TEST_F(DependencyAutoLoaderGuardTest, wrongVendorFolder_shouldntHappen) {
     EXPECT_CALL(*bridge_, getPhpVersionMajorMinor()).Times(::testing::Exactly(1)).WillOnce(::testing::Return(std::pair<int, int>(8, 4)));
 
-    guard_.setBootstrapPath("/otel/prod/php/bootstrap.php");
+    guard_.setBootstrapPath("/opt/opentelemetry/php/distro/php/bootstrap_php_part.php");
 
     ::testing::InSequence s;
 
     // clang-format off
     EXPECT_CALL(*bridge_, getNewlyCompiledFiles(::testing::_, 0, 0)).Times(::testing::Exactly(1)).WillOnce(
         ::testing::DoAll(
-            ::testing::InvokeArgument<0>("/otel/prod/php/vendor_80/first-package/test.php"sv), // we have that file in cache
+            ::testing::InvokeArgument<0>("/opt/opentelemetry/php/distro/php/80/vendor/first-package/test.php"sv), // we have that file in cache
             ::testing::Return(std::pair<int, int>(2, 1)))); // returns index in class/file hashmaps
     // clang-format on
 
-    ASSERT_FALSE(guard_.shouldDiscardFileCompilation("/otel/prod/php/vendor_80/first-package/test.php")); // file NOT from otel distro scope - wrong vendor folder
+    ASSERT_FALSE(guard_.shouldDiscardFileCompilation("/opt/opentelemetry/php/distro/php/80/vendor/first-package/test.php")); // file NOT from otel distro scope - wrong vendor folder
 
     // clang-format off
     EXPECT_CALL(*bridge_, getNewlyCompiledFiles(::testing::_, 2, 1)).Times(::testing::Exactly(1)).WillOnce(

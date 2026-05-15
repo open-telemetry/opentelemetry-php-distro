@@ -108,7 +108,7 @@ main() {
                 && echo 'Running static check on prod (without dev only dependencies); PHP_version_no_dot:' ${PHP_version_no_dot} \
                 && mkdir -p /tmp/repo \
                 && cp -r /repo_root/* /tmp/repo/ \
-                && rm -rf /tmp/repo/composer.json /tmp/repo/composer.lock /tmp/repo/vendor/ /tmp/repo/prod/php/vendor_* \
+                && rm -rf /tmp/repo/composer.json /tmp/repo/composer.lock /tmp/repo/vendor/ \
                 && mv /tmp/repo/tests /tmp/repo/tests_original \
                 && mkdir /tmp/repo/tests \
                 && mv /tmp/repo/tests_original/otel_distro_extension_stubs /tmp/repo/tests/otel_distro_extension_stubs \
@@ -122,7 +122,7 @@ main() {
                 && cd / && rm -rf /tmp/repo/ \
                 && mkdir -p /tmp/repo \
                 && cp -r /repo_root/* /tmp/repo/ \
-                && rm -rf /tmp/repo/composer.json /tmp/repo/composer.lock /tmp/repo/vendor/ /tmp/repo/prod/php/vendor_* \
+                && rm -rf /tmp/repo/composer.json /tmp/repo/composer.lock /tmp/repo/vendor/ \
                 && cd /tmp/repo/ \
                 && php ./tools/build/select_json_lock_and_install_PHP_deps.php test \
                 && composer run-script -- static_check_and_run_unit_tests \
