@@ -24,13 +24,14 @@ use OpenTelemetry\Distro\OTelDistroScoperConfig;
  */
 
 $isScopingEnabled = \OpenTelemetry\Distro\get_config_option_by_name('scoped_deps_enabled');
-if ($isScopingEnabled) {
-    $prodPhpDir = __DIR__ . DIRECTORY_SEPARATOR . PHP_MAJOR_VERSION . PHP_MINOR_VERSION . DIRECTORY_SEPARATOR . 'scoped';
-    $vendorDir = $prodPhpDir . DIRECTORY_SEPARATOR . 'vendor';
-} else {
-    $prodPhpDir = __DIR__ . DIRECTORY_SEPARATOR . 'not_scoped';
-    $vendorDir = $prodPhpDir . DIRECTORY_SEPARATOR . 'vendor_' . PHP_MAJOR_VERSION . PHP_MINOR_VERSION;
-}
+$prodPhpSubDir = $isScopingEnabled
+    ? ('scoped' . DIRECTORY_SEPARATOR . PHP_MAJOR_VERSION . PHP_MINOR_VERSION . DIRECTORY_SEPARATOR)
+    : 'not_scoped';
+$prodPhpDir = __DIR__ . DIRECTORY_SEPARATOR . $prodPhpSubDir;
+$vendorSubDir = $isScopingEnabled
+    ? 'vendor'
+    : ('vendor_' . PHP_MAJOR_VERSION . PHP_MINOR_VERSION);
+$vendorDir = $prodPhpDir . DIRECTORY_SEPARATOR . $vendorSubDir;
 $otelDistroDir = $prodPhpDir . DIRECTORY_SEPARATOR . 'OpenTelemetry' . DIRECTORY_SEPARATOR . 'Distro';
 
 require __DIR__ . DIRECTORY_SEPARATOR . 'ScoperConfig.php';
