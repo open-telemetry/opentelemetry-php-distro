@@ -339,7 +339,7 @@ main() {
         if [ "${DEV_ONLY_RESCOPE_DISTRO}" = "false" ] && [ "${SKIP_VERIFY}" = "false" ]; then
             verify_vendor_dir \
                 "${_PHP_VERSION_WITHOUT_DOT}" \
-                "${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}/${_PHP_VERSION_WITHOUT_DOT}/not_scoped/vendor" \
+                "${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}/not_scoped/vendor_${_PHP_VERSION_WITHOUT_DOT}" \
                 "${_PROJECT_PROPERTIES_OTEL_PROTO_VERSION}" \
                 "${_PROJECT_PROPERTIES_NATIVE_OTLP_EXPORTERS_BASED_ON_PHP_IMPL_VERSION}"
         fi
