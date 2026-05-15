@@ -251,8 +251,8 @@ main() {
                 && mkdir -p /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/scoped/OpenTelemetry \
                 && cp -r ${_SCOPED_DISTRO_TEMP_IN_DOCKER_DIR}/. /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/scoped/OpenTelemetry/ \
                 \
-                && chown -R ${current_user_id}:${current_user_group_id} /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/scoped/OpenTelemetry/ \
-                && chmod -R +r,u+w /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/scoped/OpenTelemetry/ \
+                && chown -R ${current_user_id}:${current_user_group_id} /from_docker_host/dst/vendor/${_DISTRO_PATH}/ \
+                && chmod -R +r,u+w /from_docker_host/dst/vendor/${_DISTRO_PATH}/ \
             "
         else
             echo "Building PHP code (production code and its dependencies) for the packages for PHP version ${_PHP_VERSION_WITH_DOT} ..."
