@@ -112,7 +112,8 @@ final class ComponentTestsGenerateUnpackMatrixTest extends TestCaseBase implemen
         AssertEx::countAtLeast(2, OTelDistroProjectProperties::singletonInstance()->testGroupsShortNames);
 
         $phpVersion = OTelDistroProjectProperties::singletonInstance()->getLowestSupportedPhpVersion();
-        $packageType = OTelDistroProjectProperties::singletonInstance()->testAllPhpVersionsWithPackageType;
+        self::assertSame(self::PACKAGE_TYPE_DEB, OTelDistroProjectProperties::singletonInstance()->testAllPhpVersionsWithPackageType);
+        $packageType = self::PACKAGE_TYPE_DEB;
         $testAppCodeHostKindShortName = OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames[0];
         $testGroupShortName = OTelDistroProjectProperties::singletonInstance()->testGroupsShortNames[0];
         yield "{$phpVersion->asDotSeparated()},$packageType,$testAppCodeHostKindShortName,$testGroupShortName,prod_log_level_syslog=TRACE,scoped_deps_enabled=false";
