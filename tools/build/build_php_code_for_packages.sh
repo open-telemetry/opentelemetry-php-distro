@@ -247,7 +247,7 @@ main() {
                 && chmod -R +r,u+w /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/OpenTelemetry/ \
             "
         else
-            echo "Getting PHP dependencies for PHP version ${_PHP_VERSION_WITH_DOT} ..."
+            echo "Building PHP code (production code and its dependencies) for the packages for PHP version ${_PHP_VERSION_WITH_DOT} ..."
 
             if [ "$SKIP_NOTICE" = "false" ]; then
                 echo "This project depends on following packages for PHP ${_PHP_VERSION_WITH_DOT}" >>NOTICE
