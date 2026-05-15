@@ -37,7 +37,7 @@ final class InstrumentationBridge
     {
         self::logDebug(__LINE__, __FUNCTION__, 'Entered');
 
-        $instrumentationHookPhp = ProdPhpDir::$fullPath . DIRECTORY_SEPARATOR . 'Instrumentation' . DIRECTORY_SEPARATOR . 'hook.php';
+        $instrumentationHookPhp = ProdPhpDir::$fullPath . DIRECTORY_SEPARATOR . 'OpenTelemetry' . DIRECTORY_SEPARATOR . 'Instrumentation' . DIRECTORY_SEPARATOR . 'hook.php';
         if (!file_exists($instrumentationHookPhp)) {
             throw new RuntimeException("File $instrumentationHookPhp does not exist");
         }
