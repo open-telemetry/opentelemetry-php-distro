@@ -56,10 +56,10 @@ parse_args() {
 }
 
 verify_otel_proto_version() {
-    local -r _VENDOR_DIR="${1:?}"
+    local -r _NOT_SCOPED_VENDOR_DIR="${1:?}"
     local -r _OTEL_PROTO_VERSION="${2:?}"
 
-    local gen_otlp_protobuf_version_file_path="${_VENDOR_DIR}/open-telemetry/gen-otlp-protobuf/VERSION"
+    local gen_otlp_protobuf_version_file_path="${_NOT_SCOPED_VENDOR_DIR}/open-telemetry/gen-otlp-protobuf/VERSION"
     if [ ! -f "${gen_otlp_protobuf_version_file_path}" ]; then
         echo "File ${gen_otlp_protobuf_version_file_path} does not exist"
         return 1
@@ -115,11 +115,10 @@ verify_otlp_exporters() {
 verify_vendor_dir() {
     local -r _PHP_VERSION_WITHOUT_DOT="${1:?}"
     local -r _NOT_SCOPED_VENDOR_DIR="${2:?}"
-    local -r _VENDOR_DIR="${3:?}"
-    local -r _OTEL_PROTO_VERSION="${4:?}"
-    local -r _NATIVE_OTLP_EXPORTERS_PROTO_VERSION="${5:?}"
+    local -r _OTEL_PROTO_VERSION="${3:?}"
+    local -r _NATIVE_OTLP_EXPORTERS_PROTO_VERSION="${4:?}"
 
-    verify_otel_proto_version "${_VENDOR_DIR}" "${_OTEL_PROTO_VERSION}"
+    verify_otel_proto_version "${_NOT_SCOPED_VENDOR_DIR}" "${_OTEL_PROTO_VERSION}"
     verify_otlp_exporters "${_PHP_VERSION_WITHOUT_DOT}" "${_NOT_SCOPED_VENDOR_DIR}" "${_NATIVE_OTLP_EXPORTERS_PROTO_VERSION:?}"
 }
 
@@ -216,8 +215,9 @@ main() {
 
         local COPY_REPO_TO_TMP_CMD="mkdir -p /tmp/repo && cd /read_only_repo_root && for entry in *; do [ \"\${entry}\" = \"NOTICE\" ] && continue; cp -r \"\${entry}\" /tmp/repo/; done && cd /tmp/repo"
 
+        local _NOT_SCOPED_DISTRO_TEMP_IN_DOCKER_DIR="/tmp/repo/prod/php/OpenTelemetry"
         local _SCOPED_DISTRO_TEMP_IN_DOCKER_DIR="/tmp/repo/prod_php_OpenTelemetry_scoped"
-        local SCOPE_DISTRO_CMD="OTEL_PHP_SCOPER_PREFIX='${_SCOPER_PREFIX}' php -d error_reporting='E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED' /usr/local/bin/php-scoper.phar add-prefix --force --config=/tmp/repo/tools/build/php-scoper.inc.php --output-dir=${_SCOPED_DISTRO_TEMP_IN_DOCKER_DIR} /tmp/repo/prod/php/OpenTelemetry"
+        local SCOPE_DISTRO_CMD="OTEL_PHP_SCOPER_PREFIX='${_SCOPER_PREFIX}' php -d error_reporting='E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED' /usr/local/bin/php-scoper.phar add-prefix --force --config=/tmp/repo/tools/build/php-scoper.inc.php --output-dir=${_SCOPED_DISTRO_TEMP_IN_DOCKER_DIR} ${_NOT_SCOPED_DISTRO_TEMP_IN_DOCKER_DIR}"
 
         # --- Build docker mount args and command from blocks ---
         local docker_mount_args=(
@@ -237,14 +237,22 @@ main() {
             docker_sh_cmd="\
                 ${INSTALL_SCOPER_CMD} \
                 && ${COPY_REPO_TO_TMP_CMD} \
+                \
+                && rm -rf /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/not_scoped/OpenTelemetry \
+                && mkdir -p /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/not_scoped/OpenTelemetry \
+                && cp -r ${_NOT_SCOPED_DISTRO_TEMP_IN_DOCKER_DIR}/. /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/not_scoped/OpenTelemetry/ \
+                \
+                && chown -R ${current_user_id}:${current_user_group_id} /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}}/not_scoped/OpenTelemetry/ \
+                && chmod -R +r,u+w /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}}/not_scoped/OpenTelemetry/ \
+                \
                 && echo 'Re-scoping distro code with prefix ${_SCOPER_PREFIX}' \
                 && ${SCOPE_DISTRO_CMD} \
-                && rm -rf /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/OpenTelemetry \
-                && mkdir -p /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/OpenTelemetry \
-                && cp -r ${_SCOPED_DISTRO_TEMP_IN_DOCKER_DIR}/. /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/OpenTelemetry/ \
+                && rm -rf /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/scoped/OpenTelemetry \
+                && mkdir -p /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/scoped/OpenTelemetry \
+                && cp -r ${_SCOPED_DISTRO_TEMP_IN_DOCKER_DIR}/. /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/scoped/OpenTelemetry/ \
                 \
-                && chown -R ${current_user_id}:${current_user_group_id} /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/OpenTelemetry/ \
-                && chmod -R +r,u+w /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/OpenTelemetry/ \
+                && chown -R ${current_user_id}:${current_user_group_id} /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/scoped/OpenTelemetry/ \
+                && chmod -R +r,u+w /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/scoped/OpenTelemetry/ \
             "
         else
             echo "Building PHP code (production code and its dependencies) for the packages for PHP version ${_PHP_VERSION_WITH_DOT} ..."
@@ -268,13 +276,6 @@ main() {
                 exit 1
             fi
 
-            local _TEMP_NOT_SCOPED_VENDOR_DIR="${_BUILD_PHP_CODE_FOR_PACKAGES_TEMP_DIR}/temp_not_scoped_vendor"
-            rm -rf "${_TEMP_NOT_SCOPED_VENDOR_DIR}"
-            mkdir -p "${_TEMP_NOT_SCOPED_VENDOR_DIR}"
-
-            docker_mount_args+=(
-                -v "${_TEMP_NOT_SCOPED_VENDOR_DIR}/:/docker_host_dst_not_scoped_vendor/"
-            )
             docker_mount_args+=("${docker_notice_mount_args[@]}")
 
             docker_sh_cmd="\
@@ -284,7 +285,11 @@ main() {
                 && ${COPY_REPO_TO_TMP_CMD} \
                 && rm -rf composer.json composer.lock ./vendor/ \
                 && php ./tools/build/select_json_lock_and_install_PHP_deps.php prod \
-                && cp -r ./vendor/. /docker_host_dst_not_scoped_vendor/ \
+                \
+                && rm -rf /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/not_scoped/OpenTelemetry \
+                && mkdir -p /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/not_scoped/OpenTelemetry \
+                && cp -r ${_NOT_SCOPED_DISTRO_TEMP_IN_DOCKER_DIR}/. /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/not_scoped/OpenTelemetry/ \
+                \
                 && echo 'Scoping PHP dependencies with prefix ${_SCOPER_PREFIX}' \
                 && ${INSTALL_SCOPER_CMD} \
                 && cd /tmp/repo/vendor \
@@ -293,18 +298,16 @@ main() {
                 && cd /tmp/repo \
                 && php ./tools/build/fix_scoped_composer_autoload.php '${_SCOPER_PREFIX}' /tmp/repo/vendor-scoped \
                 && mv /tmp/repo/vendor-scoped /tmp/repo/vendor \
-                && rm -rf /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/vendor \
-                && mkdir -p /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/vendor \
-                && cp -r ./vendor/. /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/vendor/ \
+                && rm -rf /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/scoped/vendor \
+                && mkdir -p /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/scoped/vendor \
+                && cp -r ./vendor/. /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/scoped/vendor/ \
                 \
                 && echo 'Scoping distro code with prefix ${_SCOPER_PREFIX}' \
                 && ${SCOPE_DISTRO_CMD} \
-                && rm -rf /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/OpenTelemetry \
-                && mkdir -p /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/OpenTelemetry \
-                && cp -r ${_SCOPED_DISTRO_TEMP_IN_DOCKER_DIR}/. /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/OpenTelemetry/ \
+                && rm -rf /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/scoped/OpenTelemetry \
+                && mkdir -p /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/scoped/OpenTelemetry \
+                && cp -r ${_SCOPED_DISTRO_TEMP_IN_DOCKER_DIR}/. /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/scoped/OpenTelemetry/ \
                 \
-                && chown -R ${current_user_id}:${current_user_group_id} /docker_host_dst_not_scoped_vendor/ \
-                && chmod -R +r,u+w /docker_host_dst_not_scoped_vendor/ \
                 && chown -R ${current_user_id}:${current_user_group_id} /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/ \
                 && chmod -R +r,u+w /docker_host_dst_php_code_for_packages/${_PHP_VERSION_WITHOUT_DOT}/ \
                 ${GEN_NOTICE} \
@@ -322,8 +325,7 @@ main() {
         if [ "${DEV_ONLY_RESCOPE_DISTRO}" = "false" ] && [ "${SKIP_VERIFY}" = "false" ]; then
             verify_vendor_dir \
                 "${_PHP_VERSION_WITHOUT_DOT}" \
-                "${_TEMP_NOT_SCOPED_VENDOR_DIR}" \
-                "${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}/${_PHP_VERSION_WITHOUT_DOT}/vendor" \
+                "${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}/${_PHP_VERSION_WITHOUT_DOT}/not_scoped/vendor" \
                 "${_PROJECT_PROPERTIES_OTEL_PROTO_VERSION}" \
                 "${_PROJECT_PROPERTIES_NATIVE_OTLP_EXPORTERS_BASED_ON_PHP_IMPL_VERSION}"
         fi
