@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\ComponentTests;
 
+use OpenTelemetry\Distro\OTelDistroScoperConfig;
 use OTelDistroTests\ComponentTests\Util\AppCodeContextDataUtil;
+use OTelDistroTests\ComponentTests\Util\AppCodeContextUtil;
 use OTelDistroTests\ComponentTests\Util\AppCodeHostParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeRequestParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeTarget;
@@ -81,6 +83,23 @@ final class TransactionSpanTest extends ComponentTestCaseBase
                 return [];
             }
         );
+        ///////////////////////////////////////////////////////////////////////////
+        // TODO: Sergey Kleyman: BEGIN: REMOVE: ::
+        ///////////////////////////////////////
+        static $pdoInstrumOriginalFqClassName = 'OpenTelemetry\\Contrib\\Instrumentation\\PDO\\PDOInstrumentation';
+        $pdoInstrumenAdaptedFqClassName = AppCodeContextUtil::adaptClassNameRawStringToScoping($pdoInstrumOriginalFqClassName);
+        self::assertTrue(class_exists($pdoInstrumenAdaptedFqClassName));
+        if (AppCodeContextUtil::isScopingEnabled()) {
+            self::assertFalse(class_exists($pdoInstrumOriginalFqClassName));
+            self::assertStringStartsWith(OTelDistroScoperConfig::PREFIX, $pdoInstrumenAdaptedFqClassName);
+            self::assertStringEndsNotWith($pdoInstrumOriginalFqClassName, $pdoInstrumenAdaptedFqClassName);
+        } else {
+            self::assertTrue(class_exists($pdoInstrumOriginalFqClassName));
+            self::fail('Dummy fail when scoping is disabled');
+        }
+        ///////////////////////////////////////
+        // END: REMOVE
+        ////////////////////////////////////////////////////////////////////////////
     }
 
     public function implTestFeatureWithVariousEnabledConfigCombos(MixedMap $testArgs): void

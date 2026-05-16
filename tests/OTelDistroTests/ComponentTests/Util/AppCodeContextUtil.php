@@ -14,6 +14,11 @@ final class AppCodeContextUtil
 {
     use StaticClassTrait;
 
+    public static function isScopingEnabled(): bool
+    {
+        return get_config_option_by_name(OptionForProdName::scoped_deps_enabled->name);
+    }
+
     /**
      * @template T of object
      *
@@ -28,7 +33,6 @@ final class AppCodeContextUtil
 
     public static function adaptClassNameRawStringToScoping(string $unscopedClassName): string
     {
-        $isScoperEnabled = get_config_option_by_name(OptionForProdName::scoped_deps_enabled->name);
-        return ($isScoperEnabled ? (OTelDistroScoperConfig::PREFIX . '\\') : '') . $unscopedClassName;
+        return (self::isScopingEnabled() ? (OTelDistroScoperConfig::PREFIX . '\\') : '') . $unscopedClassName;
     }
 }
