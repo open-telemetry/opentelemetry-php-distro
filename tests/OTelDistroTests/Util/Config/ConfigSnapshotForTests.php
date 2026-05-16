@@ -12,6 +12,7 @@ use OTelDistroTests\ComponentTests\Util\EnvVarUtilForTests;
 use OTelDistroTests\ComponentTests\Util\TestGroupName;
 use OTelDistroTests\ComponentTests\Util\TestInfraDataPerProcess;
 use OTelDistroTests\ComponentTests\Util\TestInfraDataPerRequest;
+use OTelDistroTests\ComponentTests\Util\TestMatrixRowOptionalPart;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\ExceptionUtil;
 use OTelDistroTests\Util\Log\LoggableInterface;
@@ -43,6 +44,8 @@ final class ConfigSnapshotForTests implements LoggableInterface
 
     public readonly LogLevel $logLevel; // @phpstan-ignore property.uninitializedReadonly
     public readonly ?string $logsDirectory; // @phpstan-ignore property.uninitializedReadonly
+
+    public readonly ?TestMatrixRowOptionalPart $matrixRowOptionalPart; // @phpstan-ignore property.uninitializedReadonly
 
     public readonly ?string $mysqlHost; // @phpstan-ignore property.uninitializedReadonly
     public readonly ?int $mysqlPort; // @phpstan-ignore property.uninitializedReadonly

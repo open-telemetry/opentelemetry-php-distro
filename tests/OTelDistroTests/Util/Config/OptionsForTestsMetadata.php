@@ -8,6 +8,7 @@ use OpenTelemetry\Distro\Log\LogLevel;
 use OTelDistroTests\ComponentTests\Util\PhpSerializationUtil;
 use OTelDistroTests\ComponentTests\Util\TestInfraDataPerProcess;
 use OTelDistroTests\ComponentTests\Util\TestInfraDataPerRequest;
+use OTelDistroTests\ComponentTests\Util\TestMatrixRowOptionalPart;
 
 /**
  * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
@@ -30,6 +31,10 @@ final class OptionsForTestsMetadata
             return PhpSerializationUtil::unserializeFromStringAssertType($rawValue, TestInfraDataPerRequest::class);
         };
 
+        $parseTestMatrixRowOptionalPart = function (string $rawValue): TestMatrixRowOptionalPart {
+            return TestMatrixRowOptionalPart::parse($rawValue);
+        };
+
         /** @var array{OptionForTestsName, OptionMetadata<mixed>}[] $optNameMetaPairs */
         $optNameMetaPairs = [
             [OptionForTestsName::app_code_host_kind, new NullableAppCodeHostKindOptionMetadata()],
@@ -49,6 +54,8 @@ final class OptionsForTestsMetadata
 
             [OptionForTestsName::log_level, new LogLevelOptionMetadata(LogLevel::info)],
             [OptionForTestsName::logs_directory, new NullableStringOptionMetadata()],
+
+            [OptionForTestsName::matrix_row_optional_part, new NullableCustomOptionMetadata($parseTestMatrixRowOptionalPart)],
 
             [OptionForTestsName::mysql_host, new NullableStringOptionMetadata()],
             [OptionForTestsName::mysql_port, new NullableIntOptionMetadata(1, 65535)],
