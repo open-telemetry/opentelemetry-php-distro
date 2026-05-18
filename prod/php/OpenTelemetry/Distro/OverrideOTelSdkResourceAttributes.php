@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\Distro;
 
+use OpenTelemetry\Distro\Log\BootstrapStageLoggingClassTrait;
 use OpenTelemetry\Distro\Log\LogFeature;
 use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Registry as OTelSdkRegistry;

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace OpenTelemetry\DistroTools\Build;
 
 use OpenTelemetry\Distro\AutoloaderForClassesInDirectory;
-use OpenTelemetry\Distro\BootstrapStageLogger;
+use OpenTelemetry\Distro\Log\BootstrapStageLogger;
 use OpenTelemetry\Distro\Log\LogLevel;
 use RuntimeException;
 

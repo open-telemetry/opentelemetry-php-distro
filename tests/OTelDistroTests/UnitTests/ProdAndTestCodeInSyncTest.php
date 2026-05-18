@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\UnitTests;
 
-use OpenTelemetry\Distro\BootstrapStageLogger;
+use OpenTelemetry\Distro\Log\BootstrapStageLogger;
 use OpenTelemetry\Distro\Log\LogLevel;
 use OpenTelemetry\Distro\PhpPartFacade;
 use OpenTelemetry\Distro\Util\BoolUtil;

@@ -7,11 +7,13 @@ declare(strict_types=1);
 namespace OpenTelemetry\Distro;
 
 use Closure;
+use OpenTelemetry\Distro\Log\BootstrapStageLogger;
+use OpenTelemetry\Distro\Log\BootstrapStageLoggingClassTrait;
 use OpenTelemetry\Distro\Log\LogFeature;
 use OpenTelemetry\Distro\Log\LogLevel;
+use OpenTelemetry\Distro\Util\SingletonInstanceTrait;
 use RuntimeException;
 use Throwable;
-use OpenTelemetry\Distro\Util\SingletonInstanceTrait;
 
 /**
  * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.

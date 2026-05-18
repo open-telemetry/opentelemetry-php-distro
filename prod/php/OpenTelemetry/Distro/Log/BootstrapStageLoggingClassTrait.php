@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace OpenTelemetry\Distro;
+namespace OpenTelemetry\Distro\Log;
 
 use JsonException;
 use OpenTelemetry\Distro\Util\GetContextInterface;
 use Throwable;
-
 use function json_encode;
 
 /**

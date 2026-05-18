@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\Util;
 
-use OpenTelemetry\Distro\BootstrapStageLogger;
+use OpenTelemetry\Distro\Log\BootstrapStageLogger;
 use OpenTelemetry\Distro\Log\LogLevel;
 use OpenTelemetry\DistroTools\Build\BuildToolsLog;
 use OTelDistroTests\ComponentTests\Util\ConfigUtilForTests;
@@ -16,12 +16,12 @@ use Override;
 use PHPUnit\Event\Code\Test as PHPUnitEventCodeTest;
 use PHPUnit\Event\Code\TestMethod as PHPUnitEventCodeTestMethod;
 use PHPUnit\Event\Event as PHPUnitEvent;
-use PHPUnit\Event\Test\ErrorTriggered as PHPUnitEventTestErrorTriggered;
-use PHPUnit\Event\Test\ErrorTriggeredSubscriber as PHPUnitEventTestErrorTriggeredSubscriber;
 use PHPUnit\Event\Test\ConsideredRisky as PHPUnitEventTestConsideredRisky;
 use PHPUnit\Event\Test\ConsideredRiskySubscriber as PHPUnitEventTestConsideredRiskySubscriber;
 use PHPUnit\Event\Test\Errored as PHPUnitEventTestErrored;
 use PHPUnit\Event\Test\ErroredSubscriber as PHPUnitEventTestErroredSubscriber;
+use PHPUnit\Event\Test\ErrorTriggered as PHPUnitEventTestErrorTriggered;
+use PHPUnit\Event\Test\ErrorTriggeredSubscriber as PHPUnitEventTestErrorTriggeredSubscriber;
 use PHPUnit\Event\Test\Failed as PHPUnitEventTestFailed;
 use PHPUnit\Event\Test\FailedSubscriber as PHPUnitEventTestFailedSubscriber;
 use PHPUnit\Event\Test\MarkedIncomplete as PHPUnitEventTestMarkedIncomplete;

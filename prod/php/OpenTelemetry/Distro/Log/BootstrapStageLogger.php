@@ -4,14 +4,16 @@
 
 declare(strict_types=1);
 
-namespace OpenTelemetry\Distro;
+namespace OpenTelemetry\Distro\Log;
 
 use Closure;
-use OpenTelemetry\Distro\Log\LogFeature;
+use OpenTelemetry\Distro\Util\GetContextInterface;
 use OpenTelemetry\Distro\Util\StaticClassTrait;
 
 /**
- * @phpstan-type FormatAndWrite Closure(int $level, int $prodLogFeature, string $file, int $line, string $func, string $message): void
+ * @phpstan-import-type Context from GetContextInterface
+ *
+ * @phpstan-type FormatAndWrite Closure(int $level, int $prodLogFeature, string $file, int $line, string $func, string $message, Context $context): void
  */
 final class BootstrapStageLogger
 {
@@ -37,39 +39,33 @@ final class BootstrapStageLogger
 
     private static int $maxEnabledLevel = self::LEVEL_OFF;
 
-    /** @var ?FormatAndWrite */
+    /** @var ?Closure */
     private static ?Closure $formatAndWrite = null;
 
-    private static string $phpSrcCodePathPrefixToRemove;
-    private static string $classNamePrefixToRemove;
-
-    private static ?int $pid = null;
+    /** @var list<string> */
+    private static array $srcCodePathPrefixesToRemove;
 
     /**
-     * @phpstan-param ?FormatAndWrite $formatAndWrite
+     * @phpstan-param ?Closure $formatAndWrite
      */
-    public static function configure(int $maxEnabledLevel, string $phpSrcCodeRootDir, string $rootNamespace, ?Closure $formatAndWrite = null): void
-    {
+    public static function configure(
+        int $maxEnabledLevel,
+        array $srcCodeRootDirsToRemove,
+        ?Closure $formatAndWrite = null
+    ): void {
         self::$maxEnabledLevel = $maxEnabledLevel;
         self::$formatAndWrite = $formatAndWrite;
-        if (is_int($pid = getmypid())) {
-            self::$pid = $pid;
+
+        $srcCodePathPrefixesToRemove = [];
+        foreach ($srcCodeRootDirsToRemove as $srcCodeRootDirToRemove) {
+            $srcCodePathPrefixesToRemove[] = $srcCodeRootDirToRemove . DIRECTORY_SEPARATOR;
         }
+        self::$srcCodePathPrefixesToRemove = $srcCodePathPrefixesToRemove;
 
-        self::$phpSrcCodePathPrefixToRemove = $phpSrcCodeRootDir . DIRECTORY_SEPARATOR;
-        self::$classNamePrefixToRemove = $rootNamespace . '\\';
-
-        self::logDebug(
-            'Exiting...'
-            . '; maxEnabledLevel: ' . self::levelIntToString($maxEnabledLevel)
-            . '; phpSrcCodePathPrefixToRemove: ' . self::$phpSrcCodePathPrefixToRemove
-            . '; classNamePrefixToRemove: ' . self::$classNamePrefixToRemove
-            . '; pid: ' . self::nullableToLog(self::$pid),
-            __FILE__,
-            __LINE__,
-            __CLASS__,
-            __FUNCTION__
-        );
+        $maxEnabledLevelAsString = self::levelIntToString($maxEnabledLevel);
+        $formatAndWriteIsNull = ($formatAndWrite === null);
+        $ctx = compact('maxEnabledLevelAsString', 'maxEnabledLevel', 'srcCodeRootDirsToRemove', 'srcCodePathPrefixesToRemove', 'formatAndWriteIsNull');
+        self::logDebug(__FILE__, __LINE__, __FUNCTION__, 'Exiting...', $ctx);
     }
 
     public static function levelIntToString(int $level): string
@@ -122,39 +118,30 @@ final class BootstrapStageLogger
         ) === 0;
     }
 
-    private static function processSourceCodeFilePathForLog(string $file): string
+    private static function processSourceCodeFilePathForLog(string $srcCodeFilePath): string
     {
-        return
-            self::isPrefixOf(self::$phpSrcCodePathPrefixToRemove, $file, /* isCaseSensitive: */ false)
-                ? substr($file, strlen(self::$phpSrcCodePathPrefixToRemove))
-                : $file;
-    }
-
-    private static function processClassNameForLog(string $class): string
-    {
-        return
-            self::isPrefixOf(self::$classNamePrefixToRemove, $class, /* isCaseSensitive: */ false)
-                ? substr($class, strlen(self::$classNamePrefixToRemove))
-                : $class;
-    }
-
-    private static function processClassFunctionNameForLog(string $class, string $func): string
-    {
-        if ($class === '') {
-            return $func;
+        foreach (self::$srcCodePathPrefixesToRemove as $srcCodePathPrefixToRemove) {
+            if (self::isPrefixOf($srcCodePathPrefixToRemove, $srcCodeFilePath, /* isCaseSensitive: */ false)) {
+                return substr($srcCodeFilePath, strlen($srcCodePathPrefixToRemove));
+            }
         }
-        return self::processClassNameForLog($class) . '::' . $func;
+        return $srcCodeFilePath;
     }
 
     /**
+     * @phpstan-param Context $context
+     *
      * @see packaging/test/smokeTest.php
     */
-    public static function logDebug(string $message, string $file, int $line, string $class, string $func): void
+    public static function logDebug(string $file, int $line, string $func, string $message, array $context = []): ?EnabledBootstrapStageLoggerProxy
     {
-        self::logWithFeatureAndLevel(LogFeature::BOOTSTRAP, self::LEVEL_DEBUG, $message, $file, $line, $class, $func);
+        self::logWithFeatureAndLevel($file, $line, $func, LogFeature::BOOTSTRAP, self::LEVEL_DEBUG, $message, $context);
     }
 
-    public static function logWithFeatureAndLevel(int $feature, int $statementLevel, string $message, string $file, int $line, string $class, string $func): void
+    /**
+     * @phpstan-param Context $context
+     */
+    public static function logWithFeatureAndLevel(string $file, int $line, string $func, int $feature, int $statementLevel, string $message, array $context = []): void
     {
         if (!self::isEnabledForLevel($statementLevel)) {
             return;
@@ -163,7 +150,8 @@ final class BootstrapStageLogger
         if (self::$formatAndWrite === null) {
             /**
              * Use fully qualified names for functions implemented by the extension to make sure scoper correctly detects them
-             * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
+             *
+             * @noinspection PhpFullyQualifiedNameUsageInspection
              */
             \OpenTelemetry\Distro\log_feature(
                 0 /* $isForced */,
@@ -171,8 +159,8 @@ final class BootstrapStageLogger
                 $feature,
                 self::processSourceCodeFilePathForLog($file),
                 $line,
-                self::processClassFunctionNameForLog($class, $func),
-                $message
+                $func,
+                BuildToolsLog::concatMessageAndContext($message, $context)
             );
         } else {
             (self::$formatAndWrite)(
@@ -180,7 +168,7 @@ final class BootstrapStageLogger
                 $feature,
                 self::processSourceCodeFilePathForLog($file),
                 $line,
-                self::processClassFunctionNameForLog($class, $func),
+                $func,
                 $message
             );
         }

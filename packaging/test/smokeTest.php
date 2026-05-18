@@ -39,7 +39,7 @@ if (array_search("{$scopeName}OpenTelemetry\Distro\PhpPartFacade", get_declared_
 echo CGREEN."OK\n".CDEF;
 
 echo "Trying to log something to stderr: ";
-$loggerClass = "{$scopeName}OpenTelemetry\\Distro\\BootstrapStageLogger";
+$loggerClass = "{$scopeName}OpenTelemetry\\Distro\\Log\\BootstrapStageLogger";
 $loggerClass::logDebug("This is just a message to test logger", __FILE__, __LINE__, __CLASS__, __FUNCTION__);
 echo CGREEN."OK\n".CDEF;
 
