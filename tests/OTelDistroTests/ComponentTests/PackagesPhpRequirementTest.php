@@ -225,9 +225,9 @@ final class PackagesPhpRequirementTest extends ComponentTestCaseBase
         self::assertSame(0, $procInfo['exitCode']);
     }
 
-    public static function appCodeForTestPackagesHaveCorrectPhpVersion(MixedMap $appCodeArgs): void
+    public static function appCodeForTestPackagesHaveCorrectPhpVersion(MixedMap $appCodeRequestArgs): void
     {
-        AppCodeContextDataUtil::writeDataToTempFile([self::APP_CODE_CTX_VENDOR_DIR_KEY => AppCodeContextUtil::adaptClassNameToScoping(VendorDir::class)::$fullPath], $appCodeArgs);
+        AppCodeContextDataUtil::writeDataToTempFile([self::APP_CODE_CTX_VENDOR_DIR_KEY => AppCodeContextUtil::adaptClassNameToScoping(VendorDir::class)::$fullPath], $appCodeRequestArgs);
     }
 
     private function implTestPackagesHaveCorrectPhpVersion(): void
@@ -238,9 +238,9 @@ final class PackagesPhpRequirementTest extends ComponentTestCaseBase
 
         $testCaseHandle = $this->getTestCaseHandle();
 
-        /** @var array<string, mixed> $appCodeArgs */
-        $appCodeArgs = [];
-        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeArgs);
+        /** @var array<string, mixed> $appCodeRequestArgs */
+        $appCodeRequestArgs = [];
+        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeRequestArgs);
 
         $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
             function (AppCodeHostParams $appCodeParams): void {
@@ -249,15 +249,15 @@ final class PackagesPhpRequirementTest extends ComponentTestCaseBase
         );
         $appCodeHost->execAppCode(
             AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestPackagesHaveCorrectPhpVersion']),
-            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeArgs): void {
-                $appCodeRequestParams->setAppCodeArgs($appCodeArgs);
+            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeRequestArgs): void {
+                $appCodeRequestParams->setAppCodeRequestArgs($appCodeRequestArgs);
             }
         );
 
         $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(WaitForOTelSignalCounts::spans(1)); // exactly 1 span (the root span) is expected
         $dbgCtx->add(compact('agentBackendComms'));
 
-        $prodVendorDir = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeArgs)->getString(self::APP_CODE_CTX_VENDOR_DIR_KEY);
+        $prodVendorDir = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeRequestArgs)->getString(self::APP_CODE_CTX_VENDOR_DIR_KEY);
 
         self::verifyPackagesPhpVersion($prodVendorDir);
         self::validatePhpFilesUseParser($prodVendorDir);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\Distro;
 
+use OpenTelemetry\Distro\Log\LogFeature;
 use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Registry as OTelSdkRegistry;
 use OpenTelemetry\SDK\Resource\ResourceDetectorInterface;
@@ -81,5 +82,13 @@ final class OverrideOTelSdkResourceAttributes implements ResourceDetectorInterfa
     private static function getCurrentSourceCodeClass(): string
     {
         return __CLASS__;
+    }
+
+    /**
+     * Must be defined in class using BootstrapStageLoggingClassTrait
+     */
+    private static function getCurrentLogFeature(): int
+    {
+        return LogFeature::BOOTSTRAP;
     }
 }

@@ -6,6 +6,8 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\Distro;
 
+use OpenTelemetry\Distro\Log\LogFeature;
+
 final class AutoloaderForClassesInDirectory
 {
     use BootstrapStageLoggingClassTrait;
@@ -72,5 +74,13 @@ final class AutoloaderForClassesInDirectory
     private static function getCurrentSourceCodeClass(): string
     {
         return __CLASS__;
+    }
+
+    /**
+     * Must be defined in class using BootstrapStageLoggingClassTrait
+     */
+    private static function getCurrentLogFeature(): int
+    {
+        return LogFeature::BOOTSTRAP;
     }
 }

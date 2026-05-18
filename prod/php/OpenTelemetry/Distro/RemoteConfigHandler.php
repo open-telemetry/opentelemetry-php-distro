@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\Distro;
 
+use OpenTelemetry\Distro\Log\LogFeature;
 use OpenTelemetry\Distro\Util\StaticClassTrait;
 use OpenTelemetry\SDK\Common\Configuration\Configuration as OTelSdkConfiguration;
 use OpenTelemetry\SDK\Common\Configuration\Variables as OTelSdkConfigVariables;
@@ -97,5 +98,13 @@ final class RemoteConfigHandler
     private static function getCurrentSourceCodeClass(): string
     {
         return __CLASS__;
+    }
+
+    /**
+     * Must be defined in class using BootstrapStageLoggingClassTrait
+     */
+    private static function getCurrentLogFeature(): int
+    {
+        return LogFeature::CONFIG;
     }
 }

@@ -51,25 +51,25 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
         return 'Dummy failed; run count: ' . $runCount;
     }
 
-    public static function appCodeForTestRunAndEscalateLogLevelOnFailure(MixedMap $appCodeArgs): void
+    public static function appCodeForTestRunAndEscalateLogLevelOnFailure(MixedMap $appCodeRequestArgs): void
     {
         self::appCodeSetsHowFinished(
-            $appCodeArgs,
+            $appCodeRequestArgs,
             /**
              * @retrun array<string, mixed>
              */
-            function () use ($appCodeArgs): array {
+            function () use ($appCodeRequestArgs): array {
                 DebugContext::getCurrentScope(/* out */ $dbgCtx);
-                $dbgCtx->add(compact('appCodeArgs'));
+                $dbgCtx->add(compact('appCodeRequestArgs'));
                 $dbgCtx->add(['testConfig' => AmbientContextForTests::testConfig()]);
-                $expectedLogLevelForProdCode = $appCodeArgs->getLogLevel(self::LOG_LEVEL_FOR_PROD_CODE_KEY);
+                $expectedLogLevelForProdCode = $appCodeRequestArgs->getLogLevel(self::LOG_LEVEL_FOR_PROD_CODE_KEY);
                 $dbgCtx->add(compact('expectedLogLevelForProdCode'));
                 $prodConfig = self::buildProdConfigFromAppCode();
                 $dbgCtx->add(compact('prodConfig'));
                 $actualLogLevelForProdCode = $prodConfig->effectiveLogLevel();
                 $dbgCtx->add(compact('actualLogLevelForProdCode'));
                 self::assertSame($expectedLogLevelForProdCode, $actualLogLevelForProdCode);
-                $expectedLogLevelForTestCode = $appCodeArgs->getLogLevel(self::LOG_LEVEL_FOR_TEST_CODE_KEY);
+                $expectedLogLevelForTestCode = $appCodeRequestArgs->getLogLevel(self::LOG_LEVEL_FOR_TEST_CODE_KEY);
                 $dbgCtx->add(compact('expectedLogLevelForTestCode'));
                 $actualLogLevelForTestCode = AmbientContextForTests::testConfig()->logLevel;
                 $dbgCtx->add(compact('actualLogLevelForTestCode'));
@@ -86,14 +86,14 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
         $testCaseHandle = $this->getTestCaseHandle();
         $appCodeHost = $testCaseHandle->ensureMainAppCodeHost();
 
-        $appCodeArgs = [];
-        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeArgs);
+        $appCodeRequestArgs = [];
+        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeRequestArgs);
 
         $appCodeHost->execAppCode(
             AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestRunAndEscalateLogLevelOnFailure']),
-            function (AppCodeRequestParams $appCodeRequestParams) use ($testCaseHandle, $appCodeArgs): void {
-                $appCodeRequestParams->setAppCodeArgs(
-                    $appCodeArgs
+            function (AppCodeRequestParams $appCodeRequestParams) use ($testCaseHandle, $appCodeRequestArgs): void {
+                $appCodeRequestParams->setAppCodeRequestArgs(
+                    $appCodeRequestArgs
                     + [
                         self::LOG_LEVEL_FOR_PROD_CODE_KEY => ArrayUtilForTests::getSingleValue($testCaseHandle->getProdCodeLogLevels()),
                         self::LOG_LEVEL_FOR_TEST_CODE_KEY => AmbientContextForTests::testConfig()->logLevel,
@@ -106,7 +106,7 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
 
         // Assert
 
-        $appCodeContextData = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeArgs);
+        $appCodeContextData = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeRequestArgs);
         $dbgCtx->add(compact('appCodeContextData'));
         self::assertTrue($appCodeContextData->getBool(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY));
     }
@@ -227,16 +227,16 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
         $testCaseHandle = $this->getTestCaseHandle();
         $appCodeHost = $testCaseHandle->ensureMainAppCodeHost();
 
-        $appCodeArgs = [];
-        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeArgs);
+        $appCodeRequestArgs = [];
+        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeRequestArgs);
 
         $appCodeHost->execAppCode(
             AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestRunAndEscalateLogLevelOnFailure']),
-            function (AppCodeRequestParams $appCodeRequestParams) use ($expectedLevels, $appCodeArgs): void {
+            function (AppCodeRequestParams $appCodeRequestParams) use ($expectedLevels, $appCodeRequestArgs): void {
                 foreach (self::LOG_LEVEL_FOR_CODE_KEYS as $levelTypeKey) {
-                    $appCodeArgs[$levelTypeKey] = $expectedLevels[$levelTypeKey];
+                    $appCodeRequestArgs[$levelTypeKey] = $expectedLevels[$levelTypeKey];
                 }
-                $appCodeRequestParams->setAppCodeArgs($appCodeArgs);
+                $appCodeRequestParams->setAppCodeRequestArgs($appCodeRequestArgs);
             }
         );
 
@@ -244,7 +244,7 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
 
         // Assert
 
-        $appCodeContextData = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeArgs);
+        $appCodeContextData = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeRequestArgs);
         $dbgCtx->add(compact('appCodeContextData'));
         self::assertTrue($appCodeContextData->getBool(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY));
 

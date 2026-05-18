@@ -7,6 +7,7 @@ declare(strict_types=1);
 namespace OpenTelemetry\Distro;
 
 use Closure;
+use OpenTelemetry\Distro\Log\LogFeature;
 use OpenTelemetry\Distro\Log\LogLevel;
 use RuntimeException;
 use Throwable;
@@ -167,5 +168,13 @@ final class InstrumentationBridge
     private static function getCurrentSourceCodeClass(): string
     {
         return __CLASS__;
+    }
+
+    /**
+     * Must be defined in class using BootstrapStageLoggingClassTrait
+     */
+    private static function getCurrentLogFeature(): int
+    {
+        return LogFeature::INSTRUMENTATION;
     }
 }

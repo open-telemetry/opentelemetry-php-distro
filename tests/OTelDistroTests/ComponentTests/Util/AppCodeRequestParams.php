@@ -20,11 +20,11 @@ class AppCodeRequestParams implements LoggableInterface
     }
 
     /**
-     * @param MixedMap|array<string, mixed> $appCodeArgs
+     * @param MixedMap|array<string, mixed> $appCodeRequestArgs
      */
-    public function setAppCodeArgs(MixedMap|array $appCodeArgs): void
+    public function setAppCodeRequestArgs(MixedMap|array $appCodeRequestArgs): void
     {
-        $this->dataPerRequest->appCodeArguments = $appCodeArgs instanceof MixedMap ? $appCodeArgs->cloneAsArray() : $appCodeArgs;
+        $this->dataPerRequest->appCodeRequestArgs = $appCodeRequestArgs instanceof MixedMap ? $appCodeRequestArgs->cloneAsArray() : $appCodeRequestArgs;
     }
 
     /** @noinspection PhpUnused */

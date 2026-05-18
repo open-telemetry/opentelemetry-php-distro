@@ -80,11 +80,11 @@ class ComponentTestCaseBase extends TestCaseBase
      *
      * @noinspection PhpDocMissingThrowsInspection
      */
-    public static function appCodeSetsHowFinished(MixedMap $appCodeArgs, ?callable $appCodeImpl = null): void
+    public static function appCodeSetsHowFinished(MixedMap $appCodeRequestArgs, ?callable $appCodeImpl = null): void
     {
         $logger = self::getLoggerStatic(__NAMESPACE__, __CLASS__, __FILE__);
         $loggerProxyDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
-        $logger->addAllContext(compact('appCodeArgs'));
+        $logger->addAllContext(compact('appCodeRequestArgs'));
 
         $loggerProxyDebug?->log(__LINE__, 'Calling $appCodeImpl() ...');
         try {
@@ -97,16 +97,16 @@ class ComponentTestCaseBase extends TestCaseBase
             $loggerProxyDebug?->logThrowable(__LINE__, $throwable, 'Call to $appCodeImpl() thrown');
             ArrayUtilForTests::addAssertingKeyNew(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY, false, /* in,out */ $appCodeContextData);
             ArrayUtilForTests::addAssertingKeyNew(self::THROWABLE_FROM_APP_CODE_KEY, LoggableToString::convert($throwable), /* in,out */ $appCodeContextData);
-            AppCodeContextDataUtil::writeDataToTempFile($appCodeContextData, $appCodeArgs);
+            AppCodeContextDataUtil::writeDataToTempFile($appCodeContextData, $appCodeRequestArgs);
             throw $throwable;
         }
         ArrayUtilForTests::addAssertingKeyNew(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY, true, /* in,out */ $appCodeContextData);
-        AppCodeContextDataUtil::writeDataToTempFile($appCodeContextData, $appCodeArgs);
+        AppCodeContextDataUtil::writeDataToTempFile($appCodeContextData, $appCodeRequestArgs);
     }
 
-    public static function appCodeCreatesDummySpan(MixedMap $appCodeArgs): void
+    public static function appCodeCreatesDummySpan(MixedMap $appCodeRequestArgs): void
     {
-        if ($appCodeArgs->tryToGetBool(self::SHOULD_APP_CODE_CREATE_DUMMY_SPAN_KEY) ?? true) {
+        if ($appCodeRequestArgs->tryToGetBool(self::SHOULD_APP_CODE_CREATE_DUMMY_SPAN_KEY) ?? true) {
             OTelUtilForTests::startEndSpan(self::APP_CODE_DUMMY_SPAN_NAME);
         }
     }

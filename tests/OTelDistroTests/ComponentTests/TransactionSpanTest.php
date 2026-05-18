@@ -69,15 +69,15 @@ final class TransactionSpanTest extends ComponentTestCaseBase
         return self::adaptDataSetsGeneratorToSmokeToDescToMixedMap($generateDataSets);
     }
 
-    public static function appCodeForTestFeatureWithVariousEnabledConfigCombos(MixedMap $appCodeArgs): void
+    public static function appCodeForTestFeatureWithVariousEnabledConfigCombos(MixedMap $appCodeRequestArgs): void
     {
         self::appCodeSetsHowFinished(
-            $appCodeArgs,
+            $appCodeRequestArgs,
             /**
              * @retrun array<string, mixed>
              */
-            function () use ($appCodeArgs): array {
-                self::appCodeCreatesDummySpan($appCodeArgs);
+            function () use ($appCodeRequestArgs): array {
+                self::appCodeCreatesDummySpan($appCodeRequestArgs);
                 return [];
             }
         );
@@ -100,13 +100,13 @@ final class TransactionSpanTest extends ComponentTestCaseBase
             }
         );
 
-        $appCodeArgs = $testArgs->cloneAsArray();
-        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeArgs);
+        $appCodeRequestArgs = $testArgs->cloneAsArray();
+        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeRequestArgs);
 
         $appCodeHost->execAppCode(
             AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestFeatureWithVariousEnabledConfigCombos']),
-            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeArgs): void {
-                $appCodeRequestParams->setAppCodeArgs($appCodeArgs);
+            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeRequestArgs): void {
+                $appCodeRequestParams->setAppCodeRequestArgs($appCodeRequestArgs);
             }
         );
 
@@ -160,7 +160,7 @@ final class TransactionSpanTest extends ComponentTestCaseBase
 
         // Assert
 
-        $appCodeContextData = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeArgs);
+        $appCodeContextData = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeRequestArgs);
         $dbgCtx->add(compact('appCodeContextData'));
         self::assertTrue($appCodeContextData->getBool(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY));
 

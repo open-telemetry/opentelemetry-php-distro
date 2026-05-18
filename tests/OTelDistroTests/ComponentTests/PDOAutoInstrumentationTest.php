@@ -129,13 +129,13 @@ final class PDOAutoInstrumentationTest extends ComponentTestCaseBase
         );
     }
 
-    public static function appCodeForTestAutoInstrumentation(MixedMap $appCodeArgs): void
+    public static function appCodeForTestAutoInstrumentation(MixedMap $appCodeRequestArgs): void
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
         self::assertTrue(extension_loaded('pdo'));
 
-        $isAutoInstrumentationEnabled = $appCodeArgs->getBool(self::IS_AUTO_INSTRUMENTATION_ENABLED_KEY);
+        $isAutoInstrumentationEnabled = $appCodeRequestArgs->getBool(self::IS_AUTO_INSTRUMENTATION_ENABLED_KEY);
         if ($isAutoInstrumentationEnabled) {
             $pdoInstrumentationFqClassName = AppCodeContextUtil::adaptClassNameRawStringToScoping('OpenTelemetry\\Contrib\\Instrumentation\\PDO\\PDOInstrumentation');
             $dbgCtx->add(compact('pdoInstrumentationFqClassName'));
@@ -143,9 +143,9 @@ final class PDOAutoInstrumentationTest extends ComponentTestCaseBase
             AssertEx::sameConstValues(constant($pdoInstrumentationFqClassName . '::NAME'), self::AUTO_INSTRUMENTATION_NAME);
         }
 
-        $dbName = $appCodeArgs->getString(DbAutoInstrumentationUtilForTests::DB_NAME_KEY);
-        $wrapInTx = $appCodeArgs->getBool(DbAutoInstrumentationUtilForTests::WRAP_IN_TX_KEY);
-        $rollback = $appCodeArgs->getBool(DbAutoInstrumentationUtilForTests::SHOULD_ROLLBACK_KEY);
+        $dbName = $appCodeRequestArgs->getString(DbAutoInstrumentationUtilForTests::DB_NAME_KEY);
+        $wrapInTx = $appCodeRequestArgs->getBool(DbAutoInstrumentationUtilForTests::WRAP_IN_TX_KEY);
+        $rollback = $appCodeRequestArgs->getBool(DbAutoInstrumentationUtilForTests::SHOULD_ROLLBACK_KEY);
 
         $pdo = new PDO(self::buildConnectionString($dbName));
         self::assertTrue($pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION));
@@ -192,14 +192,14 @@ final class PDOAutoInstrumentationTest extends ComponentTestCaseBase
 
         $testCaseHandle = $this->getTestCaseHandle();
 
-        $appCodeArgs = $testArgs->clone();
+        $appCodeRequestArgs = $testArgs->clone();
 
         $dbName = $dbNameArg;
         if ($dbNameArg === self::FILE_DB_NAME) {
             $resourcesCleanerClient = $testCaseHandle->getResourcesCleanerClient();
             $dbFileFullPath = $resourcesCleanerClient->createTempFile('temp DB for ' . ClassNameUtil::fqToShort(__CLASS__));
             $dbName = $dbFileFullPath;
-            $appCodeArgs[DbAutoInstrumentationUtilForTests::DB_NAME_KEY] = $dbName;
+            $appCodeRequestArgs[DbAutoInstrumentationUtilForTests::DB_NAME_KEY] = $dbName;
         }
 
         $expectationsBuilder = (new PDOSpanExpectationsBuilder())->dbSystemName('sqlite')->dbNamespace($dbName === self::TEMP_DB_NAME ? '' : $dbName);
@@ -234,8 +234,8 @@ final class PDOAutoInstrumentationTest extends ComponentTestCaseBase
         );
         $appCodeHost->execAppCode(
             AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestAutoInstrumentation']),
-            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeArgs): void {
-                $appCodeRequestParams->setAppCodeArgs($appCodeArgs);
+            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeRequestArgs): void {
+                $appCodeRequestParams->setAppCodeRequestArgs($appCodeRequestArgs);
             }
         );
 

@@ -8,6 +8,7 @@ namespace OpenTelemetry\Distro;
 
 use OpenTelemetry\Distro\HttpTransport\NativeHttpTransportFactory;
 use OpenTelemetry\Distro\InferredSpans\InferredSpans;
+use OpenTelemetry\Distro\Log\LogFeature;
 use OpenTelemetry\Distro\Log\NativeLogWriter;
 use OpenTelemetry\Distro\Util\BoolUtil;
 use OpenTelemetry\Distro\Util\HiddenConstructorTrait;
@@ -398,5 +399,13 @@ final class PhpPartFacade
     private static function getCurrentSourceCodeClass(): string
     {
         return __CLASS__;
+    }
+
+    /**
+     * Must be defined in class using BootstrapStageLoggingClassTrait
+     */
+    private static function getCurrentLogFeature(): int
+    {
+        return LogFeature::BOOTSTRAP;
     }
 }

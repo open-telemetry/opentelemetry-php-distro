@@ -104,7 +104,7 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
         $expectedHelperData[$sleepFuncToUse] = [self::STACK_TRACE_KEY => $expectedStackTrace, self::LINE_NUMBER_KEY => $sleepCallLine];
     }
 
-    public static function appCodeForTestInferredSpans(MixedMap $appCodeArgs): void
+    public static function appCodeForTestInferredSpans(MixedMap $appCodeRequestArgs): void
     {
         /** @var ExpectedHelperData $expectedHelperData */
         $expectedHelperData = [];
@@ -117,7 +117,7 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
         // and properties from the stack frame converted to an inferred span go to CODE_FILE_PATH and CODE_LINE_NUMBER attributes.
         // This method is a special case since it's called by call_user_func, so there should not be CODE_FILE_PATH and CODE_LINE_NUMBER attributes.
         $expectedHelperData[__FUNCTION__] = [self::STACK_TRACE_KEY => array_slice(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS), offset: 1)];
-        AppCodeContextDataUtil::writeDataToTempFile([self::EXPECTED_HELPER_DATA_KEY => $expectedHelperData], $appCodeArgs);
+        AppCodeContextDataUtil::writeDataToTempFile([self::EXPECTED_HELPER_DATA_KEY => $expectedHelperData], $appCodeRequestArgs);
     }
 
     private function implTestInferredSpans(MixedMap $testArgs): void
@@ -133,9 +133,9 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
 
         $testCaseHandle = $this->getTestCaseHandle();
 
-        /** @var array<string, mixed> $appCodeArgs */
-        $appCodeArgs = [];
-        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeArgs);
+        /** @var array<string, mixed> $appCodeRequestArgs */
+        $appCodeRequestArgs = [];
+        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeRequestArgs);
 
         $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
             function (AppCodeHostParams $appCodeParams) use ($isInferredSpansEnabled, $shouldCaptureSleeps): void {
@@ -146,8 +146,8 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
         );
         $appCodeHost->execAppCode(
             $appCodeTarget,
-            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeArgs): void {
-                $appCodeRequestParams->setAppCodeArgs($appCodeArgs);
+            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeRequestArgs): void {
+                $appCodeRequestParams->setAppCodeRequestArgs($appCodeRequestArgs);
             }
         );
 
@@ -160,7 +160,7 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
         );
         $dbgCtx->add(compact('agentBackendComms'));
 
-        $expectedHelperData = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeArgs)->getArray(self::EXPECTED_HELPER_DATA_KEY);
+        $expectedHelperData = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeRequestArgs)->getArray(self::EXPECTED_HELPER_DATA_KEY);
         /** @var ExpectedHelperData $expectedHelperData */
         $dbgCtx->add(compact('expectedHelperData'));
 

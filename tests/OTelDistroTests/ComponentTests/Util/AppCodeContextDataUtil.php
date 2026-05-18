@@ -22,38 +22,38 @@ final class AppCodeContextDataUtil
     private const FILE_PATH_KEY = 'app_code_context_data_file_path';
 
     /**
-     * @param array<string, mixed> &$appCodeArgs
+     * @param array<string, mixed> &$appCodeRequestArgs
      */
-    public static function createTempFile(TestCaseHandle $testCaseHandle, /* in,out */ array &$appCodeArgs): void
+    public static function createTempFile(TestCaseHandle $testCaseHandle, /* in,out */ array &$appCodeRequestArgs): void
     {
         $tempFilePath = $testCaseHandle->getResourcesCleanerClient()->createTempFile('app_code_context_data');
-        ArrayUtilForTests::addAssertingKeyNew(self::FILE_PATH_KEY, $tempFilePath, /* in,out */ $appCodeArgs);
+        ArrayUtilForTests::addAssertingKeyNew(self::FILE_PATH_KEY, $tempFilePath, /* in,out */ $appCodeRequestArgs);
     }
 
     /**
      * @param JsonEncodableData $data
      */
-    public static function writeDataToTempFile(null|bool|int|float|string|array $data, MixedMap $appCodeArgs): void
+    public static function writeDataToTempFile(null|bool|int|float|string|array $data, MixedMap $appCodeRequestArgs): void
     {
-        FileUtil::putFileContents($appCodeArgs->getString(self::FILE_PATH_KEY), JsonUtil::encode(self::assertJsonEncodableData($data)));
+        FileUtil::putFileContents($appCodeRequestArgs->getString(self::FILE_PATH_KEY), JsonUtil::encode(self::assertJsonEncodableData($data)));
     }
 
     /**
-     * @param array<string, mixed> $appCodeArgs
+     * @param array<string, mixed> $appCodeRequestArgs
      *
      * @return JsonEncodableData
      */
-    public static function readDataFromTempFile(array $appCodeArgs): null|bool|int|float|string|array
+    public static function readDataFromTempFile(array $appCodeRequestArgs): null|bool|int|float|string|array
     {
-        return self::assertJsonEncodableData(JsonUtil::decode(FileUtil::getFileContents(MixedMap::getStringFrom(self::FILE_PATH_KEY, $appCodeArgs))));
+        return self::assertJsonEncodableData(JsonUtil::decode(FileUtil::getFileContents(MixedMap::getStringFrom(self::FILE_PATH_KEY, $appCodeRequestArgs))));
     }
 
     /**
-     * @param array<string, mixed> $appCodeArgs
+     * @param array<string, mixed> $appCodeRequestArgs
      */
-    public static function readDataAsMixedMapFromTempFile(array $appCodeArgs): MixedMap
+    public static function readDataAsMixedMapFromTempFile(array $appCodeRequestArgs): MixedMap
     {
-        return (new MixedMap(MixedMap::assertValidMixedMapArray(AssertEx::isArray(self::readDataFromTempFile($appCodeArgs)))));
+        return (new MixedMap(MixedMap::assertValidMixedMapArray(AssertEx::isArray(self::readDataFromTempFile($appCodeRequestArgs)))));
     }
 
     /**

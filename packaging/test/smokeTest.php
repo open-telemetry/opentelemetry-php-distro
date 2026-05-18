@@ -40,7 +40,7 @@ echo CGREEN."OK\n".CDEF;
 
 echo "Trying to log something to stderr: ";
 $loggerClass = "{$scopeName}OpenTelemetry\\Distro\\BootstrapStageLogger";
-$loggerClass::logCritical("This is just a message to test logger", __FILE__, __LINE__, __CLASS__, __FUNCTION__);
+$loggerClass::logDebug("This is just a message to test logger", __FILE__, __LINE__, __CLASS__, __FUNCTION__);
 echo CGREEN."OK\n".CDEF;
 
 echo CGREEN."Smoke test passed\n".CDEF;

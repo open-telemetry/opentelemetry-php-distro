@@ -89,11 +89,11 @@ abstract class AppCodeHostBase extends SpawnedProcessBase
         try {
             $methodToCall = [$appCodeTarget->appCodeClass, $appCodeTarget->appCodeMethod];
             Assert::assertIsCallable($methodToCall, $msg);
-            $appCodeArguments = $dataPerRequest->appCodeArguments;
-            if ($appCodeArguments === null) {
+            $appCodeRequestArgs = $dataPerRequest->appCodeRequestArgs;
+            if ($appCodeRequestArgs === null) {
                 call_user_func($methodToCall);
             } else {
-                call_user_func($methodToCall, new MixedMap($appCodeArguments));
+                call_user_func($methodToCall, new MixedMap($appCodeRequestArgs));
             }
         } catch (Throwable $throwable) {
             $loggerProxy = ($dataPerRequest->isAppCodeExpectedToThrow) ? $loggerProxyDebug : $this->logger->ifCriticalLevelEnabledNoLine(__FUNCTION__);

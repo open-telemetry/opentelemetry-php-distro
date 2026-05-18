@@ -117,27 +117,27 @@ final class PgSqlAutoInstrumentationTest extends ComponentTestCaseBase
         );
     }
 
-    public static function appCodeForTestAutoInstrumentation(MixedMap $appCodeArgs): void
+    public static function appCodeForTestAutoInstrumentation(MixedMap $appCodeRequestArgs): void
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
         self::assertExtensionLoaded();
 
-        $isAutoInstrumentationEnabled = $appCodeArgs->getBool(self::IS_AUTO_INSTRUMENTATION_ENABLED_KEY);
+        $isAutoInstrumentationEnabled = $appCodeRequestArgs->getBool(self::IS_AUTO_INSTRUMENTATION_ENABLED_KEY);
         if ($isAutoInstrumentationEnabled) {
             $pgSqlInstrumentationFqClassName = AppCodeContextUtil::adaptClassNameRawStringToScoping('OpenTelemetry\\Contrib\\Instrumentation\\PostgreSql\\PostgreSqlInstrumentation');
             self::assertTrue(class_exists($pgSqlInstrumentationFqClassName, autoload: false));
             AssertEx::sameConstValues(constant($pgSqlInstrumentationFqClassName . '::NAME'), self::AUTO_INSTRUMENTATION_NAME);
         }
 
-        $wrapInTx = $appCodeArgs->getBool(DbAutoInstrumentationUtilForTests::WRAP_IN_TX_KEY);
-        $rollback = $appCodeArgs->getBool(DbAutoInstrumentationUtilForTests::SHOULD_ROLLBACK_KEY);
+        $wrapInTx = $appCodeRequestArgs->getBool(DbAutoInstrumentationUtilForTests::WRAP_IN_TX_KEY);
+        $rollback = $appCodeRequestArgs->getBool(DbAutoInstrumentationUtilForTests::SHOULD_ROLLBACK_KEY);
 
-        $host = $appCodeArgs->getString(DbAutoInstrumentationUtilForTests::HOST_KEY);
-        $port = $appCodeArgs->getInt(DbAutoInstrumentationUtilForTests::PORT_KEY);
-        $user = $appCodeArgs->getString(DbAutoInstrumentationUtilForTests::USER_KEY);
-        $password = $appCodeArgs->getString(DbAutoInstrumentationUtilForTests::PASSWORD_KEY);
-        $dbName = $appCodeArgs->getString(DbAutoInstrumentationUtilForTests::DB_NAME_KEY);
+        $host = $appCodeRequestArgs->getString(DbAutoInstrumentationUtilForTests::HOST_KEY);
+        $port = $appCodeRequestArgs->getInt(DbAutoInstrumentationUtilForTests::PORT_KEY);
+        $user = $appCodeRequestArgs->getString(DbAutoInstrumentationUtilForTests::USER_KEY);
+        $password = $appCodeRequestArgs->getString(DbAutoInstrumentationUtilForTests::PASSWORD_KEY);
+        $dbName = $appCodeRequestArgs->getString(DbAutoInstrumentationUtilForTests::DB_NAME_KEY);
 
         $connStr = self::buildConnectionString($host, $port, $user, $password, $dbName);
         $conn = pg_connect($connStr);
@@ -243,12 +243,12 @@ final class PgSqlAutoInstrumentationTest extends ComponentTestCaseBase
         }
         $dbgCtx->add(compact('expectedDbSpans'));
 
-        $appCodeArgs = $testArgs->clone();
-        $appCodeArgs[DbAutoInstrumentationUtilForTests::HOST_KEY] = AmbientContextForTests::testConfig()->postgresqlHost;
-        $appCodeArgs[DbAutoInstrumentationUtilForTests::PORT_KEY] = AmbientContextForTests::testConfig()->postgresqlPort;
-        $appCodeArgs[DbAutoInstrumentationUtilForTests::USER_KEY] = AmbientContextForTests::testConfig()->postgresqlUser;
-        $appCodeArgs[DbAutoInstrumentationUtilForTests::PASSWORD_KEY] = AmbientContextForTests::testConfig()->postgresqlPassword;
-        $appCodeArgs[DbAutoInstrumentationUtilForTests::DB_NAME_KEY] = AmbientContextForTests::testConfig()->postgresqlDb;
+        $appCodeRequestArgs = $testArgs->clone();
+        $appCodeRequestArgs[DbAutoInstrumentationUtilForTests::HOST_KEY] = AmbientContextForTests::testConfig()->postgresqlHost;
+        $appCodeRequestArgs[DbAutoInstrumentationUtilForTests::PORT_KEY] = AmbientContextForTests::testConfig()->postgresqlPort;
+        $appCodeRequestArgs[DbAutoInstrumentationUtilForTests::USER_KEY] = AmbientContextForTests::testConfig()->postgresqlUser;
+        $appCodeRequestArgs[DbAutoInstrumentationUtilForTests::PASSWORD_KEY] = AmbientContextForTests::testConfig()->postgresqlPassword;
+        $appCodeRequestArgs[DbAutoInstrumentationUtilForTests::DB_NAME_KEY] = AmbientContextForTests::testConfig()->postgresqlDb;
 
         $testCaseHandle = $this->getTestCaseHandle();
         $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
@@ -261,8 +261,8 @@ final class PgSqlAutoInstrumentationTest extends ComponentTestCaseBase
         );
         $appCodeHost->execAppCode(
             AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestAutoInstrumentation']),
-            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeArgs): void {
-                $appCodeRequestParams->setAppCodeArgs($appCodeArgs);
+            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeRequestArgs): void {
+                $appCodeRequestParams->setAppCodeRequestArgs($appCodeRequestArgs);
             }
         );
 
