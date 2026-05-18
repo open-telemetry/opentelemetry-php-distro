@@ -7,9 +7,9 @@ declare(strict_types=1);
 namespace OpenTelemetry\DistroTools\Build;
 
 use DirectoryIterator;
-use OpenTelemetry\Distro\Log\LogLevel;
-use OpenTelemetry\Distro\PhpPartFacade;
 use JsonException;
+use OpenTelemetry\Distro\Log\LogLevel;
+use OpenTelemetry\Distro\Util\BoolUtil;
 use RuntimeException;
 use Throwable;
 
@@ -333,13 +333,22 @@ final class BuildToolsUtil
         self::assert($retVal, '$retVal' . ' ; $retVal: ' . json_encode($retVal) . ' ; filePath: ' . $filePath);
     }
 
+    public static function getBoolEnvVar(string $envVarName): ?bool
+    {
+        $envVarVal = getenv($envVarName);
+        if (is_string($envVarVal) && (($parsedVal = BoolUtil::parse($envVarVal)) !== null)) {
+            return $parsedVal;
+        }
+        return null;
+    }
+
     private static function shouldKeepTemporaryFiles(): bool
     {
         /** @var ?bool $cachedVal */
         static $cachedVal = null;
 
         if ($cachedVal === null) {
-            $cachedVal = PhpPartFacade::getBoolEnvVar(self::KEEP_TEMP_FILES_ENV_VAR_NAME, default: false);
+            $cachedVal = self::getBoolEnvVar(self::KEEP_TEMP_FILES_ENV_VAR_NAME) ?? false;
         }
         /** @var bool $cachedVal */
 

@@ -27,6 +27,7 @@ require $prodPhpDistroPath . DIRECTORY_SEPARATOR . 'ProdPhpDir.php';
 /** @noinspection PhpFullyQualifiedNameUsageInspection */
 \OpenTelemetry\Distro\ProdPhpDir::$fullPath = $prodPhpPath;
 
+require $prodPhpDistroPath . DIRECTORY_SEPARATOR . 'Util' . DIRECTORY_SEPARATOR . 'BoolUtil.php';
 require $prodPhpDistroPath . DIRECTORY_SEPARATOR . 'Util' . DIRECTORY_SEPARATOR . 'EnumUtilTrait.php';
 require $prodPhpDistroPath . DIRECTORY_SEPARATOR . 'Log' . DIRECTORY_SEPARATOR . 'LogLevel.php';
 require $prodPhpDistroPath . DIRECTORY_SEPARATOR . 'BootstrapStageStdErrWriter.php';

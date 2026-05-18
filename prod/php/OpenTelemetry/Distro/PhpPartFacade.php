@@ -48,7 +48,7 @@ final class PhpPartFacade
     private static array $remoteConfigConsumers = [];
     private ?InferredSpans $inferredSpans = null;
 
-    private const IS_DISTRO_ENABLED_ENV_VAR_NAME = 'OTEL_PHP_ENABLED';
+    public const ENABLED_OPT_NAME = 'enabled';
     public const USER_BOOTSTRAP_PHP_FILE_OPT_NAME = 'user_bootstrap_php_file';
 
     /**
@@ -156,34 +156,13 @@ final class PhpPartFacade
         return true;
     }
 
-    public static function parseBoolValue(string $envVarVal): ?bool
-    {
-        foreach (['true', 'yes', 'on', '1'] as $trueStringValue) {
-            if (strcasecmp($envVarVal, $trueStringValue) === 0) {
-                return true;
-            }
-        }
-        foreach (['false', 'no', 'off', '0'] as $falseStringValue) {
-            if (strcasecmp($envVarVal, $falseStringValue) === 0) {
-                return false;
-            }
-        }
-
-        return null;
-    }
-
     private static function isDistroEnabled(): bool
     {
-        return self::getBoolEnvVar(self::IS_DISTRO_ENABLED_ENV_VAR_NAME, default: true);
-    }
-
-    public static function getBoolEnvVar(string $envVarName, bool $default): bool
-    {
-        $envVarVal = getenv($envVarName);
-        if (is_string($envVarVal) && (($parsedVal = self::parseBoolValue($envVarVal)) !== null)) {
-            return $parsedVal;
-        }
-        return $default;
+        /**
+         * Use fully qualified names for functions implemented by the extension to make sure scoper correctly detects them
+         * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
+         */
+        return (bool)\OpenTelemetry\Distro\get_config_option_by_name(self::ENABLED_OPT_NAME);
     }
 
     /**

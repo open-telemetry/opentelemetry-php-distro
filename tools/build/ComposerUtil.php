@@ -7,7 +7,6 @@ declare(strict_types=1);
 namespace OpenTelemetry\DistroTools\Build;
 
 use OpenTelemetry\Distro\Log\LogLevel;
-use OpenTelemetry\Distro\PhpPartFacade;
 
 /**
  * @phpstan-import-type EnvVars from BuildToolsUtil
@@ -37,7 +36,7 @@ final class ComposerUtil
 
     public static function shouldAllowDirectCommand(): bool
     {
-        return PhpPartFacade::getBoolEnvVar(self::ALLOW_DIRECT_COMPOSER_COMMAND_ENV_VAR_NAME, default: false);
+        return BuildToolsUtil::getBoolEnvVar(self::ALLOW_DIRECT_COMPOSER_COMMAND_ENV_VAR_NAME) ?? false;
     }
 
     /**
