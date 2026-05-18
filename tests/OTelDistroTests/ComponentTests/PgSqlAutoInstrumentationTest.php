@@ -13,6 +13,7 @@ use OTelDistroTests\ComponentTests\Util\SpanExpectations;
 use OTelDistroTests\ComponentTests\Util\SpanSequenceExpectations;
 use OTelDistroTests\Util\AmbientContextForTests;
 use OTelDistroTests\Util\AssertEx;
+use OTelDistroTests\Util\Config\OptionForProdName;
 use OTelDistroTests\Util\DataProviderForTestBuilder;
 use OTelDistroTests\Util\DebugContext;
 use OTelDistroTests\Util\DebugContextScopeRef;
@@ -192,15 +193,15 @@ final class PgSqlAutoInstrumentationTest extends ComponentTestCaseBase
         ($loggerProxy = $logger->ifTraceLevelEnabled(__LINE__, __FUNCTION__))
         && $loggerProxy->log('Entered', ['$testArgs' => $testArgs]);
 
-        $isAutoInstrumentationEnabled = $testArgs->getBool(self::IS_AUTO_INSTRUMENTATION_ENABLED_KEY);
         $wrapInTx = $testArgs->getBool(DbAutoInstrumentationUtilForTests::WRAP_IN_TX_KEY);
         $rollback = $testArgs->getBool(DbAutoInstrumentationUtilForTests::SHOULD_ROLLBACK_KEY);
 
         $dbName = AssertEx::notNull(AmbientContextForTests::testConfig()->postgresqlDb);
 
+        $testArgsEx = $testArgs->clone();
         /** @var SpanExpectations[] $expectedDbSpans */
         $expectedDbSpans = [];
-        if ($isAutoInstrumentationEnabled) {
+        if ($testArgs->getBool(self::IS_AUTO_INSTRUMENTATION_ENABLED_KEY)) {
             $expectationsBuilder = (new PgSqlDbSpanDataExpectationsBuilder())
                 ->serverAddress(AssertEx::notNull(AmbientContextForTests::testConfig()->postgresqlHost))
                 ->dbNamespace($dbName);
@@ -237,18 +238,19 @@ final class PgSqlAutoInstrumentationTest extends ComponentTestCaseBase
 
             // pg_query: DROP TABLE (cleanup)
             $expectedDbSpans[] = $expectationsBuilder->buildForPgFunction('pg_query', self::DROP_TABLE_SQL);
+        } else {
+            $testArgsEx[OptionForProdName::disabled_instrumentations->name] = self::AUTO_INSTRUMENTATION_NAME;
         }
-        $dbgCtx->add(compact('expectedDbSpans'));
+        $dbgCtx->add(compact('testArgsEx', 'expectedDbSpans'));
 
-        $appCodeRequestArgs = $testArgs->clone();
-        $appCodeRequestArgs[DbAutoInstrumentationUtilForTests::HOST_KEY] = AmbientContextForTests::testConfig()->postgresqlHost;
-        $appCodeRequestArgs[DbAutoInstrumentationUtilForTests::PORT_KEY] = AmbientContextForTests::testConfig()->postgresqlPort;
-        $appCodeRequestArgs[DbAutoInstrumentationUtilForTests::USER_KEY] = AmbientContextForTests::testConfig()->postgresqlUser;
-        $appCodeRequestArgs[DbAutoInstrumentationUtilForTests::PASSWORD_KEY] = AmbientContextForTests::testConfig()->postgresqlPassword;
-        $appCodeRequestArgs[DbAutoInstrumentationUtilForTests::DB_NAME_KEY] = AmbientContextForTests::testConfig()->postgresqlDb;
+        $testArgsEx[DbAutoInstrumentationUtilForTests::HOST_KEY] = AmbientContextForTests::testConfig()->postgresqlHost;
+        $testArgsEx[DbAutoInstrumentationUtilForTests::PORT_KEY] = AmbientContextForTests::testConfig()->postgresqlPort;
+        $testArgsEx[DbAutoInstrumentationUtilForTests::USER_KEY] = AmbientContextForTests::testConfig()->postgresqlUser;
+        $testArgsEx[DbAutoInstrumentationUtilForTests::PASSWORD_KEY] = AmbientContextForTests::testConfig()->postgresqlPassword;
+        $testArgsEx[DbAutoInstrumentationUtilForTests::DB_NAME_KEY] = AmbientContextForTests::testConfig()->postgresqlDb;
 
         self::implTestForAppCodeSetsHowFinished(
-            testArgs: $appCodeRequestArgs,
+            testArgs: $testArgsEx,
             subAppCode: [__CLASS__, 'appCodeForTestAutoInstrumentation'],
             expectedMinSpanCount: 1 + count($expectedDbSpans), // +1 for automatic local root span
             additionalAssertCode: function (DebugContextScopeRef $dbgCtx, AgentBackendComms $agentBackendComms) use ($expectedDbSpans): void {
