@@ -27,14 +27,10 @@ require $prodPhpDistroPath . DIRECTORY_SEPARATOR . 'ProdPhpDir.php';
 /** @noinspection PhpFullyQualifiedNameUsageInspection */
 \OpenTelemetry\Distro\ProdPhpDir::$fullPath = $prodPhpPath;
 
-require $prodPhpDistroPath . DIRECTORY_SEPARATOR . 'Util' . DIRECTORY_SEPARATOR . 'HiddenConstructorTrait.php';
-require $prodPhpDistroPath . DIRECTORY_SEPARATOR . 'Util' . DIRECTORY_SEPARATOR . 'StaticClassTrait.php';
 require $prodPhpDistroPath . DIRECTORY_SEPARATOR . 'Util' . DIRECTORY_SEPARATOR . 'BoolUtil.php';
-require $prodPhpDistroPath . DIRECTORY_SEPARATOR . 'Util' . DIRECTORY_SEPARATOR . 'EnumUtilTrait.php';
-require $prodPhpDistroPath . DIRECTORY_SEPARATOR . 'Log' . DIRECTORY_SEPARATOR . 'LogLevel.php';
-require $prodPhpDistroPath . DIRECTORY_SEPARATOR . 'BootstrapStageStdErrWriter.php';
-require $prodPhpDistroPath . DIRECTORY_SEPARATOR . 'BootstrapStageLogger.php';
-require $prodPhpDistroPath . DIRECTORY_SEPARATOR . 'BootstrapStageLoggingClassTrait.php';
+require $prodPhpDistroPath . '/requireAutoloaderForClassesInDirectory.php';
+require $prodPhpDistroPath . '/Util/EnumUtilTrait.php';
+require $prodPhpDistroPath . '/Log/LogLevel.php';
 
 $getMaxEnabledLogLevelConfig = function (): ?LogLevel {
     $envVarVal = getenv(OTEL_PHP_TOOLS_LOG_LEVEL_ENV_VAR_NAME);
@@ -47,11 +43,21 @@ $getMaxEnabledLogLevelConfig = function (): ?LogLevel {
 $maxEnabledLogLevel = $getMaxEnabledLogLevelConfig() ?? BuildToolsLog::DEFAULT_LEVEL;
 BuildToolsLog::configure($maxEnabledLogLevel);
 
-$writeToSinkForBootstrapStageLogger = function (int $level, int $feature, string $file, int $line, string $func, string $text): void {
-    BuildToolsLog::writeAsProdSink($level, $feature, $file, $line, $func, $text);
-};
-BootstrapStageLogger::configure($maxEnabledLogLevel->value, $prodPhpDistroPath, __NAMESPACE__, $writeToSinkForBootstrapStageLogger);
+BootstrapStageLogger::configure(
+    maxEnabledLevel: $maxEnabledLogLevel->value,
+    phpSrcCodeRootDir: $prodPhpDistroPath,
+    rootNamespace: __NAMESPACE__,
+    formatAndWrite: function (int $level, int $prodLogFeature, string $file, int $line, string $func, string $message): void {
+        BuildToolsLog::defaultFormatAndWrite(
+            levelString: BootstrapStageLogger::levelIntToString($level),
+            featureOrCategoryString: BuildToolsLog::prodLogFeatureIntToString($prodLogFeature),
+            file: $file,
+            line: $line,
+            func: $func,
+            messageWithContext: $message
+        );
+    }
+);
 
-require $prodPhpDistroPath . DIRECTORY_SEPARATOR . 'AutoloaderForClassesInDirectory.php';
 AutoloaderForClassesInDirectory::register(dirRootNamespace: 'OpenTelemetry\\Distro', dirFullPath: $prodPhpDistroPath);
 AutoloaderForClassesInDirectory::register(dirRootNamespace: __NAMESPACE__, dirFullPath: __DIR__);

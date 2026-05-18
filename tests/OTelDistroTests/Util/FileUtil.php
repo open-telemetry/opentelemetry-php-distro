@@ -82,20 +82,25 @@ final class FileUtil
         return $result;
     }
 
-    public static function createTempFile(?string $dbgTempFilePurpose = null): string
+    public static function generateTempFileNamePrefix(string $fileNamePrefix): string
     {
-        $tempFileFullPath = tempnam(sys_get_temp_dir(), prefix: 'OpenTelemetryDistroTests_');
+        return "OTelDistroTests_{$fileNamePrefix}_";
+    }
+
+    public static function createTempFile(string $fileNamePrefix): string
+    {
+        $tempFileFullPath = tempnam(sys_get_temp_dir(), prefix: $fileNamePrefix);
         $logCategory = LogCategoryForTests::TEST_INFRA;
         $logger = AmbientContextForTests::loggerFactory()->loggerForClass($logCategory, __NAMESPACE__, __CLASS__, __FILE__);
 
         if ($tempFileFullPath === false) {
             ($loggerProxy = $logger->ifCriticalLevelEnabled(__LINE__, __FUNCTION__))
-            && $loggerProxy->includeStackTrace()->log('Failed to create a temporary file', compact('dbgTempFilePurpose'));
-            Assert::fail(LoggableToString::convert(compact('dbgTempFilePurpose')));
+            && $loggerProxy->includeStackTrace()->log('Failed to create a temporary file', compact('fileNamePrefix'));
+            Assert::fail(LoggableToString::convert(compact('fileNamePrefix')));
         }
 
         ($loggerProxy = $logger->ifTraceLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->includeStackTrace()->log('Created a temporary file', compact('tempFileFullPath', 'dbgTempFilePurpose'));
+        && $loggerProxy->includeStackTrace()->log('Created a temporary file', compact('tempFileFullPath', 'fileNamePrefix'));
 
         return $tempFileFullPath;
     }
@@ -139,13 +144,13 @@ final class FileUtil
         return $result;
     }
 
-    /** @noinspection PhpUnused */
-    public static function putFileContents(string $filePath, string $contents): int
+    public static function putFileContents(string $filePath, string $contents): void
     {
+        DebugContext::getCurrentScope(/* out */ $dbgCtx);
         $result = file_put_contents($filePath, $contents);
-        if (!is_int($result)) {
-            throw new RuntimeException("Failed to put file contents; file path: `$filePath'; contents length: " . strlen($contents));
-        }
-        return $result;
+        $dbgCtx->add(compact('result'));
+        $numberOfBytesWritten = AssertEx::isInt($result);
+        $dbgCtx->add(compact('numberOfBytesWritten'));
+        Assert::assertSame(strlen($contents), $numberOfBytesWritten);
     }
 }

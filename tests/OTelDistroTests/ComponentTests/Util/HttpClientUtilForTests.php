@@ -23,7 +23,7 @@ final class HttpClientUtilForTests
 {
     use StaticClassTrait;
 
-    public const MAX_WAIT_TIME_SECONDS = 10;
+    public const MAX_WAIT_TIME_SECONDS = 60;
     public const CONNECT_TIMEOUT_SECONDS = self::MAX_WAIT_TIME_SECONDS * 2;
     public const TIMEOUT_SECONDS = self::MAX_WAIT_TIME_SECONDS * 2;
 

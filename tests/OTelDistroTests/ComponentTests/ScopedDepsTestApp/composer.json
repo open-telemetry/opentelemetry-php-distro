@@ -1,0 +1,19 @@
+{
+    "description": "Test application for OpenTelemetry PHP Distribution component tests scoped dependencies feature",
+    "keywords": [ "test application" ],
+    "type": "project",
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "open-telemetry-php contributors",
+            "homepage": "https://github.com/open-telemetry/opentelemetry-php-distro/graphs/contributors"
+        }
+    ],
+    "config": {
+        "process-timeout": 0
+    },
+    "require": {
+        "open-telemetry/sdk": "VERSION IS SET BY THE TEST",
+        "psr/log": "VERSION IS SET BY THE TEST"
+    }
+}

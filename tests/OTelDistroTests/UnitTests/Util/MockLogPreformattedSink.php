@@ -14,21 +14,24 @@ class MockLogPreformattedSink extends SinkBase
     public array $consumed = [];
 
     #[Override]
-    protected function consumePreformatted(
-        LogLevel $statementLevel,
+    protected function formatAndWrite(
+        int $levelInt,
+        string $levelString,
         string $category,
         string $srcCodeFile,
         int $srcCodeLine,
         string $srcCodeFunc,
-        string $messageWithContext
+        string $message,
+        string $contextAsString,
     ): void {
         $this->consumed[] = new MockLogPreformattedSinkStatement(
-            $statementLevel,
-            $category,
-            $srcCodeFile,
-            $srcCodeLine,
-            $srcCodeFunc,
-            $messageWithContext
+            statementLevel: LogLevel::from($levelInt),
+            category: $category,
+            srcCodeFile: $srcCodeFile,
+            srcCodeLine: $srcCodeLine,
+            srcCodeFunc: $srcCodeFunc,
+            message: $message,
+            contextAsString: $contextAsString,
         );
     }
 }

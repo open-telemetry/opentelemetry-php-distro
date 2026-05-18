@@ -19,6 +19,7 @@ use OTelDistroTests\Util\ClassNameUtil;
 use OTelDistroTests\Util\Config\OptionForProdName;
 use OTelDistroTests\Util\DataProviderForTestBuilder;
 use OTelDistroTests\Util\DebugContext;
+use OTelDistroTests\Util\FileUtil;
 use OTelDistroTests\Util\Log\LoggableToString;
 use OTelDistroTests\Util\MixedMap;
 use OTelDistroTests\Util\AssertEx;
@@ -197,7 +198,7 @@ final class PDOAutoInstrumentationTest extends ComponentTestCaseBase
         $dbName = $dbNameArg;
         if ($dbNameArg === self::FILE_DB_NAME) {
             $resourcesCleanerClient = $testCaseHandle->getResourcesCleanerClient();
-            $dbFileFullPath = $resourcesCleanerClient->createTempFile('temp DB for ' . ClassNameUtil::fqToShort(__CLASS__));
+            $dbFileFullPath = $resourcesCleanerClient->createTempFile(FileUtil::generateTempFileNamePrefix(ClassNameUtil::fqToShortFromRawString(__CLASS__) . '_temp_DB'));
             $dbName = $dbFileFullPath;
             $appCodeRequestArgs[DbAutoInstrumentationUtilForTests::DB_NAME_KEY] = $dbName;
         }
@@ -225,11 +226,11 @@ final class PDOAutoInstrumentationTest extends ComponentTestCaseBase
         }
 
         $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
-            function (AppCodeHostParams $appCodeParams) use ($isAutoInstrumentationEnabled): void {
+            function (AppCodeHostParams $appCodeHostParams) use ($isAutoInstrumentationEnabled): void {
                 if (!$isAutoInstrumentationEnabled) {
-                    $appCodeParams->setProdOptionIfNotNull(OptionForProdName::disabled_instrumentations, self::AUTO_INSTRUMENTATION_NAME);
+                    $appCodeHostParams->setProdOptionIfNotNull(OptionForProdName::disabled_instrumentations, self::AUTO_INSTRUMENTATION_NAME);
                 }
-                self::disableTimingDependentFeatures($appCodeParams);
+                self::disableTimingDependentFeatures($appCodeHostParams);
             }
         );
         $appCodeHost->execAppCode(

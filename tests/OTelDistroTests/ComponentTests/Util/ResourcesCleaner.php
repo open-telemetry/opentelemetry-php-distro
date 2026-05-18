@@ -113,25 +113,40 @@ final class ResourcesCleaner extends TestInfraHttpServerProcessBase
     private function cleanSpawnedProcessesFrom(string $dbgProcessesSetDesc, Set $processesToTerminateIds): void
     {
         $processesToTerminateIdsCount = $processesToTerminateIds->count();
-        $localLogger = $this->logger->inherit();
-        $localLogger->addAllContext(compact('dbgProcessesSetDesc', 'processesToTerminateIdsCount'));
-        $loggerProxyDebug = $localLogger->ifDebugLevelEnabledNoLine(__FUNCTION__);
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Terminating spawned processes...');
+        $this->logger->ifDebugLevelEnabledNoLine(__FUNCTION__)?->log(__LINE__, 'Terminating spawned processes...', compact('dbgProcessesSetDesc', 'processesToTerminateIdsCount'));
 
         /** @var string $dbgProcessName */
         /** @var int $pid */
         foreach ($processesToTerminateIds as [$dbgProcessName, $pid]) {
-            $localLogger->addAllContext(compact('dbgProcessName', 'pid'));
-            if (!ProcessUtil::doesProcessExist($pid)) {
-                $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Spawned process does not exist anymore - no need to terminate');
-                continue;
+            foreach ([false, true] as $force) {
+                $this->terminateSpawnedProcess($dbgProcessName, $pid, $force);
             }
-            $hasExitedNormally = ProcessUtil::terminateProcess($pid);
-            $hasExited = ProcessUtil::waitForProcessToExitUsingPid($dbgProcessName, $pid, /* maxWaitTimeInMicroseconds = 10 seconds */ 10 * 1000 * 1000);
-            $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Issued command to terminate spawned process', compact('hasExited', 'hasExitedNormally'));
         }
 
         $processesToTerminateIds->clear();
+    }
+
+    private function terminateSpawnedProcess(string $dbgProcessName, int $pid, bool $force): void
+    {
+        $localLogger = $this->logger->inherit();
+        $localLogger->addAllContext(compact('dbgProcessName', 'pid', 'force'));
+        $logDebug = $localLogger->ifDebugLevelEnabledNoLine(__FUNCTION__);
+
+        if (!ProcessUtil::doesProcessExist($pid)) {
+            $logDebug?->log(__LINE__, 'Spawned process does not exist anymore - no need to terminate');
+            return;
+        }
+
+        $logDebug?->log(__LINE__, 'Terminating spawned processes...');
+        $logWarning = $localLogger->ifWarningLevelEnabledNoLine(__FUNCTION__);
+
+        $terminateCommandExitedNormally = ProcessUtil::execCommandToTerminateProcess($pid, $force);
+        $localLogger->addAllContext(compact('terminateCommandExitedNormally'));
+        $waitTimeInSeconds = $force ? 1 : 3;
+        $localLogger->addAllContext(compact('waitTimeInSeconds'));
+        $hasExited = ProcessUtil::waitForProcessToExitUsingPid($dbgProcessName, $pid, maxWaitTimeInMicroseconds: $waitTimeInSeconds * 1000 * 1000);
+
+        ($force ? $logWarning : $logDebug)?->log(__LINE__, $hasExited ? 'Terminated spawned process' : 'Failed to terminate spawned process');
     }
 
     private function cleanFiles(bool $isTestScopedOnly): void

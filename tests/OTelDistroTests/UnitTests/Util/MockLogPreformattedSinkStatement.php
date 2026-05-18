@@ -14,7 +14,8 @@ class MockLogPreformattedSinkStatement
         public string $srcCodeFile,
         public int $srcCodeLine,
         public string $srcCodeFunc,
-        public string $messageWithContext
+        public string $message,
+        public string $contextAsString,
     ) {
     }
 }

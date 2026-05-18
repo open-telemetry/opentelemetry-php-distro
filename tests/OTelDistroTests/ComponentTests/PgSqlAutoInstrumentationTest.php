@@ -4,21 +4,18 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\ComponentTests;
 
+use OTelDistroTests\ComponentTests\Util\AgentBackendComms;
 use OTelDistroTests\ComponentTests\Util\AppCodeContextUtil;
-use OTelDistroTests\ComponentTests\Util\AppCodeHostParams;
-use OTelDistroTests\ComponentTests\Util\AppCodeRequestParams;
-use OTelDistroTests\ComponentTests\Util\AppCodeTarget;
 use OTelDistroTests\ComponentTests\Util\ComponentTestCaseBase;
 use OTelDistroTests\ComponentTests\Util\DbAutoInstrumentationUtilForTests;
 use OTelDistroTests\ComponentTests\Util\PgSql\PgSqlDbSpanDataExpectationsBuilder;
 use OTelDistroTests\ComponentTests\Util\SpanExpectations;
 use OTelDistroTests\ComponentTests\Util\SpanSequenceExpectations;
-use OTelDistroTests\ComponentTests\Util\WaitForOTelSignalCounts;
 use OTelDistroTests\Util\AmbientContextForTests;
 use OTelDistroTests\Util\AssertEx;
-use OTelDistroTests\Util\Config\OptionForProdName;
 use OTelDistroTests\Util\DataProviderForTestBuilder;
 use OTelDistroTests\Util\DebugContext;
+use OTelDistroTests\Util\DebugContextScopeRef;
 use OTelDistroTests\Util\Log\LoggableToString;
 use OTelDistroTests\Util\MixedMap;
 use OpenTelemetry\SemConv\Attributes\DbAttributes;
@@ -69,9 +66,9 @@ final class PgSqlAutoInstrumentationTest extends ComponentTestCaseBase
 
     private static function buildConnectionString(string $host, int $port, string $user, string $password, ?string $dbName): string
     {
-        $connStr = "host={$host} port={$port} user={$user} password={$password}";
+        $connStr = "host=$host port=$port user=$user password=$password";
         if ($dbName !== null) {
-            $connStr .= " dbname={$dbName}";
+            $connStr .= " dbname=$dbName";
         }
         return $connStr;
     }
@@ -250,33 +247,20 @@ final class PgSqlAutoInstrumentationTest extends ComponentTestCaseBase
         $appCodeRequestArgs[DbAutoInstrumentationUtilForTests::PASSWORD_KEY] = AmbientContextForTests::testConfig()->postgresqlPassword;
         $appCodeRequestArgs[DbAutoInstrumentationUtilForTests::DB_NAME_KEY] = AmbientContextForTests::testConfig()->postgresqlDb;
 
-        $testCaseHandle = $this->getTestCaseHandle();
-        $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
-            function (AppCodeHostParams $appCodeParams) use ($isAutoInstrumentationEnabled): void {
-                if (!$isAutoInstrumentationEnabled) {
-                    $appCodeParams->setProdOptionIfNotNull(OptionForProdName::disabled_instrumentations, self::AUTO_INSTRUMENTATION_NAME);
+        self::implTestForAppCodeSetsHowFinished(
+            testArgs: $appCodeRequestArgs,
+            subAppCode: [__CLASS__, 'appCodeForTestAutoInstrumentation'],
+            expectedMinSpanCount: 1 + count($expectedDbSpans), // +1 for automatic local root span
+            additionalAssertCode: function (DebugContextScopeRef $dbgCtx, AgentBackendComms $agentBackendComms) use ($expectedDbSpans): void {
+                $actualDbSpans = [];
+                foreach ($agentBackendComms->spans() as $span) {
+                    if ($span->attributes->keyExists(DbAttributes::DB_SYSTEM_NAME)) {
+                        $actualDbSpans[] = $span;
+                    }
                 }
-                self::disableTimingDependentFeatures($appCodeParams);
-            }
+                (new SpanSequenceExpectations($expectedDbSpans))->assertMatches($actualDbSpans);
+            },
         );
-        $appCodeHost->execAppCode(
-            AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestAutoInstrumentation']),
-            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeRequestArgs): void {
-                $appCodeRequestParams->setAppCodeRequestArgs($appCodeRequestArgs);
-            }
-        );
-
-        // +1 for automatic local root span
-        $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(WaitForOTelSignalCounts::spans(1 + count($expectedDbSpans)));
-        $dbgCtx->add(compact('agentBackendComms'));
-
-        $actualDbSpans = [];
-        foreach ($agentBackendComms->spans() as $span) {
-            if ($span->attributes->keyExists(DbAttributes::DB_SYSTEM_NAME)) {
-                $actualDbSpans[] = $span;
-            }
-        }
-        (new SpanSequenceExpectations($expectedDbSpans))->assertMatches($actualDbSpans);
     }
 
     /**

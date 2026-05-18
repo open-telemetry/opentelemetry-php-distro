@@ -50,10 +50,10 @@ function get_config_option_by_name(string $optionName): mixed
  *
  * @phpstan-param ?string $class The hooked function's class. Null for a global/built-in function.
  * @phpstan-param string $function The hooked function's name.
- * @phpstan-param ?(Closure(?object $thisObj, array<mixed> $params, string $class, string $function, ?string $filename, ?int $lineno): (void|array<mixed>)) $pre
- *                  return value is modified parameters
- * @phpstan-param ?(Closure(?object $thisObj, array<mixed> $params, mixed $returnValue, ?Throwable $throwable): mixed) $post
- *                  return value is modified return value
+ * @phpstan-param null|(Closure(?object $thisObj, list<mixed> $params, string $class, string $function, ?string $filename, ?int $lineno): (void|list<mixed>)) $pre
+ *                              if not void then the return value is modified parameters
+ * @phpstan-param null|(Closure(?object $thisObj, list<mixed> $params, mixed $returnValue, ?Throwable $throwable): (void|mixed)) $post
+ *                              if not void then the return value is modified return value
  *
  * @return bool Whether the observer was successfully added
  *

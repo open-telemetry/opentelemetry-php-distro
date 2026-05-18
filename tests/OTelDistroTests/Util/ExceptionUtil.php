@@ -7,17 +7,13 @@ namespace OTelDistroTests\Util;
 use OpenTelemetry\Distro\Util\StaticClassTrait;
 use OpenTelemetry\Distro\Util\TextUtil;
 use OTelDistroTests\Util\Log\AdhocLoggableObject;
+use OTelDistroTests\Util\Log\LogCategoryForTests;
 use OTelDistroTests\Util\Log\LoggableStackTrace;
 use OTelDistroTests\Util\Log\LoggableToString;
 use OTelDistroTests\Util\Log\PropertyLogPriority;
 use OTelDistroTests\Util\Log\SinkForTests as LogSinkForTests;
 use Throwable;
 
-/**
- * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
- *
- * @internal
- */
 final class ExceptionUtil
 {
     use StaticClassTrait;
@@ -46,12 +42,32 @@ final class ExceptionUtil
      *
      * @noinspection PhpDocMissingThrowsInspection
      */
+    public static function runCatchWriteToStdErrRethrow(callable $callableToRun): mixed
+    {
+        try {
+            return $callableToRun();
+        } catch (Throwable $throwable) {
+            LogSinkForTests::writeLineToStdErr('[CRITICAL] Throwable escaped: ' . $throwable);
+            throw $throwable;
+        }
+    }
+
+    /**
+     * @template TReturnValue
+     *
+     * @param callable(): TReturnValue $callableToRun
+     *
+     * @return TReturnValue
+     *
+     * @noinspection PhpDocMissingThrowsInspection
+     */
     public static function runCatchLogRethrow(callable $callableToRun): mixed
     {
         try {
             return $callableToRun();
         } catch (Throwable $throwable) {
-            LogSinkForTests::writeLineToStdErr('Caught throwable: ' . $throwable);
+            $loggerProxy = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->ifCriticalLevelEnabledNoLine(__FUNCTION__);
+            $loggerProxy?->logThrowable(__LINE__, $throwable, 'Throwable escaped');
             throw $throwable;
         }
     }

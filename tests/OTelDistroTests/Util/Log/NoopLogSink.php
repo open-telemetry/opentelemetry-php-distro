@@ -21,12 +21,12 @@ final class NoopLogSink implements SinkInterface, LoggableInterface
     #[Override]
     public function consume(
         LogLevel $statementLevel,
-        string $message,
-        array $context,
         string $category,
         string $srcCodeFile,
         int $srcCodeLine,
         string $srcCodeFunc,
+        string $message,
+        array $context,
         ?bool $includeStacktrace,
         int $numberOfStackFramesToSkip
     ): void {

@@ -18,11 +18,11 @@ use OpenTelemetry\Distro\Util\SingletonInstanceTrait;
  *
  * @internal
  *
- * @phpstan-type PreHook Closure(?object $thisObj, array<mixed> $params, string $class, string $function, ?string $filename, ?int $lineno): (void|array<mixed>)
- *                  return value is modified parameters
+ * @phpstan-type PreHook Closure(?object $thisObj, list<mixed> $params, string $class, string $function, ?string $filename, ?int $lineno): (void|list<mixed>)
+ *                  if not void then the return value is modified parameters
  *
- * @phpstan-type PostHook Closure(?object $thisObj, array<mixed> $params, mixed $returnValue, ?Throwable $throwable): mixed
- *                  return value is modified return value
+ * @phpstan-type PostHook Closure(?object $thisObj, list<mixed> $params, mixed $returnValue, ?Throwable $throwable): (void|mixed)
+ *                  if not void then the return value is modified return value
  */
 final class InstrumentationBridge
 {
@@ -43,8 +43,9 @@ final class InstrumentationBridge
             throw new RuntimeException("File $instrumentationHookPhp does not exist");
         }
 
-        self::logTrace(__LINE__, __FUNCTION__, 'Before require', compact('instrumentationHookPhp'));
+        self::logDebug(__LINE__, __FUNCTION__, 'Before require ' . $instrumentationHookPhp);
         require $instrumentationHookPhp;
+        self::logDebug(__LINE__, __FUNCTION__, 'After require ' . $instrumentationHookPhp);
 
         /**
          * Use fully qualified names for functions implemented by the extension to make sure scoper correctly detects them

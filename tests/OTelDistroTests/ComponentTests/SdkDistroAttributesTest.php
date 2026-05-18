@@ -7,18 +7,15 @@ namespace OTelDistroTests\ComponentTests;
 use Composer\InstalledVersions;
 use OpenTelemetry\Distro\OverrideOTelSdkResourceAttributes;
 use OpenTelemetry\Distro\PhpPartVersion;
-use OTelDistroTests\ComponentTests\Util\AppCodeContextDataUtil;
+use OTelDistroTests\ComponentTests\Util\AgentBackendComms;
 use OTelDistroTests\ComponentTests\Util\AppCodeContextUtil;
-use OTelDistroTests\ComponentTests\Util\AppCodeHostParams;
-use OTelDistroTests\ComponentTests\Util\AppCodeRequestParams;
-use OTelDistroTests\ComponentTests\Util\AppCodeTarget;
 use OTelDistroTests\ComponentTests\Util\ComponentTestCaseBase;
 use OTelDistroTests\ComponentTests\Util\AttributesExpectations;
-use OTelDistroTests\ComponentTests\Util\WaitForOTelSignalCounts;
+use OTelDistroTests\Util\ArrayUtilForTests;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\BoolUtilForTests;
 use OTelDistroTests\Util\Config\OptionForProdName;
-use OTelDistroTests\Util\DebugContext;
+use OTelDistroTests\Util\DebugContextScopeRef;
 use OTelDistroTests\Util\IterableUtil;
 use OTelDistroTests\Util\MixedMap;
 use OTelDistroTests\Util\RangeUtil;
@@ -88,21 +85,16 @@ final class SdkDistroAttributesTest extends ComponentTestCaseBase
         return $result;
     }
 
-    public static function appCodeForTestAttributes(MixedMap $appCodeRequestArgs): void
+    /**
+     * @return array<string, mixed>
+     */
+    public static function appCodeForTestAttributes(): array
     {
-        self::appCodeSetsHowFinished(
-            $appCodeRequestArgs,
-            /**
-             * @retrun array<string, mixed>
-             */
-            function (): array {
-                $overrideOTelSdkResourceAttributesClassName = AppCodeContextUtil::adaptClassNameToScoping(OverrideOTelSdkResourceAttributes::class);
-                return [
-                    "$overrideOTelSdkResourceAttributesClassName class is defined in file" => (new ReflectionClass($overrideOTelSdkResourceAttributesClassName))->getFileName(),
-                    self::DISTRO_VERSION_IN_APP_CONTEXT                                    => $overrideOTelSdkResourceAttributesClassName::getDistroVersion(),
-                ];
-            }
-        );
+        $overrideOTelSdkResourceAttributesClassName = AppCodeContextUtil::adaptClassNameToScoping(OverrideOTelSdkResourceAttributes::class);
+        return [
+            "$overrideOTelSdkResourceAttributesClassName class is defined in file" => (new ReflectionClass($overrideOTelSdkResourceAttributesClassName))->getFileName(),
+            self::DISTRO_VERSION_IN_APP_CONTEXT                                    => $overrideOTelSdkResourceAttributesClassName::getDistroVersion(),
+        ];
     }
 
     private static function getOTelSdkVersion(): string
@@ -112,102 +104,80 @@ final class SdkDistroAttributesTest extends ComponentTestCaseBase
         return AssertEx::notNull(InstalledVersions::getPrettyVersion($otelSdkPackageName));
     }
 
-    public function implTestAttributes(MixedMap $testArgs): void
+    private function implTestAttributes(MixedMap $testArgs): void
     {
-        DebugContext::getCurrentScope(/* out */ $dbgCtx);
+        $testArgsEx = $testArgs->cloneAsArray();
+        ArrayUtilForTests::addAssertingKeyNew(OptionForProdName::resource_attributes->name, self::buildOTelResourceAttributesForAppProcess($testArgs), /* in,out */ $testArgsEx);
+        self::implTestForAppCodeSetsHowFinished(
+            testArgs: new MixedMap($testArgsEx),
+            subAppCode: [__CLASS__, 'appCodeForTestAttributes'],
+            additionalAssertCode: function (DebugContextScopeRef $dbgCtx, AgentBackendComms $agentBackendComms, MixedMap $appCodeAuxOutput) use ($testArgs): void {
+                $expectedResourceAttributes = [
+                    TelemetryIncubatingAttributes::TELEMETRY_DISTRO_NAME => 'opentelemetry-php-distro',
+                    TelemetryAttributes::TELEMETRY_SDK_LANGUAGE => 'php',
+                    TelemetryAttributes::TELEMETRY_SDK_NAME => 'opentelemetry',
+                    TelemetryAttributes::TELEMETRY_SDK_VERSION => self::getOTelSdkVersion(),
+                ];
+                $notExpectedAttributes = [];
 
-        $testCaseHandle = $this->getTestCaseHandle();
+                $expectedResourceAttributes[ServiceAttributes::SERVICE_NAME] = $testArgs->getBool(self::SHOULD_SET_SERVICE_NAME_KEY) ? self::SERVICE_NAME : self::DEFAULT_SERVICE_NAME;
 
-        $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
-            function (AppCodeHostParams $appCodeParams) use ($testArgs): void {
-                self::ensureTransactionSpanEnabled($appCodeParams);
-                $appCodeParams->setProdOption(OptionForProdName::resource_attributes, self::buildOTelResourceAttributesForAppProcess($testArgs));
-            }
-        );
+                if ($testArgs->getBool(self::SHOULD_SET_SERVICE_VERSION_KEY)) {
+                    $expectedResourceAttributes[ServiceAttributes::SERVICE_VERSION] = self::SERVICE_VERSION;
+                } else {
+                    $notExpectedAttributes[] = ServiceAttributes::SERVICE_VERSION;
+                }
 
-        $appCodeRequestArgs = $testArgs->cloneAsArray();
-        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeRequestArgs);
+                $rootSpan = $agentBackendComms->singleRootSpan();
+                $dbgCtx->add(compact('rootSpan'));
 
-        $appCodeHost->execAppCode(
-            AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestAttributes']),
-            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeRequestArgs): void {
-                $appCodeRequestParams->setAppCodeRequestArgs($appCodeRequestArgs);
-            }
-        );
+                $removeVersionSuffix = function (string $inputVer): string {
+                    $suffixStartPos = null;
+                    foreach (IterableUtil::zipOneWithIndex(TextUtilForTests::iterateOverChars($inputVer)) as [$currentCharPos, $currentCharAsciiCode]) {
+                        if (!(RangeUtil::isInClosedRange(ord('0'), $currentCharAsciiCode, ord('9')) || ($currentCharAsciiCode === ord('.')))) {
+                            $suffixStartPos = $currentCharPos;
+                            break;
+                        }
+                    }
 
-        $expectedResourceAttributes = [
-            TelemetryIncubatingAttributes::TELEMETRY_DISTRO_NAME => 'opentelemetry-php-distro',
-            TelemetryAttributes::TELEMETRY_SDK_LANGUAGE => 'php',
-            TelemetryAttributes::TELEMETRY_SDK_NAME => 'opentelemetry',
-            TelemetryAttributes::TELEMETRY_SDK_VERSION => self::getOTelSdkVersion(),
-        ];
-        $notExpectedAttributes = [];
+                    if ($suffixStartPos === null) {
+                        return $inputVer;
+                    }
+                    self::assertGreaterThan(0, $suffixStartPos);
 
-        $expectedResourceAttributes[ServiceAttributes::SERVICE_NAME] = $testArgs->getBool(self::SHOULD_SET_SERVICE_NAME_KEY) ? self::SERVICE_NAME : self::DEFAULT_SERVICE_NAME;
+                    return substr($inputVer, 0, $suffixStartPos);
+                };
 
-        if ($testArgs->getBool(self::SHOULD_SET_SERVICE_VERSION_KEY)) {
-            $expectedResourceAttributes[ServiceAttributes::SERVICE_VERSION] = self::SERVICE_VERSION;
-        } else {
-            $notExpectedAttributes[] = ServiceAttributes::SERVICE_VERSION;
-        }
+                $distroVersionInAppContext = $appCodeAuxOutput->getString(self::DISTRO_VERSION_IN_APP_CONTEXT);
+                $dbgCtx->add(compact('distroVersionInAppContext'));
+                $dbgCtx->add(['PhpPartVersion::VALUE' => PhpPartVersion::VALUE]);
+                $phpPartVerWithoutSuffix = $removeVersionSuffix(PhpPartVersion::VALUE);
+                $dbgCtx->add(compact('phpPartVerWithoutSuffix'));
+                /**
+                 * @see OverrideOTelSdkResourceAttributes::buildDistroVersion
+                 */
+                $distroVerSlashPos = strpos($distroVersionInAppContext, '/');
+                if ($distroVerSlashPos === false) {
+                    self::assertSame($phpPartVerWithoutSuffix, $removeVersionSuffix($distroVersionInAppContext));
+                } else {
+                    self::assertGreaterThan(0, $distroVerSlashPos);
+                    self::assertLessThan(strlen($distroVersionInAppContext) - 1, $distroVerSlashPos);
+                    $nativePartVerInAppContext = substr($distroVersionInAppContext, 0, $distroVerSlashPos);
+                    self::assertSame($phpPartVerWithoutSuffix, $removeVersionSuffix($nativePartVerInAppContext));
+                    $phpPartVerInAppContext = substr($distroVersionInAppContext, $distroVerSlashPos + 1);
+                    self::assertSame($phpPartVerWithoutSuffix, $removeVersionSuffix($phpPartVerInAppContext));
+                }
 
-        $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(WaitForOTelSignalCounts::spans(1)); // exactly 1 span (the root span) is expected
-        $dbgCtx->add(compact('agentBackendComms'));
-
-        // Assert
-
-        $appCodeContextData = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeRequestArgs);
-        $dbgCtx->add(compact('appCodeContextData'));
-        self::assertTrue($appCodeContextData->getBool(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY));
-
-        $rootSpan = $agentBackendComms->singleRootSpan();
-        $dbgCtx->add(compact('rootSpan'));
-
-        $removeVersionSuffix = function (string $inputVer): string {
-            $suffixStartPos = null;
-            foreach (IterableUtil::zipOneWithIndex(TextUtilForTests::iterateOverChars($inputVer)) as [$currentCharPos, $currentCharAsciiCode]) {
-                if (!(RangeUtil::isInClosedRange(ord('0'), $currentCharAsciiCode, ord('9')) || ($currentCharAsciiCode === ord('.')))) {
-                    $suffixStartPos = $currentCharPos;
-                    break;
+                $expectedResourceAttributes[TelemetryIncubatingAttributes::TELEMETRY_DISTRO_VERSION] = $distroVersionInAppContext;
+                $resources = IterableUtil::toList($agentBackendComms->resources());
+                $dbgCtx->add(compact('resources'));
+                AssertEx::isPositiveInt(count($resources));
+                $resourceAttributesExpectations = new AttributesExpectations(attributes: $expectedResourceAttributes, notAllowedAttributes: $notExpectedAttributes);
+                foreach ($resources as $resource) {
+                    $resourceAttributesExpectations->assertMatches($resource->attributes);
                 }
             }
-
-            if ($suffixStartPos === null) {
-                return $inputVer;
-            }
-            self::assertGreaterThan(0, $suffixStartPos);
-
-            return substr($inputVer, 0, $suffixStartPos);
-        };
-
-        $distroVersionInAppContext = $appCodeContextData->getString(self::DISTRO_VERSION_IN_APP_CONTEXT);
-        $dbgCtx->add(compact('distroVersionInAppContext'));
-        $dbgCtx->add(['PhpPartVersion::VALUE' => PhpPartVersion::VALUE]);
-        $phpPartVerWithoutSuffix = $removeVersionSuffix(PhpPartVersion::VALUE);
-        $dbgCtx->add(compact('phpPartVerWithoutSuffix'));
-        /**
-         * @see OverrideOTelSdkResourceAttributes::buildDistroVersion
-         */
-        $distroVerSlashPos = strpos($distroVersionInAppContext, '/');
-        if ($distroVerSlashPos === false) {
-            self::assertSame($phpPartVerWithoutSuffix, $removeVersionSuffix($distroVersionInAppContext));
-        } else {
-            self::assertGreaterThan(0, $distroVerSlashPos);
-            self::assertLessThan(strlen($distroVersionInAppContext) - 1, $distroVerSlashPos);
-            $nativePartVerInAppContext = substr($distroVersionInAppContext, 0, $distroVerSlashPos);
-            self::assertSame($phpPartVerWithoutSuffix, $removeVersionSuffix($nativePartVerInAppContext));
-            $phpPartVerInAppContext = substr($distroVersionInAppContext, $distroVerSlashPos + 1);
-            self::assertSame($phpPartVerWithoutSuffix, $removeVersionSuffix($phpPartVerInAppContext));
-        }
-
-        $expectedResourceAttributes[TelemetryIncubatingAttributes::TELEMETRY_DISTRO_VERSION] = $distroVersionInAppContext;
-        $resources = IterableUtil::toList($agentBackendComms->resources());
-        $dbgCtx->add(compact('resources'));
-        AssertEx::isPositiveInt(count($resources));
-        $resourceAttributesExpectations = new AttributesExpectations(attributes: $expectedResourceAttributes, notAllowedAttributes: $notExpectedAttributes);
-        foreach ($resources as $resource) {
-            $resourceAttributesExpectations->assertMatches($resource->attributes);
-        }
+        );
     }
 
     /**

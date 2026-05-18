@@ -95,7 +95,7 @@ class IncludeStackTraceTest extends TestCaseBase
             $actualLogStatement->srcCodeFunc
         );
 
-        $actualCtx = JsonUtil::decode($actualLogStatement->messageWithContext);
+        $actualCtx = JsonUtil::decode($actualLogStatement->contextAsString);
         self::assertIsArray($actualCtx);
         /** @var array<string, mixed> $actualCtx */
         AssertEx::arrayHasKeyWithSameValue(LogBackend::NAMESPACE_KEY, __NAMESPACE__, $actualCtx);

@@ -37,7 +37,8 @@ abstract class HttpServerStarter
     private readonly Logger $logger;
 
     protected function __construct(
-        protected readonly string $dbgProcessNamePrefix
+        protected readonly string $dbgProcessNamePrefix,
+        protected readonly ?ResourcesCleanerHandle $resourcesCleaner,
     ) {
         $this->logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->addAllContext(compact('this'));
     }
@@ -56,11 +57,8 @@ abstract class HttpServerStarter
 
     /**
      * @param int[] $portsInUse
-     * @param int   $portsToAllocateCount
-     *
-     * @return HttpServerHandle
      */
-    protected function startHttpServer(array $portsInUse, int $portsToAllocateCount = 1): HttpServerHandle
+    protected function startHttpServer(bool $isTestScoped, array $portsInUse, int $portsToAllocateCount = 1): HttpServerHandle
     {
         Assert::assertGreaterThanOrEqual(1, $portsToAllocateCount);
         /** @var ?int $lastTriedPort */
@@ -92,7 +90,7 @@ abstract class HttpServerStarter
             $loggerProxyDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
 
             $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Starting HTTP server...');
-            ProcessUtil::startBackgroundProcess($dbgProcessName, $cmdLine, $envVars);
+            ProcessUtil::startBackgroundProcess($dbgProcessName, $cmdLine, $envVars, $this->resourcesCleaner?->getClient(), $isTestScoped);
 
             $pid = -1;
             if ($this->isHttpServerRunning($dbgProcessName, $currentTrySpawnedProcessInternalId, $currentTryPorts[0], $logger, /* ref */ $pid)) {

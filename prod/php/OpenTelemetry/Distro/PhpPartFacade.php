@@ -6,23 +6,24 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\Distro;
 
-use OpenTelemetry\Distro\HttpTransport\NativeHttpTransportFactory;
-use OpenTelemetry\Distro\InferredSpans\InferredSpans;
-use OpenTelemetry\Distro\Log\LogFeature;
-use OpenTelemetry\Distro\Log\NativeLogWriter;
-use OpenTelemetry\Distro\Util\HiddenConstructorTrait;
 use OpenTelemetry\API\Globals;
-use OpenTelemetry\Distro\Util\OTelUtil;
-use OpenTelemetry\Distro\Util\TextUtil;
-use OpenTelemetry\SDK\Registry;
-use OpenTelemetry\SDK\SdkAutoloader;
 use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanKind;
 use OpenTelemetry\API\Trace\StatusCode;
 use OpenTelemetry\Context\Context;
+use OpenTelemetry\Distro\HttpTransport\NativeHttpTransportFactory;
+use OpenTelemetry\Distro\InferredSpans\InferredSpans;
+use OpenTelemetry\Distro\Log\LogFeature;
+use OpenTelemetry\Distro\Log\NativeLogWriter;
+use OpenTelemetry\Distro\Log\SplAutoloadFunctionsLogUtil;
+use OpenTelemetry\Distro\Util\DistroRuntimeException;
+use OpenTelemetry\Distro\Util\HiddenConstructorTrait;
+use OpenTelemetry\Distro\Util\OTelUtil;
+use OpenTelemetry\Distro\Util\TextUtil;
+use OpenTelemetry\SDK\Registry;
+use OpenTelemetry\SDK\SdkAutoloader;
 use OpenTelemetry\SemConv\Attributes\CodeAttributes;
 use OpenTelemetry\SemConv\Version;
-use RuntimeException;
 use Throwable;
 
 /**
@@ -35,9 +36,6 @@ use Throwable;
 final class PhpPartFacade
 {
     use BootstrapStageLoggingClassTrait;
-    /**
-     * Constructor is hidden because instance() should be used instead
-     */
     use HiddenConstructorTrait;
 
     public static bool $wasBootstrapCalled = false;
@@ -49,6 +47,7 @@ final class PhpPartFacade
     private static array $remoteConfigConsumers = [];
     private ?InferredSpans $inferredSpans = null;
 
+    public const DEBUG_SCOPER_ENABLED_OPT_NAME = 'debug_scoper_enabled';
     public const ENABLED_OPT_NAME = 'enabled';
     public const USER_BOOTSTRAP_PHP_FILE_OPT_NAME = 'user_bootstrap_php_file';
 
@@ -65,9 +64,6 @@ final class PhpPartFacade
     {
         self::$wasBootstrapCalled = true;
 
-        require __DIR__ . DIRECTORY_SEPARATOR . 'BootstrapStageLogger.php';
-        require __DIR__ . DIRECTORY_SEPARATOR . 'Util/StaticClassTrait.php';
-
         BootstrapStageLogger::configure($maxEnabledLogLevel, __DIR__, __NAMESPACE__);
         self::logDebug(__LINE__, __FUNCTION__, 'Starting bootstrap sequence...', compact('nativePartVersion', 'maxEnabledLogLevel', 'requestInitStartTime'));
 
@@ -82,13 +78,25 @@ final class PhpPartFacade
         }
 
         try {
-            require __DIR__ . DIRECTORY_SEPARATOR . 'AutoloaderForClassesInDirectory.php';
-            AutoloaderForClassesInDirectory::register(dirRootNamespace: __NAMESPACE__, dirFullPath: __DIR__);
+            $autoloadForDistroClasses = AutoloaderForClassesInDirectory::register(dirRootNamespace: __NAMESPACE__, dirFullPath: __DIR__);
 
             InstrumentationBridge::singletonInstance()->bootstrap();
+
+            require __DIR__ . DIRECTORY_SEPARATOR . 'KeepAutoloadCallbacksUpFront.php';
+            /** @noinspection PhpUnnecessaryFullyQualifiedNameInspection */
+            $shouldKeepDistroAutoloadCallbacksUpFront = !\OpenTelemetry\Distro\get_config_option_by_name(self::DEBUG_SCOPER_ENABLED_OPT_NAME);
+            self::logDebug(__LINE__, __FUNCTION__, '', compact('shouldKeepDistroAutoloadCallbacksUpFront'));
+            if ($shouldKeepDistroAutoloadCallbacksUpFront) {
+                $keepDistroAutoloadCallbacksUpFront = new KeepAutoloadCallbacksUpFront(InstrumentationBridge::singletonInstance(), [$autoloadForDistroClasses]);
+            }
+
             self::prepareForOTelSdk();
 
-            self::registerAutoloaderForVendorDir();
+            $autoloadsForDistroVendorDir = self::registerAutoloaderForDistroVendorDir(returnNewCallbacks: $shouldKeepDistroAutoloadCallbacksUpFront);
+            if ($shouldKeepDistroAutoloadCallbacksUpFront) {
+                /** @var list<callable> $autoloadsForDistroVendorDir */
+                $keepDistroAutoloadCallbacksUpFront->setCallbacks(array_merge($keepDistroAutoloadCallbacksUpFront->getCallbacks(), $autoloadsForDistroVendorDir));
+            }
 
             // User's bootstrap .php file might register remote config handler so it has to be called before remote config handler
             self::loadUserBootstrapPhpFile();
@@ -172,7 +180,7 @@ final class PhpPartFacade
     public static function setEnvVar(string $envVarName, string $envVarValue): void
     {
         if (!putenv($envVarName . '=' . $envVarValue)) {
-            throw new RuntimeException('putenv returned false; $envVarName: ' . $envVarName . '; envVarValue: ' . $envVarValue);
+            throw new DistroRuntimeException('putenv returned false', compact('envVarName', 'envVarValue'));
         }
     }
 
@@ -216,16 +224,88 @@ final class PhpPartFacade
         // putenv('COMPOSER_DEV_MODE');
     }
 
-    private static function registerAutoloaderForVendorDir(): void
+    /**
+     * @param array<callable> $callbacksBefore
+     * @param array<callable> $callbacksAfter
+     *
+     * @return list<callable>
+     */
+    private static function diffAutoloaderForDistroVendorDir(array $callbacksBefore, array $callbacksAfter): array
+    {
+        $callbacksBeforeCount = count($callbacksBefore);
+        $callbacksAfterCount = count($callbacksAfter);
+        /**
+         * @return array<string, mixed>
+         */
+        $buildBaseCtx = function () use ($callbacksBefore, $callbacksBeforeCount, $callbacksAfter, $callbacksAfterCount): array {
+            return compact('callbacksBeforeCount', 'callbacksAfterCount')
+                + [
+                'callbacksBefore' => SplAutoloadFunctionsLogUtil::callbacksToLoggable($callbacksBefore),
+                'callbacksAfter' => SplAutoloadFunctionsLogUtil::callbacksToLoggable($callbacksAfter),
+            ];
+        };
+
+        if ($callbacksBeforeCount >= $callbacksAfterCount) {
+            throw new DistroRuntimeException('callbacksBeforeCount is larger than or equal to callbacksAfterCount', context: $buildBaseCtx());
+        }
+
+        $diff = [];
+        foreach ($callbacksAfter as $callbackAfter) {
+            if (in_array($callbackAfter, $callbacksBefore, strict: true)) {
+                $diff[] = $callbackAfter;
+            }
+        }
+
+        if (($callbacksBeforeCount + count($diff)) !== $callbacksAfterCount) {
+            $ctx = $buildBaseCtx() + ['diff' => SplAutoloadFunctionsLogUtil::callbacksToLoggable($diff)];
+            throw new DistroRuntimeException('callbacksBeforeCount + count(diff) is not equal to callbacksAfterCount', context: $ctx);
+        }
+
+        return $diff;
+    }
+
+    /**
+     * @return ?list<callable>
+     */
+    private static function registerAutoloaderForDistroVendorDir(bool $returnNewCallbacks): ?array
     {
         $vendorAutoloadPhp = VendorDir::$fullPath . DIRECTORY_SEPARATOR . 'autoload.php';
         if (!file_exists($vendorAutoloadPhp)) {
-            throw new RuntimeException("File $vendorAutoloadPhp does not exist");
+            throw new DistroRuntimeException("File $vendorAutoloadPhp does not exist");
         }
-        self::logDebug(__LINE__, __FUNCTION__, 'Before require', compact('vendorAutoloadPhp'));
+
+        /**
+         * @var int $logLevel
+         *
+         * @noinspection PhpRedundantVariableDocTypeInspection
+         */
+        static $logLevel = BootstrapStageLogger::LEVEL_DEBUG;
+
+        $logCtx = compact('vendorAutoloadPhp');
+
+        $splAutoloadFunctionsBefore = spl_autoload_functions();
+        $splAutoloadFunctionsBeforeLoggable = null;
+        if (self::isLogEnabledForLevel($logLevel)) {
+            $logCtx += ['splAutoloadFunctionsBefore' => SplAutoloadFunctionsLogUtil::callbacksToLoggable($splAutoloadFunctionsBefore)];
+            self::logWithLevel($logLevel, __LINE__, __FUNCTION__, 'Before require ' . $vendorAutoloadPhp, $logCtx);
+        }
+
         require $vendorAutoloadPhp;
 
-        self::logDebug(__LINE__, __FUNCTION__, 'Finished successfully');
+        $splAutoloadFunctionsAfter = spl_autoload_functions();
+        if (self::isLogEnabledForLevel($logLevel)) {
+            $logCtx += ['splAutoloadFunctionsAfter' => SplAutoloadFunctionsLogUtil::callbacksToLoggable($splAutoloadFunctionsAfter)];
+            self::logWithLevel($logLevel, __LINE__, __FUNCTION__, 'After require ' . $vendorAutoloadPhp, $logCtx);
+        }
+
+        $autoloadsForDistroVendorDir = $returnNewCallbacks ? self::diffAutoloaderForDistroVendorDir($splAutoloadFunctionsBefore, $splAutoloadFunctionsAfter) : null;
+        if (self::isLogEnabledForLevel($logLevel)) {
+            if ($autoloadsForDistroVendorDir !== null) {
+                $logCtx += ['autoloadsForDistroVendorDir' => SplAutoloadFunctionsLogUtil::callbacksToLoggable($autoloadsForDistroVendorDir)];
+            }
+            self::logWithLevel($logLevel, __LINE__, __FUNCTION__, 'Finished successfully', $logCtx);
+        }
+        return $autoloadsForDistroVendorDir;
     }
 
     private static function registerAsyncTransportFactory(): void
@@ -373,9 +453,9 @@ final class PhpPartFacade
             self::logError(__LINE__, __FUNCTION__, self::USER_BOOTSTRAP_PHP_FILE_OPT_NAME . " configuration option value is a path $userBootstrapPhpFile that does not exist");
             return;
         }
-        self::logDebug(__LINE__, __FUNCTION__, 'Before require', compact('userBootstrapPhpFile'));
+        self::logDebug(__LINE__, __FUNCTION__, 'Before require file set by ' . self::USER_BOOTSTRAP_PHP_FILE_OPT_NAME, compact('userBootstrapPhpFile'));
         require $userBootstrapPhpFile;
-        self::logDebug(__LINE__, __FUNCTION__, 'After require', compact('userBootstrapPhpFile'));
+        self::logDebug(__LINE__, __FUNCTION__, 'After require file set by ' . self::USER_BOOTSTRAP_PHP_FILE_OPT_NAME, compact('userBootstrapPhpFile'));
     }
 
     /**

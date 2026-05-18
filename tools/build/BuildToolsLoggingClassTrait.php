@@ -85,25 +85,9 @@ trait BuildToolsLoggingClassTrait
         self::logWithLevel(LogLevel::trace, $line, $fqMethod, $msg, $context);
     }
 
-    private static function logThrowable(LogLevel $level, int $line, string $fqMethod, Throwable $throwable): void
+    private static function logThrowable(LogLevel $level, int $line, string $fqMethod, string $throwableDesc, Throwable $throwable): void
     {
-        if (!BuildToolsLog::isLevelEnabled(LogLevel::critical)) {
-            return;
-        }
-
-        $getTraceEntryProp = function (array $traceEntry, string $propKey, string $defaultValue): string {
-            if (!array_key_exists($propKey, $traceEntry)) {
-                return $defaultValue;
-            }
-            $propVal = $traceEntry[$propKey];
-            return is_scalar($propVal) ? strval($propVal) : $defaultValue;
-        };
-        self::logWithLevel($level, $line, $fqMethod, 'Caught throwable: ' . $throwable->getMessage());
-        BuildToolsLog::writeLineRaw('Stack trace:');
-        foreach ($throwable->getTrace() as $traceEntry) {
-            $text = $getTraceEntryProp($traceEntry, 'file', '<FILE>') . ':' . $getTraceEntryProp($traceEntry, 'line', '<LINE>');
-            $text .= ' (' . $getTraceEntryProp($traceEntry, 'class', '<CLASS>') . '::' . $getTraceEntryProp($traceEntry, 'function', '<FUNC>') . ')';
-            self::logInfo(__LINE__, __METHOD__, "\t" . $text);
-        }
+        // getCurrentSourceCodeFile() must be defined in class using BuildToolsLoggingClassTrait
+        BuildToolsLog::logThrowable($level, self::getCurrentSourceCodeFile(), $line, $fqMethod, $throwableDesc, $throwable);
     }
 }

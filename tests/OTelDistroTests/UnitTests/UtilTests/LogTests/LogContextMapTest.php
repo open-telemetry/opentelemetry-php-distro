@@ -56,11 +56,9 @@ class LogContextMapTest extends TestCaseBase
         self::assertSame($stmtLine, $actualStmt->srcCodeLine);
         self::assertSame(__FUNCTION__, $actualStmt->srcCodeFunc);
 
-        self::assertStringStartsWith($stmtMsg, $actualStmt->messageWithContext);
-        $actualCtxEncodedAsJson = trim(substr($actualStmt->messageWithContext, strlen($stmtMsg)));
-        $dbgCtx->add(compact('actualCtxEncodedAsJson'));
+        self::assertSame($stmtMsg, $actualStmt->message);
 
-        $actualCtx = JsonUtil::decode($actualCtxEncodedAsJson);
+        $actualCtx = JsonUtil::decode($actualStmt->contextAsString);
         self::assertIsArray($actualCtx);
         $expectedCtx = [
             'stmt_key_1' => 'stmt_key_1 value', 'stmt_key_2' => 'stmt_key_2 value',
@@ -81,6 +79,6 @@ class LogContextMapTest extends TestCaseBase
 
         $expectedCtxEncodedAsJson = JsonUtil::encode($expectedCtx);
         $dbgCtx->add(compact('expectedCtxEncodedAsJson'));
-        self::assertSame($expectedCtxEncodedAsJson, $actualCtxEncodedAsJson);
+        self::assertSame($expectedCtxEncodedAsJson, $actualStmt->contextAsString);
     }
 }

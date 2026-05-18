@@ -22,7 +22,7 @@ abstract class AppCodeHostHandle implements LoggableInterface
     /**
      * @param null|Closure(AppCodeRequestParams): void $setParamsFunc
      */
-    abstract public function execAppCode(AppCodeTarget $appCodeTarget, ?Closure $setParamsFunc = null): void;
+    abstract public function execAppCode(AppCodeTarget $appCodeTarget, ?Closure $setParamsFunc = null): ?int;
 
     protected function beforeAppCodeInvocation(AppCodeRequestParams $appCodeRequestParams): AppCodeInvocation
     {

@@ -12,11 +12,11 @@ namespace OTelDistroTests\ComponentTests\Util;
 
 use OpenTelemetry\Distro\Log\LogLevel;
 use OTelDistroTests\Util\AmbientContextForTests;
+use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\Log\LogCategoryForTests;
 use OTelDistroTests\Util\Log\Logger;
 use OTelDistroTests\Util\PHPUnitExtensionBase;
 use Override;
-use PHPUnit\Framework\Assert;
 use Throwable;
 
 /**
@@ -56,8 +56,7 @@ final class ComponentTestsPHPUnitExtension extends PHPUnitExtensionBase
 
     public static function getGlobalTestInfra(): GlobalTestInfra
     {
-        Assert::assertNotNull(self::$globalTestInfra);
-        return self::$globalTestInfra;
+        return AssertEx::notNull(self::$globalTestInfra);
     }
 
     #[Override]

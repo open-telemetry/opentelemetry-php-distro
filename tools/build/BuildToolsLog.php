@@ -6,26 +6,34 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\DistroTools\Build;
 
-use OpenTelemetry\Distro\BootstrapStageStdErrWriter;
+use Closure;
+use DateTime;
 use OpenTelemetry\Distro\Log\LogFeature;
 use OpenTelemetry\Distro\Log\LogLevel;
 use ReflectionClass;
+use Throwable;
 
 /**
  * @phpstan-type Context array<string, mixed>
+ * @phpstan-type FormatAndWrite Closure(LogLevel $level, string $file, int $line, string $func, string $message, Context $context): void
  */
 final class BuildToolsLog
 {
     use BuildToolsAssertTrait;
 
-    public const DEFAULT_LEVEL = LogLevel::info;
+    private const LOG_LINE_PREFIX = '[OTel PHP Distro build tool]';
+    public const DEFAULT_LEVEL = LogLevel::debug;
 
     private static ?LogLevel $maxEnabledLevel = null;
 
-    public static function configure(LogLevel $maxEnabledLevel): void
+    /** @var ?FormatAndWrite */
+    private static ?Closure $formatAndWrite = null;
+
+    public static function configure(LogLevel $maxEnabledLevel, ?Closure $formatAndWrite = null): void
     {
         self::assertNull(self::$maxEnabledLevel);
         self::$maxEnabledLevel = $maxEnabledLevel;
+        self::$formatAndWrite = $formatAndWrite;
     }
 
     /**
@@ -33,9 +41,9 @@ final class BuildToolsLog
      *
      * @noinspection PhpUnused
      */
-    public static function error(string $file, int $line, string $fqMethod, string $msg, array $context = []): void
+    public static function error(string $file, int $line, string $fqMethod, string $message, array $context = []): void
     {
-        self::withLevel(LogLevel::error, $file, $line, $fqMethod, $msg, $context);
+        self::withLevel(LogLevel::error, $file, $line, $fqMethod, $message, $context);
     }
 
     /**
@@ -43,9 +51,9 @@ final class BuildToolsLog
      *
      * @noinspection PhpUnused
      */
-    public static function info(string $file, int $line, string $fqMethod, string $msg, array $context = []): void
+    public static function info(string $file, int $line, string $fqMethod, string $message, array $context = []): void
     {
-        self::withLevel(LogLevel::info, $file, $line, $fqMethod, $msg, $context);
+        self::withLevel(LogLevel::info, $file, $line, $fqMethod, $message, $context);
     }
 
     /**
@@ -53,9 +61,9 @@ final class BuildToolsLog
      *
      * @noinspection PhpUnused
      */
-    public static function debug(string $file, int $line, string $fqMethod, string $msg, array $context = []): void
+    public static function debug(string $file, int $line, string $fqMethod, string $message, array $context = []): void
     {
-        self::withLevel(LogLevel::debug, $file, $line, $fqMethod, $msg, $context);
+        self::withLevel(LogLevel::debug, $file, $line, $fqMethod, $message, $context);
     }
 
     /**
@@ -63,88 +71,200 @@ final class BuildToolsLog
      *
      * @noinspection PhpUnused
      */
-    public static function trace(string $file, int $line, string $fqMethod, string $msg, array $context = []): void
+    public static function trace(string $file, int $line, string $fqMethod, string $message, array $context = []): void
     {
-        self::withLevel(LogLevel::trace, $file, $line, $fqMethod, $msg, $context);
+        self::withLevel(LogLevel::trace, $file, $line, $fqMethod, $message, $context);
     }
 
     /**
      * @param Context $context
      */
-    public static function withLevel(LogLevel $level, string $file, int $line, string $fqMethod, string $msg, array $context = []): void
+    public static function withLevel(LogLevel $level, string $file, int $line, string $fqMethod, string $message, array $context = []): void
     {
-        self::withLevelAndFeature($level, $level->name, /* feature */ null, $file, $line, $fqMethod, $msg, $context);
-    }
-
-    public static function shortenFqMethod(string $fqMethod): string
-    {
-        return str_starts_with($fqMethod, __NAMESPACE__) ? substr($fqMethod, strlen(__NAMESPACE__) + 1) : $fqMethod;
-    }
-
-    /**
-     * @param Context $context
-     */
-    public static function withLevelAndFeature(LogLevel $level, string $levelName, ?int $feature, string $file, int $line, string $fqMethod, string $msg, array $context = []): void
-    {
-        if (!self::isLevelEnabled($level)) {
+        if (!self::isLevelIntEnabled($level->value)) {
             return;
         }
 
-        $ctxSuffix = count($context) === 0 ? '' : (' ; ' . json_encode($context));
-        $funcAdapted = self::shortenFqMethod($fqMethod);
-        $fileAdapted = basename($file);
-        $lineToWrite = '[' . strtoupper($levelName) . ']';
-        if ($feature !== null) {
-            $featureName = self::findProdLogFeatureName($feature) ?? "<UNKNOWN FEATURE $feature>";
-            $lineToWrite .= " [$featureName]";
+        if (self::$formatAndWrite === null) {
+            self::defaultFormatAndWrite(
+                levelString: strtoupper($level->name),
+                featureOrCategoryString: null,
+                file: $file,
+                line: $line,
+                func: self::fqMethodToFunc($fqMethod),
+                messageWithContext: self::concatMessageAndContext($message, ((count($context) === 0) ? '' : json_encode($context, JSON_THROW_ON_ERROR))),
+            );
+        } else {
+            (self::$formatAndWrite)(
+                level: $level,
+                file: $file,
+                line: $line,
+                func: self::fqMethodToFunc($fqMethod),
+                message: $message,
+                context: $context,
+            );
         }
-        if ($funcAdapted !== '') {
-            $lineToWrite .= " [$funcAdapted]";
-        }
-        $lineToWrite .= " [$fileAdapted:$line] $msg$ctxSuffix";
-        self::writeLineRaw($lineToWrite);
     }
 
-    private static function findProdLogFeatureName(int $feature): ?string
+    public static function logThrowable(LogLevel $level, string $file, int $line, string $fqMethod, string $throwableDesc, Throwable $throwable): void
+    {
+        if (!BuildToolsLog::isLevelEnabled(LogLevel::critical)) {
+            return;
+        }
+
+        if (self::$formatAndWrite !== null) {
+            (self::$formatAndWrite)(
+                level: $level,
+                file: $file,
+                line: $line,
+                func: self::fqMethodToFunc($fqMethod),
+                message: '',
+                context: [$throwableDesc => $throwable],
+            );
+            return;
+        }
+
+        $getTraceEntryProp = function (array $traceEntry, string $propKey, string $defaultValue): string {
+            if (!array_key_exists($propKey, $traceEntry)) {
+                return $defaultValue;
+            }
+            $propVal = $traceEntry[$propKey];
+            return is_scalar($propVal) ? strval($propVal) : $defaultValue;
+        };
+        $stackTrace = [];
+        foreach ($throwable->getTrace() as $traceEntry) {
+            $stackTraceLine = $getTraceEntryProp($traceEntry, 'file', '<FILE>') . ':' . $getTraceEntryProp($traceEntry, 'line', '<LINE>');
+            $stackTraceLine .= ' (' . $getTraceEntryProp($traceEntry, 'class', '<CLASS>') . '::' . $getTraceEntryProp($traceEntry, 'function', '<FUNC>') . ')';
+            $stackTrace[] = $stackTraceLine;
+        }
+        self::withLevel($level, $file, $line, $fqMethod, '', [$throwableDesc => ['message' => $throwable->getMessage(), 'stack trace' => $stackTrace]]);
+    }
+
+    private static function concatWithSeparator(string $str1, string $separator, string $str2): string
+    {
+        return $str1 . ((($str1 === '') || ($str2 === '')) ? '' : $separator) . $str2;
+    }
+
+    public static function concatMessageAndContext(string $message, string $contextAsString): string
+    {
+        return self::concatWithSeparator($message, ' | ', $contextAsString);
+    }
+
+    public static function formatStatement(
+        string $prefix,
+        string $levelString,
+        ?string $featureOrCategoryString,
+        string $file,
+        int $line,
+        string $func,
+        string $messageWithContext,
+    ): string {
+        $result = $prefix;
+        $appendToResult = function (string $part, bool $surroundWithDelimiters = true) use (&$result): void {
+            $result = self::concatWithSeparator($result, ' ', $surroundWithDelimiters ? "[$part]" : $part);
+        };
+
+        if (is_int($pid = getmypid())) {
+            $appendToResult("PID: $pid");
+        }
+
+        $appendToResult((new DateTime())->format('Y-m-d H:i:s.v P'), surroundWithDelimiters: false);
+
+        $appendToResult($levelString);
+
+        if ($featureOrCategoryString !== null) {
+            $appendToResult($featureOrCategoryString);
+        }
+
+        $appendToResult(basename($file) . ':' . $line);
+
+        $appendToResult($func);
+
+        $appendToResult($messageWithContext, surroundWithDelimiters: false);
+
+        return $result;
+    }
+
+    public static function prodLogFeatureIntToString(int $prodLogFeatureIntVal): string
     {
         /** @var ?array<int, string> $valueToNameMap */
         static $valueToNameMap = null;
         if ($valueToNameMap === null) {
-            $valueToNameMap = self::buildProdLogFeatureValueToNameMap();
+            $valueToNameMap = [];
+            $logFeatureReflClass = new ReflectionClass(LogFeature::class);
+            foreach ($logFeatureReflClass->getConstants() as $constName => $constValue) {
+                $valueToNameMap[self::assertIsInt($constValue)] = $constName;
+            }
         }
 
-        return array_key_exists($feature, $valueToNameMap) ? $valueToNameMap[$feature] : null;
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    public static function buildProdLogFeatureValueToNameMap(): array
-    {
-        $result = [];
-        $logFeatureReflClass = new ReflectionClass(LogFeature::class);
-        foreach ($logFeatureReflClass->getConstants() as $constName => $constValue) {
-            $result[self::assertIsInt($constValue)] = $constName;
+        if (array_key_exists($prodLogFeatureIntVal, $valueToNameMap)) {
+            return $valueToNameMap[$prodLogFeatureIntVal];
         }
-        return $result;
+        return "UNKNOWN FEATURE $prodLogFeatureIntVal";
     }
 
-    public static function writeAsProdSink(int $levelIntVal, int $feature, string $file, int $line, string $func, string $text): void
+    private const CLASS_METHOD_SEPARATOR = '::';
+
+    private static function fqMethodToFunc(string $fqMethod): string
     {
-        $foundLevel = LogLevel::tryFrom($levelIntVal);
-        $levelToUse = $foundLevel === null ? BuildToolsLog::DEFAULT_LEVEL : $foundLevel;
-        $levelNameToUse = $foundLevel === null ? "LEVEL $levelIntVal" : $foundLevel->name;
-        self::withLevelAndFeature($levelToUse, $levelNameToUse, $feature, $file, $line, $func, $text);
+        // __METHOD__ => MyClass::myMethod
+        // result => myMethod
+
+        /** @var ?int $separatorLen */
+        static $separatorLen = null;
+        if ($separatorLen === null) {
+            $separatorLen = strlen(self::CLASS_METHOD_SEPARATOR);
+        }
+        $separatorPos = strrpos($fqMethod, self::CLASS_METHOD_SEPARATOR);
+        return is_int($separatorPos) ? substr($fqMethod, $separatorPos + $separatorLen) : $fqMethod;
     }
 
-    public static function writeLineRaw(string $text): void
+    public static function defaultFormatAndWrite(string $levelString, ?string $featureOrCategoryString, string $file, int $line, string $func, string $messageWithContext): void
     {
-        BootstrapStageStdErrWriter::writeLine($text);
+        $formattedStatement = self::formatStatement(
+            prefix: self::LOG_LINE_PREFIX,
+            levelString: $levelString,
+            featureOrCategoryString: $featureOrCategoryString,
+            file: $file,
+            line: $line,
+            func: $func,
+            messageWithContext: $messageWithContext,
+        );
+        self::writeLine($formattedStatement);
+    }
+
+    private static function ensureStdErrIsDefined(): bool
+    {
+        /** @var ?bool $isStderrDefined */
+        static $isStderrDefined = null;
+
+        if ($isStderrDefined === null) {
+            if (defined('STDERR')) {
+                $isStderrDefined = true;
+            } else {
+                define('STDERR', fopen('php://stderr', 'w'));
+                $isStderrDefined = defined('STDERR');
+            }
+        }
+
+        return $isStderrDefined;
+    }
+
+    public static function writeLine(string $text): void
+    {
+        if (self::ensureStdErrIsDefined()) {
+            fwrite(STDERR, $text . PHP_EOL);
+        }
     }
 
     public static function isLevelEnabled(LogLevel $level): bool
     {
-        return self::getMaxEnabledLevel()->value >= $level->value;
+        return self::isLevelIntEnabled($level->value);
+    }
+
+    public static function isLevelIntEnabled(int $levelIntVal): bool
+    {
+        return self::getMaxEnabledLevel()->value >= $levelIntVal;
     }
 
     public static function getMaxEnabledLevel(): LogLevel

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\ComponentTests;
 
-use OTelDistroTests\ComponentTests\Util\AppCodeContextDataUtil;
+use OTelDistroTests\ComponentTests\Util\AppCodeAuxOutputUtil;
 use OTelDistroTests\ComponentTests\Util\AppCodeHostParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeRequestParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeTarget;
@@ -46,7 +46,7 @@ final class TransactionSpanTest extends ComponentTestCaseBase
     /**
      * @return iterable<string, array{MixedMap}>
      */
-    public static function dataProviderForTestFeatureWithVariousEnabledConfigCombos(): iterable
+    public static function dataProviderForTestTransactionSpan(): iterable
     {
         /**
          * @return iterable<array<string, mixed>>
@@ -69,21 +69,7 @@ final class TransactionSpanTest extends ComponentTestCaseBase
         return self::adaptDataSetsGeneratorToSmokeToDescToMixedMap($generateDataSets);
     }
 
-    public static function appCodeForTestFeatureWithVariousEnabledConfigCombos(MixedMap $appCodeRequestArgs): void
-    {
-        self::appCodeSetsHowFinished(
-            $appCodeRequestArgs,
-            /**
-             * @retrun array<string, mixed>
-             */
-            function () use ($appCodeRequestArgs): array {
-                self::appCodeCreatesDummySpan($appCodeRequestArgs);
-                return [];
-            }
-        );
-    }
-
-    public function implTestFeatureWithVariousEnabledConfigCombos(MixedMap $testArgs): void
+    private function implTestTransactionSpan(MixedMap $testArgs): void
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
@@ -94,17 +80,18 @@ final class TransactionSpanTest extends ComponentTestCaseBase
         $shouldAppCodeCreateDummySpan = $testArgs->getBool(self::SHOULD_APP_CODE_CREATE_DUMMY_SPAN_KEY);
 
         $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
-            function (AppCodeHostParams $appCodeParams) use ($transactionSpanEnabled, $transactionSpanEnabledCli): void {
-                $appCodeParams->setProdOptionIfNotNull(OptionForProdName::transaction_span_enabled, $transactionSpanEnabled);
-                $appCodeParams->setProdOptionIfNotNull(OptionForProdName::transaction_span_enabled_cli, $transactionSpanEnabledCli);
+            function (AppCodeHostParams $appCodeHostParams) use ($transactionSpanEnabled, $transactionSpanEnabledCli): void {
+                $appCodeHostParams->setProdOptionIfNotNull(OptionForProdName::transaction_span_enabled, $transactionSpanEnabled);
+                $appCodeHostParams->setProdOptionIfNotNull(OptionForProdName::transaction_span_enabled_cli, $transactionSpanEnabledCli);
             }
         );
 
         $appCodeRequestArgs = $testArgs->cloneAsArray();
-        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeRequestArgs);
+        AppCodeAuxOutputUtil::createTempFile(__CLASS__, $testCaseHandle, /* in,out */ $appCodeRequestArgs);
 
+        ArrayUtilForTests::addAssertingKeyNew(self::SUB_APP_CODE_TO_CALL_KEY, [__CLASS__, 'appCodeCreatesDummySpan'], /* in,out */ $appCodeRequestArgs);
         $appCodeHost->execAppCode(
-            AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestFeatureWithVariousEnabledConfigCombos']),
+            AppCodeTarget::asRouted([__CLASS__, 'appCodeSetsHowFinished']),
             function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeRequestArgs): void {
                 $appCodeRequestParams->setAppCodeRequestArgs($appCodeRequestArgs);
             }
@@ -160,9 +147,9 @@ final class TransactionSpanTest extends ComponentTestCaseBase
 
         // Assert
 
-        $appCodeContextData = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeRequestArgs);
-        $dbgCtx->add(compact('appCodeContextData'));
-        self::assertTrue($appCodeContextData->getBool(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY));
+        $appCodeAuxOutput = AppCodeAuxOutputUtil::readDataAsMixedMapFromTempFile($appCodeRequestArgs);
+        $dbgCtx->add(compact('appCodeAuxOutput'));
+        self::assertTrue($appCodeAuxOutput->getBool(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY));
 
         $rootSpan = null;
         $dummySpan = null;
@@ -195,15 +182,10 @@ final class TransactionSpanTest extends ComponentTestCaseBase
 
 
     /**
-     * @dataProvider dataProviderForTestFeatureWithVariousEnabledConfigCombos
+     * @dataProvider dataProviderForTestTransactionSpan
      */
-    public function testFeatureWithVariousEnabledConfigCombos(MixedMap $testArgs): void
+    public function testTransactionSpan(MixedMap $testArgs): void
     {
-        self::runAndEscalateLogLevelOnFailure(
-            self::buildDbgDescForTestWithArgs(__CLASS__, __FUNCTION__, $testArgs),
-            function () use ($testArgs): void {
-                $this->implTestFeatureWithVariousEnabledConfigCombos($testArgs);
-            }
-        );
+        self::runAndEscalateLogLevelOnFailure(self::buildDbgDescForTestWithArgs(__CLASS__, __FUNCTION__, $testArgs), fn() => $this->implTestTransactionSpan($testArgs));
     }
 }

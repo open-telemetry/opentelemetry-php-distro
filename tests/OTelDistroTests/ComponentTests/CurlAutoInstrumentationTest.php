@@ -163,7 +163,7 @@ final class CurlAutoInstrumentationTest extends ComponentTestCaseBase
         );
     }
 
-    public function implTestLocalClientServer(MixedMap $testArgs): void
+    private function implTestLocalClientServer(MixedMap $testArgs): void
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
@@ -172,10 +172,10 @@ final class CurlAutoInstrumentationTest extends ComponentTestCaseBase
         $enableCurlInstrumentationForServer = $testArgs->getBool(self::ENABLE_CURL_INSTRUMENTATION_FOR_SERVER_KEY);
         $serverAppCode = $testCaseHandle->ensureAdditionalHttpAppCodeHost(
             dbgInstanceName: 'server for cUrl request',
-            setParamsFunc: function (AppCodeHostParams $appCodeParams) use ($enableCurlInstrumentationForServer): void {
-                self::disableTimingDependentFeatures($appCodeParams);
+            setParamsFunc: function (AppCodeHostParams $appCodeHostParams) use ($enableCurlInstrumentationForServer): void {
+                self::disableTimingDependentFeatures($appCodeHostParams);
                 if (!$enableCurlInstrumentationForServer) {
-                    $appCodeParams->setProdOptionIfNotNull(OptionForProdName::disabled_instrumentations, self::AUTO_INSTRUMENTATION_NAME);
+                    $appCodeHostParams->setProdOptionIfNotNull(OptionForProdName::disabled_instrumentations, self::AUTO_INSTRUMENTATION_NAME);
                 }
             }
         );
@@ -183,10 +183,10 @@ final class CurlAutoInstrumentationTest extends ComponentTestCaseBase
 
         $enableCurlInstrumentationForClient = $testArgs->getBool(self::ENABLE_CURL_INSTRUMENTATION_FOR_CLIENT_KEY);
         $clientAppCode = $testCaseHandle->ensureMainAppCodeHost(
-            setParamsFunc: function (AppCodeHostParams $appCodeParams) use ($enableCurlInstrumentationForClient): void {
-                self::disableTimingDependentFeatures($appCodeParams);
+            setParamsFunc: function (AppCodeHostParams $appCodeHostParams) use ($enableCurlInstrumentationForClient): void {
+                self::disableTimingDependentFeatures($appCodeHostParams);
                 if (!$enableCurlInstrumentationForClient) {
-                    $appCodeParams->setProdOptionIfNotNull(OptionForProdName::disabled_instrumentations, self::AUTO_INSTRUMENTATION_NAME);
+                    $appCodeHostParams->setProdOptionIfNotNull(OptionForProdName::disabled_instrumentations, self::AUTO_INSTRUMENTATION_NAME);
                 }
             },
             dbgInstanceName: 'client for cUrl request',

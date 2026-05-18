@@ -5,15 +5,11 @@ declare(strict_types=1);
 namespace OTelDistroTests\ComponentTests;
 
 use OpenTelemetry\Distro\Util\ArrayUtil;
-use OTelDistroTests\ComponentTests\Util\AppCodeContextDataUtil;
-use OTelDistroTests\ComponentTests\Util\AppCodeHostParams;
-use OTelDistroTests\ComponentTests\Util\AppCodeRequestParams;
-use OTelDistroTests\ComponentTests\Util\AppCodeTarget;
+use OTelDistroTests\ComponentTests\Util\AgentBackendComms;
 use OTelDistroTests\ComponentTests\Util\ComponentTestCaseBase;
-use OTelDistroTests\ComponentTests\Util\WaitForOTelSignalCounts;
 use OTelDistroTests\Util\Config\OptionForProdName;
 use OTelDistroTests\Util\DataProviderForTestBuilder;
-use OTelDistroTests\Util\DebugContext;
+use OTelDistroTests\Util\DebugContextScopeRef;
 use OTelDistroTests\Util\MixedMap;
 
 /**
@@ -44,54 +40,25 @@ final class UserBootstrapPhpFileTest extends ComponentTestCaseBase
         );
     }
 
-    public static function appCodeForTestVariousValues(MixedMap $appCodeRequestArgs): void
+    /**
+     * @return array<string, mixed>
+     */
+    public static function appCodeForTestVariousValues(): array
     {
-        self::appCodeSetsHowFinished(
-            $appCodeRequestArgs,
-            /**
-             * @retrun array<string, mixed>
-             */
-            function (): array {
-                return [UserBootstrapPhpFileShared::GLOBALS_KEY => ArrayUtil::getValueIfKeyExistsElse(UserBootstrapPhpFileShared::GLOBALS_KEY, $GLOBALS, null)];
-            }
-        );
+        return [UserBootstrapPhpFileShared::GLOBALS_KEY => ArrayUtil::getValueIfKeyExistsElse(UserBootstrapPhpFileShared::GLOBALS_KEY, $GLOBALS, null)];
     }
 
-    public function implTestVariousValues(MixedMap $testArgs): void
+    private function implTestVariousValues(MixedMap $testArgs): void
     {
-        DebugContext::getCurrentScope(/* out */ $dbgCtx);
-
-        $testCaseHandle = $this->getTestCaseHandle();
-
-        $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
-            function (AppCodeHostParams $appCodeParams) use ($testArgs): void {
-                self::ensureTransactionSpanEnabled($appCodeParams);
-                self::copyProdOptionsToAppCodeHostParams($testArgs, $appCodeParams);
+        self::implTestForAppCodeSetsHowFinished(
+            testArgs: $testArgs,
+            subAppCode: [__CLASS__, 'appCodeForTestVariousValues'],
+            additionalAssertCode: function (DebugContextScopeRef $dbgCtx, AgentBackendComms $agentBackendComms, MixedMap $appCodeAuxOutput) use ($testArgs): void {
+                $userBootstrapPhpFileOptVal = $testArgs->get(OptionForProdName::user_bootstrap_php_file->name);
+                $globalsVal = $appCodeAuxOutput->getNullableString(UserBootstrapPhpFileShared::GLOBALS_KEY);
+                self::assertSame($userBootstrapPhpFileOptVal === self::USER_BOOTSTRAP_FILE_FULL_PATH ? UserBootstrapPhpFileShared::GLOBALS_VALUE : null, $globalsVal);
             }
         );
-
-        $appCodeRequestArgs = $testArgs->cloneAsArray();
-        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeRequestArgs);
-
-        $appCodeHost->execAppCode(
-            AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestVariousValues']),
-            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeRequestArgs): void {
-                $appCodeRequestParams->setAppCodeRequestArgs($appCodeRequestArgs);
-            }
-        );
-
-        $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(WaitForOTelSignalCounts::spans(1)); // exactly 1 span (the root span) is expected
-        $dbgCtx->add(compact('agentBackendComms'));
-
-        // Assert
-
-        $appCodeContextData = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeRequestArgs);
-        $dbgCtx->add(compact('appCodeContextData'));
-        self::assertTrue($appCodeContextData->getBool(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY));
-
-        $userBootstrapPhpFileOptVal = $testArgs->get(OptionForProdName::user_bootstrap_php_file->name);
-        $globalsVal = $appCodeContextData->getNullableString(UserBootstrapPhpFileShared::GLOBALS_KEY);
-        self::assertSame($userBootstrapPhpFileOptVal === self::USER_BOOTSTRAP_FILE_FULL_PATH ? UserBootstrapPhpFileShared::GLOBALS_VALUE : null, $globalsVal);
     }
 
     /**

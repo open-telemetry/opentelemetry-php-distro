@@ -29,7 +29,6 @@ final class AdaptPhpDepsTo81
 
     private const COMPOSER_IGNORE_PHP_REQ_CMD_OPT = '--ignore-platform-req=php';
 
-    private const COMPOSER_JSON_REQUIRE_KEY = 'require';
     private const COMPOSER_JSON_VERSION_KEY = 'version';
     private const COMPOSER_JSON_REPOSITORIES_KEY = 'repositories';
     private const COMPOSER_JSON_PHP_KEY = 'php';
@@ -148,15 +147,15 @@ final class AdaptPhpDepsTo81
         self::logDebug(__LINE__, __METHOD__, 'Entered; fileContents: ' . $fileContents);
         $fileContentsJsonDecoded = self::assertIsArray(BuildToolsUtil::decodeJson($fileContents));
         // Keep only "require" top key
-        $resultArray = array_filter($fileContentsJsonDecoded, fn ($key) => $key === self::COMPOSER_JSON_REQUIRE_KEY, ARRAY_FILTER_USE_KEY);
+        $resultArray = array_filter($fileContentsJsonDecoded, fn ($key) => $key === ComposerUtil::COMPOSER_JSON_REQUIRE_KEY, ARRAY_FILTER_USE_KEY);
         self::assertCount(1, $resultArray);
-        self::assertArrayHasKey(self::COMPOSER_JSON_REQUIRE_KEY, $resultArray);
+        self::assertArrayHasKey(ComposerUtil::COMPOSER_JSON_REQUIRE_KEY, $resultArray);
         self::logDebug(__LINE__, __METHOD__, 'After keeping only "require" top key', compact('resultArray'));
         // Keep only packages instrumenting native functions
-        $requireSection = self::assertIsArray($resultArray[self::COMPOSER_JSON_REQUIRE_KEY]);
+        $requireSection = self::assertIsArray($resultArray[ComposerUtil::COMPOSER_JSON_REQUIRE_KEY]);
         $packageNameToVersion = array_filter($requireSection, fn($package) => in_array($package, self::AUTO_INSTRUM_NATIVE_FUNCS_PACKAGES), ARRAY_FILTER_USE_KEY);
         /** @var array<string, string> $packageNameToVersion */
-        $resultArray[self::COMPOSER_JSON_REQUIRE_KEY] = $packageNameToVersion;
+        $resultArray[ComposerUtil::COMPOSER_JSON_REQUIRE_KEY] = $packageNameToVersion;
         $resultArrayEncoded = BuildToolsUtil::encodeJson($resultArray, prettyPrint: true);
         BuildToolsUtil::putFileContents($minimalComposerJsonFilePath, $resultArrayEncoded . PHP_EOL);
         return $packageNameToVersion;
@@ -192,8 +191,8 @@ final class AdaptPhpDepsTo81
                 . "; version in package's composer.json: $alreadyPresentVersion ; version in the root composer.json: $packageVersion; repoRootComposerJsonSrcFile: $composerJsonFilePath",
             );
         }
-        self::assertArrayHasKey(self::COMPOSER_JSON_REQUIRE_KEY, $resultArray);
-        $requireSectionRef =& $resultArray[self::COMPOSER_JSON_REQUIRE_KEY];
+        self::assertArrayHasKey(ComposerUtil::COMPOSER_JSON_REQUIRE_KEY, $resultArray);
+        $requireSectionRef =& $resultArray[ComposerUtil::COMPOSER_JSON_REQUIRE_KEY];
         self::assertIsArray($requireSectionRef);
         self::assertArrayHasKey(self::COMPOSER_JSON_PHP_KEY, $requireSectionRef);
         $requireSectionRef[self::COMPOSER_JSON_PHP_KEY] = '8.1.*';

@@ -23,6 +23,7 @@ $logError = function (int $line, string $msg, array $context = []): void {
 
 if (count($argv) !== 2) {
     if (count($argv) < 2) {
+        /** @noinspection RequiredAttributes */
         $logError(__LINE__, 'Missing command line argument: <composer command>', compact('argv'));
         exit(BuildToolsUtil::FAILURE_EXIT_CODE);
     }
@@ -41,9 +42,9 @@ $cmdToUseInstead = match ($usedComposerCommand) {
 if ($cmdToUseInstead === null) {
     $logError(__LINE__, "Unexpected composer command: $usedComposerCommand");
 } else {
-    BuildToolsLog::writeLineRaw("Direct `composer $usedComposerCommand' is not allowed");
-    BuildToolsLog::writeLineRaw('Instead use');
-    BuildToolsLog::writeLineRaw("\t" . $cmdToUseInstead);
+    BuildToolsLog::writeLine("Direct `composer $usedComposerCommand' is not allowed");
+    BuildToolsLog::writeLine('Instead use');
+    BuildToolsLog::writeLine("\t" . $cmdToUseInstead);
 }
 
 exit(BuildToolsUtil::FAILURE_EXIT_CODE);

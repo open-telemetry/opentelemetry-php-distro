@@ -30,17 +30,12 @@ final class InfraUtilForTests
      */
     public static function buildTestInfraDataPerProcess(string $targetSpawnedProcessInternalId, array $targetServerPorts, ?ResourcesCleanerHandle $resourcesCleaner): TestInfraDataPerProcess
     {
-        $currentProcessId = getmypid();
-        if ($currentProcessId === false) {
-            throw new ComponentTestsInfraException('Failed to get current process ID');
-        }
-
         return new TestInfraDataPerProcess(
-            rootProcessId:                            $currentProcessId,
+            rootProcessId: ProcessUtil::getCurrentPid(),
             resourcesCleanerSpawnedProcessInternalId: $resourcesCleaner?->spawnedProcessInternalId,
-            resourcesCleanerPort:                     $resourcesCleaner?->getMainPort(),
-            thisSpawnedProcessInternalId:             $targetSpawnedProcessInternalId,
-            thisServerPorts:                          $targetServerPorts
+            resourcesCleanerPort: $resourcesCleaner?->getMainPort(),
+            thisSpawnedProcessInternalId: $targetSpawnedProcessInternalId,
+            thisServerPorts: $targetServerPorts,
         );
     }
 

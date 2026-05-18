@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace OTelDistroTests\ComponentTests\Util;
 
 use CurlHandle;
+use OTelDistroTests\Util\ClassNameUtil;
 use OTelDistroTests\Util\DebugContext;
+use OTelDistroTests\Util\FileUtil;
 use OTelDistroTests\Util\Log\LoggableInterface;
 use OTelDistroTests\Util\Log\LoggableToString;
 use OTelDistroTests\Util\Log\LoggableTrait;
@@ -45,7 +47,7 @@ final class CurlHandleForTests implements LoggableInterface
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
         Assert::assertNotNull($this->curlHandle);
 
-        $verboseOutputFilePath = $this->resourcesCleanerClient->createTempFile('curl verbose output');
+        $verboseOutputFilePath = $this->resourcesCleanerClient->createTempFile(FileUtil::generateTempFileNamePrefix(ClassNameUtil::fqToShortFromRawString(__CLASS__) . '_curl_verbose_output'));
         $dbgCtx->add(compact('verboseOutputFilePath'));
         /** @var null|resource|false $verboseOutputFile */
         $verboseOutputFile = null;

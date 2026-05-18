@@ -32,4 +32,9 @@ class AppCodeRequestParams implements LoggableInterface
     {
         $this->dataPerRequest->isAppCodeExpectedToThrow = $isAppCodeExpectedToThrow;
     }
+
+    public function setExpectedAppCodeProcessExitCode(?int $expectedAppCodeProcessExitCode): void
+    {
+        $this->dataPerRequest->expectedAppCodeProcessExitCode = $expectedAppCodeProcessExitCode;
+    }
 }

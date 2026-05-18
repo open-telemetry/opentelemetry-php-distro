@@ -21,6 +21,8 @@ final class ComposerUtil
     public const COMPOSER_JSON_FILE_NAME = 'composer.json';
     public const COMPOSER_LOCK_FILE_NAME = 'composer.lock';
 
+    public const COMPOSER_JSON_REQUIRE_KEY = 'require';
+
     private const COMPOSER_INSTALL_CMD_IGNORE_PLATFORM_REQ_ARGS =
         '--ignore-platform-req=ext-mysqli'
         . ' '
@@ -44,7 +46,7 @@ final class ComposerUtil
      */
     public static function execComposerInstallShellCommand(bool $withDev, string $additionalArgs = '', array $envVars = []): void
     {
-        $logLevel = LogLevel::info;
+        $logLevel = LogLevel::debug;
         if (BuildToolsLog::isLevelEnabled($logLevel)) {
             self::logWithLevel($logLevel, __LINE__, __METHOD__, 'Current directory: ' . BuildToolsUtil::getCurrentDirectory());
             BuildToolsUtil::listDirectoryContents(BuildToolsUtil::getCurrentDirectory());

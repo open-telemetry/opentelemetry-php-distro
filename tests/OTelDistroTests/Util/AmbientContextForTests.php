@@ -21,6 +21,7 @@ final class AmbientContextForTests
 {
     private static ?self $singletonInstance = null;
     private static ?string $dbgProcessName = null;
+    private readonly SinkForTests $logSink;
     private readonly LogBackend $logBackend;
     private static ?LoggerFactory $loggerFactory = null;
     private readonly Clock $clock;
@@ -30,7 +31,8 @@ final class AmbientContextForTests
     {
         self::$dbgProcessName = $dbgProcessName;
         $maxEnabledLogLevelBeforeRealConfig = LogLevel::error;
-        $this->logBackend = new LogBackend($maxEnabledLogLevelBeforeRealConfig, new SinkForTests($dbgProcessName));
+        $this->logSink = new SinkForTests($dbgProcessName);
+        $this->logBackend = new LogBackend($maxEnabledLogLevelBeforeRealConfig, $this->logSink);
         self::$loggerFactory = new LoggerFactory($this->logBackend);
         $this->clock = new Clock(self::$loggerFactory);
         // Now that we have a logger, we can read real config and see the potential issues with it logged
@@ -39,7 +41,7 @@ final class AmbientContextForTests
 
     public static function init(string $dbgProcessName): void
     {
-        ExceptionUtil::runCatchLogRethrow(
+        ExceptionUtil::runCatchWriteToStdErrRethrow(
             function () use ($dbgProcessName): void {
                 if (self::$singletonInstance !== null) {
                     Assert::assertSame(self::$dbgProcessName, $dbgProcessName);
@@ -58,7 +60,7 @@ final class AmbientContextForTests
 
     public static function assertIsInited(): void
     {
-        ExceptionUtil::runCatchLogRethrow(
+        ExceptionUtil::runCatchWriteToStdErrRethrow(
             function (): void {
                 Assert::assertTrue(self::isInited(), 'Assertion that, ' . __CLASS__ . ' is initialized, failed');
             }
@@ -67,7 +69,7 @@ final class AmbientContextForTests
 
     private static function getSingletonInstance(): self
     {
-        return ExceptionUtil::runCatchLogRethrow(
+        return ExceptionUtil::runCatchWriteToStdErrRethrow(
             function (): self {
                 Assert::assertNotNull(self::$singletonInstance);
                 return self::$singletonInstance;
@@ -115,7 +117,7 @@ final class AmbientContextForTests
     /** @noinspection PhpUnused */
     public static function dbgProcessName(): string
     {
-        return ExceptionUtil::runCatchLogRethrow(
+        return ExceptionUtil::runCatchWriteToStdErrRethrow(
             function (): string {
                 Assert::assertNotNull(self::$dbgProcessName);
                 return self::$dbgProcessName;
@@ -125,7 +127,7 @@ final class AmbientContextForTests
 
     public static function loggerFactory(): LoggerFactory
     {
-        return ExceptionUtil::runCatchLogRethrow(
+        return ExceptionUtil::runCatchWriteToStdErrRethrow(
             function (): LoggerFactory {
                 Assert::assertNotNull(self::$loggerFactory);
                 return self::$loggerFactory;
@@ -136,5 +138,10 @@ final class AmbientContextForTests
     public static function clock(): Clock
     {
         return self::getSingletonInstance()->clock;
+    }
+
+    public static function logSink(): SinkForTests
+    {
+        return self::getSingletonInstance()->logSink;
     }
 }

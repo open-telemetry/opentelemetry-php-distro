@@ -6,17 +6,15 @@ namespace OTelDistroTests\ComponentTests;
 
 use Composer\Semver\Semver;
 use OpenTelemetry\Distro\VendorDir;
-use OTelDistroTests\ComponentTests\Util\AppCodeContextDataUtil;
+use OTelDistroTests\ComponentTests\Util\AgentBackendComms;
 use OTelDistroTests\ComponentTests\Util\AppCodeContextUtil;
-use OTelDistroTests\ComponentTests\Util\AppCodeHostParams;
-use OTelDistroTests\ComponentTests\Util\AppCodeRequestParams;
-use OTelDistroTests\ComponentTests\Util\AppCodeTarget;
 use OTelDistroTests\ComponentTests\Util\ComponentTestCaseBase;
 use OTelDistroTests\ComponentTests\Util\EnvVarUtilForTests;
 use OTelDistroTests\ComponentTests\Util\ProcessUtil;
-use OTelDistroTests\ComponentTests\Util\WaitForOTelSignalCounts;
+use OTelDistroTests\ComponentTests\Util\ResourcesCleanerHandle;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\DebugContext;
+use OTelDistroTests\Util\DebugContextScopeRef;
 use OTelDistroTests\Util\FileUtil;
 use OTelDistroTests\Util\JsonUtil;
 use OTelDistroTests\Util\MixedMap;
@@ -32,7 +30,7 @@ use Throwable;
  */
 final class PackagesPhpRequirementTest extends ComponentTestCaseBase
 {
-    private const APP_CODE_CTX_VENDOR_DIR_KEY = 'prod_vendor_dir';
+    private const INSTALLED_DISTRO_VENDOR_DIR_KEY = 'installed_distro_vendor_dir';
 
     public function testSemverConstraint(): void
     {
@@ -176,17 +174,17 @@ final class PackagesPhpRequirementTest extends ComponentTestCaseBase
         return false;
     }
 
-    private static function validatePhpFilesUseParser(string $prodVendorDir): void
+    private static function validatePhpFilesUseParser(string $installedDistroVendorDir): void
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
         $loggerProxy = self::getLoggerStatic(__NAMESPACE__, __CLASS__, __FILE__)->ifDebugLevelEnabledNoLine(__FUNCTION__);
-        $loggerProxy?->log(__LINE__, 'Entered', compact('prodVendorDir'));
+        $loggerProxy?->log(__LINE__, 'Entered', compact('installedDistroVendorDir'));
 
         $parser = (new ParserFactory())->createForHostVersion();
         $throwingErrorHandler = new ThrowingPhpParserErrorHandler();
         $dbgCtx->pushSubScope();
-        foreach (FileUtil::iterateOverFilesInDirectoryRecursively($prodVendorDir) as $fileInfo) {
+        foreach (FileUtil::iterateOverFilesInDirectoryRecursively($installedDistroVendorDir) as $fileInfo) {
             $filePath = $fileInfo->getRealPath();
             if ($fileInfo->getExtension() !== 'php' || self::containsHiddenDirInPath($filePath)) {
                 continue;
@@ -206,71 +204,55 @@ final class PackagesPhpRequirementTest extends ComponentTestCaseBase
         $dbgCtx->popSubScope();
     }
 
-    private static function validatePhpFilesUseOpCache(string $prodVendorDir): void
+    private static function validatePhpFilesUseOpCache(string $installedDistroVendorDir, ResourcesCleanerHandle $resourcesCleanerHandle): void
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
         $loggerProxy = self::getLoggerStatic(__NAMESPACE__, __CLASS__, __FILE__)->ifDebugLevelEnabledNoLine(__FUNCTION__);
-        $loggerProxy?->log(__LINE__, 'Entered', compact('prodVendorDir'));
+        $loggerProxy?->log(__LINE__, 'Entered', compact('installedDistroVendorDir'));
 
         $helperScript = __DIR__ . DIRECTORY_SEPARATOR . 'helperToTestPackagesPhpRequirement.php';
         $helperScriptFileInfo = new SplFileInfo($helperScript);
         $procInfo = ProcessUtil::startProcessAndWaitForItToExit(
             dbgProcessName: $helperScriptFileInfo->getBasename($helperScriptFileInfo->getExtension()),
-            command: "php \"$helperScript\" \"$prodVendorDir\"",
+            command: "php \"$helperScript\" \"$installedDistroVendorDir\"",
             envVars: EnvVarUtilForTests::getAll(),
-            maxWaitTimeInMicroseconds: intval(TimeUtil::secondsToMicroseconds(60)) // 1 minute
+            resourcesCleanerClient: $resourcesCleanerHandle->getClient(),
+            isTestScoped: true,
+            maxWaitTimeInMicroseconds: intval(TimeUtil::secondsToMicroseconds(60)), // 1 minute
         );
         $dbgCtx->add(compact('procInfo'));
-        self::assertSame(0, $procInfo['exitCode']);
+        self::assertSame(0, AssertEx::notNull($procInfo->exitCode));
     }
 
-    public static function appCodeForTestPackagesHaveCorrectPhpVersion(MixedMap $appCodeRequestArgs): void
+    /**
+     * @return array<string, mixed>
+     */
+    public static function appCodeForTestPackagesHaveCorrectPhpVersion(): array
     {
-        AppCodeContextDataUtil::writeDataToTempFile([self::APP_CODE_CTX_VENDOR_DIR_KEY => AppCodeContextUtil::adaptClassNameToScoping(VendorDir::class)::$fullPath], $appCodeRequestArgs);
+        return [self::INSTALLED_DISTRO_VENDOR_DIR_KEY => AppCodeContextUtil::adaptClassNameToScoping(VendorDir::class)::$fullPath];
     }
 
     private function implTestPackagesHaveCorrectPhpVersion(): void
     {
         self::assertOpcacheEnabled();
 
-        DebugContext::getCurrentScope(/* out */ $dbgCtx);
+        self::implTestForAppCodeSetsHowFinished(
+            testArgs: new MixedMap(),
+            subAppCode: [__CLASS__, 'appCodeForTestPackagesHaveCorrectPhpVersion'],
+            additionalAssertCode: function (DebugContextScopeRef $dbgCtx, AgentBackendComms $agentBackendComms, MixedMap $appCodeAuxOutput): void {
+                $installedDistroVendorDir = $appCodeAuxOutput->getString(self::INSTALLED_DISTRO_VENDOR_DIR_KEY);
+                $dbgCtx->add(compact('installedDistroVendorDir'));
 
-        $testCaseHandle = $this->getTestCaseHandle();
-
-        /** @var array<string, mixed> $appCodeRequestArgs */
-        $appCodeRequestArgs = [];
-        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeRequestArgs);
-
-        $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
-            function (AppCodeHostParams $appCodeParams): void {
-                self::ensureTransactionSpanEnabled($appCodeParams);
-            }
+                self::verifyPackagesPhpVersion($installedDistroVendorDir);
+                self::validatePhpFilesUseParser($installedDistroVendorDir);
+                self::validatePhpFilesUseOpCache($installedDistroVendorDir, $this->getTestCaseHandle()->getResourcesCleaner());
+            },
         );
-        $appCodeHost->execAppCode(
-            AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestPackagesHaveCorrectPhpVersion']),
-            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeRequestArgs): void {
-                $appCodeRequestParams->setAppCodeRequestArgs($appCodeRequestArgs);
-            }
-        );
-
-        $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(WaitForOTelSignalCounts::spans(1)); // exactly 1 span (the root span) is expected
-        $dbgCtx->add(compact('agentBackendComms'));
-
-        $prodVendorDir = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeRequestArgs)->getString(self::APP_CODE_CTX_VENDOR_DIR_KEY);
-
-        self::verifyPackagesPhpVersion($prodVendorDir);
-        self::validatePhpFilesUseParser($prodVendorDir);
-        self::validatePhpFilesUseOpCache($prodVendorDir);
     }
 
     public function testPackagesHaveCorrectPhpVersion(): void
     {
-        self::runAndEscalateLogLevelOnFailure(
-            self::buildDbgDescForTest(__CLASS__, __FUNCTION__),
-            function (): void {
-                $this->implTestPackagesHaveCorrectPhpVersion();
-            }
-        );
+        self::runAndEscalateLogLevelOnFailure(self::buildDbgDescForTest(__CLASS__, __FUNCTION__), fn() => $this->implTestPackagesHaveCorrectPhpVersion());
     }
 }

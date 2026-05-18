@@ -12,7 +12,6 @@ use Override;
 final class TestInfraHttpServerStarter extends HttpServerStarter
 {
     private string $runScriptName;
-    private ?ResourcesCleanerHandle $resourcesCleaner;
 
     /**
      * @param int[] $portsInUse
@@ -24,15 +23,14 @@ final class TestInfraHttpServerStarter extends HttpServerStarter
         int $portsToAllocateCount,
         ?ResourcesCleanerHandle $resourcesCleaner
     ): HttpServerHandle {
-        return (new self($dbgProcessNamePrefix, $runScriptName, $resourcesCleaner))->startHttpServer($portsInUse, $portsToAllocateCount);
+        return (new self($dbgProcessNamePrefix, $runScriptName, $resourcesCleaner))->startHttpServer(/* isTestScoped */ false, $portsInUse, $portsToAllocateCount);
     }
 
     private function __construct(string $dbgProcessNamePrefix, string $runScriptName, ?ResourcesCleanerHandle $resourcesCleaner)
     {
-        parent::__construct($dbgProcessNamePrefix);
+        parent::__construct($dbgProcessNamePrefix, $resourcesCleaner);
 
         $this->runScriptName = $runScriptName;
-        $this->resourcesCleaner = $resourcesCleaner;
     }
 
     /** @inheritDoc */

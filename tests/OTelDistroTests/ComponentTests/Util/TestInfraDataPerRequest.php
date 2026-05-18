@@ -14,6 +14,7 @@ final class TestInfraDataPerRequest
         public readonly ?AppCodeTarget $appCodeTarget = null,
         public ?array $appCodeRequestArgs = null,
         public bool $isAppCodeExpectedToThrow = false,
+        public ?int $expectedAppCodeProcessExitCode = 0,
     ) {
     }
 }

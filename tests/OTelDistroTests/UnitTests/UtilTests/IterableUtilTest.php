@@ -61,7 +61,7 @@ final class IterableUtilTest extends TestCaseBase
             $dbgCtx->add(compact('i', 'actualTuple'));
             self::assertLessThan(count($expectedOutput), $i);
             $expectedTuple = $expectedOutput[$i];
-            AssertEx::equalLists($expectedTuple, $actualTuple);
+            AssertEx::equalLists(AssertEx::arrayIsList($expectedTuple), AssertEx::arrayIsList($actualTuple));
             ++$i;
         }
         self::assertSame(count($expectedOutput), $i);

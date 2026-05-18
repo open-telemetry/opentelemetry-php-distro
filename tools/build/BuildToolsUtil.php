@@ -30,7 +30,7 @@ final class BuildToolsUtil
      */
     public static function runCmdLineImpl(string $calledFromFqMethod, callable $code): void
     {
-        self::logInfo(__LINE__, __METHOD__, 'Running code for command line: ' . BuildToolsLog::shortenFqMethod($calledFromFqMethod), ['log level' => BuildToolsLog::getMaxEnabledLevel()->name]);
+        self::logDebug(__LINE__, __METHOD__, 'Running code for command line: ' . self::shortenFqMethod($calledFromFqMethod), ['log level' => BuildToolsLog::getMaxEnabledLevel()->name]);
 
         $exitCode = 0;
 
@@ -38,10 +38,10 @@ final class BuildToolsUtil
             $code();
         } catch (Throwable $throwable) {
             $exitCode = self::FAILURE_EXIT_CODE;
-            self::logThrowable(LogLevel::critical, __LINE__, __METHOD__, $throwable);
+            self::logThrowable(LogLevel::critical, __LINE__, __METHOD__, 'Thrown by code for command line: ' . self::shortenFqMethod($calledFromFqMethod), $throwable);
         }
 
-        self::logInfo(__LINE__, __METHOD__, 'Finished running code for command line: ' . BuildToolsLog::shortenFqMethod($calledFromFqMethod), compact('exitCode'));
+        self::logDebug(__LINE__, __METHOD__, 'Finished running code for command line: ' . self::shortenFqMethod($calledFromFqMethod), compact('exitCode'));
         exit($exitCode);
     }
 
@@ -71,7 +71,7 @@ final class BuildToolsUtil
                 } else {
                     $logLevel = LogLevel::warning;
                     self::logWithLevel($logLevel, __LINE__, __METHOD__, 'Failed to clean up');
-                    self::logThrowable($logLevel, __LINE__, __METHOD__, $throwableFromCleanUp);
+                    self::logThrowable($logLevel, __LINE__, __METHOD__, 'Thrown by cleanup code', $throwableFromCleanUp);
                 }
             }
         }
@@ -92,8 +92,8 @@ final class BuildToolsUtil
 
     public static function execShellCommand(string $shellCmd): void
     {
-        self::logInfo(__LINE__, __METHOD__, "Executing shell command: $shellCmd");
-        $retVal = system($shellCmd, /* out */ $exitCode);
+        self::logDebug(__LINE__, __METHOD__, "Executing shell command: $shellCmd");
+        $retVal = system($shellCmd . ' 1>&2', /* out */ $exitCode);
         self::assertNotFalse($retVal, compact('retVal'));
         self::assert($exitCode === 0, '$exitCode === 0' . ' ; shellCmd: ' . $shellCmd . ' ; exitCode: ' . $exitCode . ' ; retVal: ' . $retVal);
     }
@@ -244,7 +244,7 @@ final class BuildToolsUtil
 
     public static function copyFile(string $fromFilePath, string $toFilePath, bool $allowOverwrite = false): void
     {
-        self::logInfo(__LINE__, __METHOD__, "Copying file $fromFilePath to $toFilePath");
+        self::logDebug(__LINE__, __METHOD__, "Copying file $fromFilePath to $toFilePath");
         $allowOverwriteOpt = ($allowOverwrite ? (self::isCurrentOsWindows() ? '/y' : '-f') : '');
         self::execShellCommand(
             self::isCurrentOsWindows()
@@ -301,9 +301,9 @@ final class BuildToolsUtil
 
     public static function createTempDirectory(string $newDirFullPath): void
     {
-        self::logInfo(__LINE__, __METHOD__, "Creating temporary directory $newDirFullPath");
+        self::logDebug(__LINE__, __METHOD__, "Creating temporary directory $newDirFullPath");
         if (is_dir($newDirFullPath)) {
-            self::logInfo(__LINE__, __METHOD__, "Directory $newDirFullPath already exists");
+            self::logDebug(__LINE__, __METHOD__, "Directory $newDirFullPath already exists");
             return;
         }
         self::assertNotFalse(mkdir($newDirFullPath, recursive: true), compact('newDirFullPath'));
@@ -311,13 +311,13 @@ final class BuildToolsUtil
 
     public static function createDirectory(string $newDirFullPath): void
     {
-        self::logInfo(__LINE__, __METHOD__, "Creating directory $newDirFullPath");
+        self::logDebug(__LINE__, __METHOD__, "Creating directory $newDirFullPath");
         self::assertNotFalse(mkdir($newDirFullPath, recursive: true), compact('newDirFullPath'));
     }
 
     public static function copyDirectoryContents(string $fromDirPath, string $toDirPath): void
     {
-        self::logInfo(__LINE__, __METHOD__, "Copying directory contents from $fromDirPath to $toDirPath");
+        self::logDebug(__LINE__, __METHOD__, "Copying directory contents from $fromDirPath to $toDirPath");
         self::execShellCommand(
             self::isCurrentOsWindows()
                 ? "xcopy /y /s /e \"$fromDirPath\\*\" \"$toDirPath\\\""
@@ -328,7 +328,7 @@ final class BuildToolsUtil
     /** @noinspection PhpUnused */
     public static function deleteFile(string $filePath): void
     {
-        self::logInfo(__LINE__, __METHOD__, "Deleting file $filePath");
+        self::logDebug(__LINE__, __METHOD__, "Deleting file $filePath");
         $retVal = unlink($filePath);
         self::assert($retVal, '$retVal' . ' ; $retVal: ' . json_encode($retVal) . ' ; filePath: ' . $filePath);
     }
@@ -357,7 +357,7 @@ final class BuildToolsUtil
 
     public static function deleteDirectory(string $dirPath): void
     {
-        self::logInfo(__LINE__, __METHOD__, "Deleting directory $dirPath");
+        self::logDebug(__LINE__, __METHOD__, "Deleting directory $dirPath");
         self::execShellCommand(
             self::isCurrentOsWindows()
                 ? "DEL /F /Q /S \"$dirPath\" && RD /S /Q \"$dirPath\""
@@ -368,7 +368,7 @@ final class BuildToolsUtil
     public static function deleteTempDirectory(string $dirPath): void
     {
         if (self::shouldKeepTemporaryFiles()) {
-            self::logInfo(__LINE__, __METHOD__, "Keeping temporary directory $dirPath");
+            self::logDebug(__LINE__, __METHOD__, "Keeping temporary directory $dirPath");
         } else {
             self::deleteDirectory($dirPath);
         }
@@ -387,9 +387,13 @@ final class BuildToolsUtil
         self::assertNotFalse($chdirRetVal, compact('chdirRetVal'));
     }
 
-    public static function listDirectoryContents(string $dirPath, int $recursiveDepth = 0): void
+    public static function listDirectoryContents(string $dirPath, int $recursiveDepth = 0, LogLevel $logLevel = BuildToolsLog::DEFAULT_LEVEL): void
     {
-        self::logInfo(__LINE__, __METHOD__, "Contents  of directory $dirPath:");
+        if (!BuildToolsLog::isLevelEnabled($logLevel)) {
+            return;
+        }
+
+        self::logWithLevel($logLevel, __LINE__, __METHOD__, "Contents  of directory $dirPath:");
         self::execShellCommand(
             self::isCurrentOsWindows()
                 ? "dir \"$dirPath\""
@@ -409,9 +413,13 @@ final class BuildToolsUtil
         }
     }
 
-    public static function listFileContents(string $filePath): void
+    public static function listFileContents(string $filePath, LogLevel $logLevel = BuildToolsLog::DEFAULT_LEVEL): void
     {
-        self::logInfo(__LINE__, __METHOD__, "Contents of file $filePath:");
+        if (!BuildToolsLog::isLevelEnabled($logLevel)) {
+            return;
+        }
+
+        self::logWithLevel($logLevel, __LINE__, __METHOD__, "Contents of file $filePath:");
         self::execShellCommand(
             self::isCurrentOsWindows()
                 ? "type \"$filePath\""
@@ -450,6 +458,11 @@ final class BuildToolsUtil
             $result .= $pathCharAsInt === $unixDirectorySeparatorAsInt ? DIRECTORY_SEPARATOR : chr($pathCharAsInt);
         }
         return $result;
+    }
+
+    private static function shortenFqMethod(string $fqMethod): string
+    {
+        return str_starts_with($fqMethod, __NAMESPACE__) ? substr($fqMethod, strlen(__NAMESPACE__) + 1) : $fqMethod;
     }
 
     /**
