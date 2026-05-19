@@ -42,6 +42,7 @@ class VariousOptionsParsingTest extends TestCaseBase
         $optionParser = $optMeta->parser();
 
         if ($optionParser instanceof BoolOptionParser) {
+            /** @noinspection PhpParamsInspection */
             return new EnumOptionTestValuesGenerator($optionParser, additionalValidValues: [new OptionTestValidValue('', false)]); /** @phpstan-ignore return.type */
         }
         if ($optionParser instanceof DurationOptionParser) {

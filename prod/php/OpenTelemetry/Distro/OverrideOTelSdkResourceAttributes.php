@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\Distro;
 
+use OpenTelemetry\Distro\Log\LoggingClassTrait;
+use OpenTelemetry\Distro\Log\LogFeature;
 use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Registry as OTelSdkRegistry;
 use OpenTelemetry\SDK\Resource\ResourceDetectorInterface;
@@ -17,7 +19,7 @@ use OpenTelemetry\SemConv\Incubating\Attributes\TelemetryIncubatingAttributes;
  */
 final class OverrideOTelSdkResourceAttributes implements ResourceDetectorInterface
 {
-    use BootstrapStageLoggingClassTrait;
+    use LoggingClassTrait;
 
     private static ?string $distroVersion = null;
     private static ?string $distroName = null;
@@ -35,7 +37,7 @@ final class OverrideOTelSdkResourceAttributes implements ResourceDetectorInterfa
             self::$distroVersion = self::buildDistroVersion($nativePartVersion);
         }
         OTelSdkRegistry::registerResourceDetector(self::class, new self());
-        self::logDebug(__LINE__, __FUNCTION__, 'Exiting', ['distroName' => self::$distroName, 'distroVersion' => self::$distroVersion]);
+        self::logDebug(__FUNCTION__)?->with(__LINE__, 'Exiting', ['distroName' => self::$distroName, 'distroVersion' => self::$distroVersion]);
     }
 
     public function getResource(): ResourceInfo
@@ -48,7 +50,7 @@ final class OverrideOTelSdkResourceAttributes implements ResourceDetectorInterfa
             self::$extraAttributes,
         );
 
-        self::logDebug(__LINE__, __FUNCTION__, 'Exiting', compact('attributes'));
+        self::logDebug(__FUNCTION__)?->with(__LINE__, 'Exiting', compact('attributes'));
         return ResourceInfo::create(Attributes::create($attributes));
     }
 
@@ -58,7 +60,7 @@ final class OverrideOTelSdkResourceAttributes implements ResourceDetectorInterfa
             return $nativePartVersion;
         }
 
-        self::logWarning(__LINE__, __FUNCTION__, 'Native part and PHP part versions do NOT match', ['native part version' => $nativePartVersion, 'PHP part version' => PhpPartVersion::VALUE]);
+        self::logWarning(__FUNCTION__)?->with(__LINE__, 'Native part and PHP part versions do NOT match', ['native part version' => $nativePartVersion, 'PHP part version' => PhpPartVersion::VALUE]);
         return $nativePartVersion . '/' . PhpPartVersion::VALUE;
     }
 
@@ -68,7 +70,7 @@ final class OverrideOTelSdkResourceAttributes implements ResourceDetectorInterfa
     }
 
     /**
-     * Must be defined in class using BootstrapStageLoggingClassTrait
+     * Must be defined in class using LoggingClassTrait
      */
     private static function getCurrentSourceCodeFile(): string
     {
@@ -76,10 +78,10 @@ final class OverrideOTelSdkResourceAttributes implements ResourceDetectorInterfa
     }
 
     /**
-     * Must be defined in class using BootstrapStageLoggingClassTrait
+     * Must be defined in class using LoggingClassTrait
      */
-    private static function getCurrentSourceCodeClass(): string
+    private static function getCurrentOptionalLogProdFeatureIntOrCategoryString(): int
     {
-        return __CLASS__;
+        return LogFeature::BOOTSTRAP;
     }
 }

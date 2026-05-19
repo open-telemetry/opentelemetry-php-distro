@@ -6,28 +6,36 @@ namespace OTelDistroTests\UnitTests\UtilTests;
 
 use OpenTelemetry\Distro\Log\LogFeature;
 use OTelDistroTests\Util\AssertEx;
+use OTelDistroTests\Util\DebugContext;
 use OTelDistroTests\Util\TestCaseBase;
-use OpenTelemetry\DistroTools\Build\BuildToolsLog;
+use OpenTelemetry\DistroTools\Build\BuildToolsLogUtil;
 use ReflectionClass;
 
 final class BuildToolsUtilTest extends TestCaseBase
 {
     public static function testProdLogFeatureValueToNameMap(): void
     {
-        $logFeatureValueToNameMap = AssertEx::notEmptyArray(BuildToolsLog::buildProdLogFeatureValueToNameMap());
+        DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
-        $assertValueToName = function (int $value, string $expectedName) use ($logFeatureValueToNameMap): void {
-            self::assertSame($expectedName, AssertEx::arrayHasKey($value, $logFeatureValueToNameMap));
+        $assertValueToName = function (int $value, string $expectedName): void {
+            self::assertSame($expectedName, BuildToolsLogUtil::prodLogFeatureIntToString($value));
         };
 
         $assertValueToName(LogFeature::ALL, 'ALL');
         $assertValueToName(LogFeature::CONFIG, 'CONFIG');
 
-        $logFeatureConstNames = array_keys((new ReflectionClass(LogFeature::class))->getConstants());
-        foreach ($logFeatureConstNames as $logFeatureConstName) {
-            $assertValueToName(AssertEx::isInt(constant(LogFeature::class . '::' . $logFeatureConstName)), $logFeatureConstName);
+        $logFeatureReflClass = new ReflectionClass(LogFeature::class);
+        $constsNameToVal = $logFeatureReflClass->getConstants();
+        foreach ($constsNameToVal as $constName => $constVal) {
+            $assertValueToName(AssertEx::isInt($constVal), $constName);
         }
+        /** @var array<string, int> $constsNameToVal */
 
-        self::assertArrayNotHasKey('dummy name', $logFeatureValueToNameMap);
+        // Verify strings generated for not predefined int values
+        $maxPredefinedIntVal = max(AssertEx::notEmptyList(array_values($constsNameToVal)));
+        foreach ([1, 12, 321, 4567] as $delta) {
+            $notPredefinedFeatureIntVal = $maxPredefinedIntVal + $delta;
+            $assertValueToName($notPredefinedFeatureIntVal, 'UNKNOWN FEATURE ' . $notPredefinedFeatureIntVal);
+        }
     }
 }

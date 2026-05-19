@@ -279,6 +279,21 @@ final class AssertEx
     }
 
     /**
+     * @template TObject of object
+     *
+     * @param class-string<TObject> $expectedType
+     *
+     * @return TObject
+     *
+     * @phpstan-assert TObject $actualValue
+     */
+    public static function isInstanceOf(string $expectedType, mixed $actualValue, string $message = ''): object
+    {
+        Assert::assertInstanceOf($expectedType, $actualValue, $message);
+        return $actualValue;
+    }
+
+    /**
      * @template TKey of array-key
      * @template TValue
      *
@@ -427,8 +442,8 @@ final class AssertEx
     }
 
     /**
-     * @param mixed[] $expected
-     * @param mixed[] $actual
+     * @param list<mixed> $expected
+     * @param list<mixed> $actual
      */
     public static function equalLists(array $expected, array $actual): void
     {
@@ -438,6 +453,19 @@ final class AssertEx
             $dbgCtx->add(compact('i'));
             Assert::assertSame($expected[$i], $actual[$i]);
         }
+    }
+
+    /**
+     * @param list<mixed> $expected
+     * @param list<mixed> $actual
+     *
+     * @noinspection PhpUnused
+     */
+    public static function equalScalarLists(array $expected, array $actual): void
+    {
+        sort(/* ref */ $expected);
+        sort(/* ref */ $actual);
+        self::equalLists($expected, $actual);
     }
 
     /**

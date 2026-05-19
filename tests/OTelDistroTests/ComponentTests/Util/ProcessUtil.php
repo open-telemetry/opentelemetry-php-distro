@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\ComponentTests\Util;
 
+use OpenTelemetry\Distro\Log\LogLevel;
 use OpenTelemetry\Distro\Util\StaticClassTrait;
 use OTelDistroTests\Util\AmbientContextForTests;
 use OTelDistroTests\Util\AssertEx;
@@ -13,8 +14,6 @@ use OTelDistroTests\Util\Log\LogCategoryForTests;
 
 /**
  * @phpstan-import-type EnvVars from EnvVarUtil
- *
- * @phpstan-type ProcessInfo array{'pid': int, 'exitCode': ?int}
  */
 final class ProcessUtil
 {
@@ -22,7 +21,7 @@ final class ProcessUtil
 
     public static function doesProcessExist(int $pid): bool
     {
-        exec("ps -p $pid", $cmdOutput, $cmdExitCode);
+        exec("ps -p $pid", /* out */ $cmdOutput, /* out */ $cmdExitCode);
         return $cmdExitCode === 0;
     }
 
@@ -30,7 +29,7 @@ final class ProcessUtil
     {
         return (new PollingCheck(
             $dbgProcessDesc . ' process (PID: ' . $pid . ') exited' /* <- dbgDesc */,
-            $maxWaitTimeInMicroseconds
+            $maxWaitTimeInMicroseconds,
         ))->run(
             function () use ($pid): bool {
                 return !self::doesProcessExist($pid);
@@ -38,61 +37,15 @@ final class ProcessUtil
         );
     }
 
-    /**
-     * @param string $dbgProcessName
-     * @param resource $procOpenRetVal
-     * @param int $maxWaitTimeInMicroseconds
-     *
-     * @return ProcessInfo
-     */
-    private static function waitForProcessToExitUsingHandle(string $dbgProcessName, $procOpenRetVal, int $maxWaitTimeInMicroseconds): array
+    public static function execCommandToTerminateProcess(int $pid, bool $force = false): bool
     {
-        $logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__);
-        $logger->addAllContext(compact('dbgProcessName', 'maxWaitTimeInMicroseconds'));
-        $loggerProxyDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
-
-        $pid = null;
-        $exitCode = null;
-        $waitFinishedSuccessfully = (new PollingCheck(
-            $dbgProcessName . ' exited',
-            $maxWaitTimeInMicroseconds
-        ))->run(
-            static function () use ($procOpenRetVal, &$pid, &$exitCode): bool {
-                $procStatus = proc_get_status($procOpenRetVal);
-                /** @noinspection PhpConditionAlreadyCheckedInspection */
-                if (!is_array($procStatus)) { // @phpstan-ignore function.alreadyNarrowedType
-                    throw new ComponentTestsInfraException(ExceptionUtil::buildMessage('proc_get_status returned value which means an error', compact('procStatus')));
-                }
-
-                if ($pid === null) {
-                    $pid = AssertEx::isInt($procStatus['pid']);
-                }
-
-                if (!AssertEx::isBool($procStatus['running'])) {
-                    $exitCode = AssertEx::isInt($procStatus['exitcode']);
-                    return true;
-                }
-
-                return false;
-            }
-        );
-        $logger->addAllContext(compact('waitFinishedSuccessfully', 'pid', 'exitCode'));
-        AssertEx::isNotNull($pid);
-
-        if ($waitFinishedSuccessfully) {
-            $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Started process exited');
-            AssertEx::isNotNull($exitCode);
-        } else {
-            ($loggerProxyWarning = $logger->ifWarningLevelEnabled(__LINE__, __FUNCTION__)) && $loggerProxyWarning->log('Wait for the started process to exit timed out');
-            AssertEx::isNull($exitCode);
-        }
-
-        return compact('pid', 'exitCode');
-    }
-
-    public static function terminateProcess(int $pid): bool
-    {
-        exec("kill $pid > /dev/null", /* ref */ $cmdOutput, /* ref */ $cmdExitCode);
+        $logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->addAllContext(compact('pid', 'force'));
+        $logDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
+        $shellCmd = 'kill ' . ($force ? '-9 ' : '') . $pid;
+        $logger->addAllContext(compact('shellCmd'));
+        $logDebug?->log(__LINE__, 'About to execute shell command');
+        exec($shellCmd, /* ref */ $cmdOutput, /* ref */ $cmdExitCode);
+        $logDebug?->log(__LINE__, 'Executed shell command', compact('cmdExitCode', 'cmdOutput'));
         return $cmdExitCode === 0;
     }
 
@@ -118,65 +71,88 @@ final class ProcessUtil
     /**
      * @phpstan-param EnvVars $envVars
      */
-    public static function startBackgroundProcess(string $dbgProcessName, string $command, array $envVars): void
+    public static function startBackgroundProcess(string $dbgProcessName, string $command, array $envVars, ?ResourcesCleanerClient $resourcesCleanerClient, bool $isTestScoped): void
     {
-        self::procOpenEx($dbgProcessName, self::addStdErrOutRedirect($dbgProcessName, $command) . '&', $envVars, isBackground: true);
+        $processHandle = self::procOpenEx(
+            dbgProcessName: $dbgProcessName,
+            command: self::addStdErrOutRedirect($dbgProcessName, $command) . '&',
+            envVars: $envVars,
+            isBackground: true,
+            resourcesCleanerClient: $resourcesCleanerClient,
+            isTestScoped: $isTestScoped
+        );
+
+        // Close handle to allow process to exit
+        $processHandle->close();
     }
 
     /**
      * @phpstan-param EnvVars $envVars
-     *
-     * @return ProcessInfo
      */
-    public static function startProcessAndWaitForItToExit(string $dbgProcessName, string $command, array $envVars, int $maxWaitTimeInMicroseconds): array
-    {
+    public static function startProcessAndWaitForItToExit(
+        string $dbgProcessName,
+        string $command,
+        array $envVars,
+        ResourcesCleanerClient $resourcesCleanerClient,
+        bool $isTestScoped,
+        int $maxWaitTimeInMicroseconds,
+        ?LogLevel $logLevelTimedout = null,
+    ): ProcessInfo {
         $logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__);
         $logger->addAllContext(compact('dbgProcessName', 'command', 'envVars'));
 
-        $procOpenRetVal = self::procOpenEx($dbgProcessName, self::addStdErrOutRedirect($dbgProcessName, $command), $envVars, isBackground: false);
-        $logger->addAllContext(compact('procOpenRetVal'));
+        $processHandle = self::procOpenEx(
+            dbgProcessName: $dbgProcessName,
+            command: self::addStdErrOutRedirect($dbgProcessName, $command),
+            envVars: $envVars,
+            isBackground: false,
+            resourcesCleanerClient: $resourcesCleanerClient,
+            isTestScoped: $isTestScoped
+        );
+        $logger->addAllContext(compact('processHandle'));
 
-        $procInfo = self::waitForProcessToExitUsingHandle($dbgProcessName, $procOpenRetVal, $maxWaitTimeInMicroseconds);
-        if ($procInfo['exitCode'] === null) {
-            ($loggerProxyWarning = $logger->ifWarningLevelEnabled(__LINE__, __FUNCTION__))
-            && $loggerProxyWarning->log('Wait for the started process to exit timed out - terminating the process now', compact('procInfo'));
-            self::terminateProcess(AssertEx::isInt($procInfo['pid']));
+        try {
+            $processHandle->waitForProcessToExit($maxWaitTimeInMicroseconds, $logLevelTimedout);
+            if (!$processHandle->getCurrentInfo()->hasExited()) {
+                $logger->ifLevelEnabled($logLevelTimedout ?? LogLevel::warning, __LINE__, __FUNCTION__)?->log('Wait for the started process to exit timed out - terminating the process');
+                self::execCommandToTerminateProcess(AssertEx::isInt($processHandle->getCurrentInfo()->pid));
+            }
+        } finally {
+            $processHandle->close();
         }
 
-        $procCloseRetVal = proc_close($procOpenRetVal);
-        $logger->addAllContext(compact('procCloseRetVal'));
-        // For older versions of PHP (prior to 8.3.0), calling proc_get_status() after the process had already exited
-        // would cause subsequent calls to proc_get_status() or proc_close() to return -1.
-        // PHP 8.3.0 and newer: This behavior was corrected.
-        // The process's exit code is now cached, and subsequent calls will return the correct, cached value.
-        if (PHP_VERSION_ID >= 80300 && $procCloseRetVal === -1) {
-            throw new ComponentTestsInfraException(ExceptionUtil::buildMessage('proc_close returned value which means an error', $logger->getContext()));
-        }
-
-        return $procInfo;
+        return $processHandle->getCurrentInfo();
     }
 
     /**
      * @phpstan-param EnvVars $envVars
-     *
-     * @return resource
      */
-    private static function procOpenEx(string $dbgProcessName, string $command, array $envVars, bool $isBackground)
+    private static function procOpenEx(string $dbgProcessName, string $command, array $envVars, bool $isBackground, ?ResourcesCleanerClient $resourcesCleanerClient, bool $isTestScoped): ProcessHandle
     {
         $logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__);
         $logger->addAllContext(compact('dbgProcessName', 'command', 'envVars', 'isBackground'));
 
-        $loggerProxyDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Starting process...');
+        $logDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
+        $logDebug?->log(__LINE__, "Starting process $dbgProcessName ($command) ...");
 
         $pipes = [];
         $procOpenRetVal = proc_open($command, /* descriptor_spec: */ [], /* ref */ $pipes, /* cwd: */ null, $envVars);
+        $logger->addAllContext(compact('procOpenRetVal'));
         if ($procOpenRetVal === false) {
             ($loggerProxyError = $logger->ifErrorLevelEnabled(__LINE__, __FUNCTION__)) && $loggerProxyError->log('Failed to start process');
             throw new ComponentTestsInfraException(ExceptionUtil::buildMessage('Failed to start process', $logger->getContext()));
         }
 
-        ($loggerProxy = $logger->ifInfoLevelEnabled(__LINE__, __FUNCTION__)) && $loggerProxy->log('Started process');
-        return $procOpenRetVal;
+        $processHandle = new ProcessHandle($dbgProcessName, $procOpenRetVal);
+        $resourcesCleanerClient?->registerProcessToTerminate($dbgProcessName, $processHandle->getCurrentInfo()->pid, $isTestScoped);
+
+        $logInfo = $logger->ifInfoLevelEnabledNoLine(__FUNCTION__);
+        $logInfo?->log(__LINE__, "Started process $dbgProcessName ($command)", compact('processHandle'));
+        return $processHandle;
+    }
+
+    public static function getCurrentPid(): int
+    {
+        return AssertEx::isInt(getmypid());
     }
 }

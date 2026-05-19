@@ -79,6 +79,22 @@ final class ArrayUtilForTests
      *
      * @param array<TKey, TValue> $from
      * @param array<TKey, TValue> $to
+     *
+     * @noinspection PhpUnused
+     */
+    public static function appendAssertingKeysNew(array $from, /* in,out */ array &$to): void
+    {
+        foreach ($from as $key => $value) {
+            self::addAssertingKeyNew($key, $value, /* in,out */ $to);
+        }
+    }
+
+    /**
+     * @template TKey of string|int
+     * @template TValue
+     *
+     * @param array<TKey, TValue> $from
+     * @param array<TKey, TValue> $to
      */
     public static function append(array $from, /* in,out */ array &$to): void
     {

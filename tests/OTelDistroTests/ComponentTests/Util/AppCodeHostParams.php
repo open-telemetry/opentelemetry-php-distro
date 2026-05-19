@@ -9,6 +9,7 @@ use OpenTelemetry\Distro\Log\LogLevel;
 use OpenTelemetry\Distro\Util\TextUtil;
 use OTelDistroTests\UnitTests\Util\MockConfigRawSnapshotSource;
 use OTelDistroTests\Util\AmbientContextForTests;
+use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\Config\CompositeRawSnapshotSource;
 use OTelDistroTests\Util\Config\ConfigSnapshotForProd;
 use OTelDistroTests\Util\Config\OptionForProdName;
@@ -19,8 +20,10 @@ use OTelDistroTests\Util\EnvVarUtil;
 use OTelDistroTests\Util\IterableUtil;
 use OTelDistroTests\Util\Log\LogCategoryForTests;
 use OTelDistroTests\Util\Log\LoggableInterface;
+use OTelDistroTests\Util\Log\LoggableToString;
 use OTelDistroTests\Util\Log\LoggableTrait;
 use OTelDistroTests\Util\Log\LoggerFactory;
+use PHPUnit\Framework\Assert;
 
 /**
  * @phpstan-import-type EnvVars from EnvVarUtil
@@ -44,6 +47,17 @@ class AppCodeHostParams implements LoggableInterface
     }
 
     /**
+     * @return OptionForProdValue
+     */
+    public static function assertValidProdOptionValueType(mixed $optVal, string $optName): mixed
+    {
+        if (is_string($optVal) || is_int($optVal) || is_float($optVal) || is_bool($optVal)) {
+            return $optVal;
+        }
+        Assert::fail('Not valid option value type; ' . LoggableToString::convert(compact('optName', 'optVal') + ['$optVal type' => get_debug_type($optVal)]));
+    }
+
+    /**
      * @param OptionForProdName  $optName
      * @param OptionForProdValue $optVal
      */
@@ -60,6 +74,17 @@ class AppCodeHostParams implements LoggableInterface
     {
         if ($optVal !== null) {
             $this->setProdOption($optName, $optVal);
+        }
+    }
+
+    /**
+     * @param OptionForProdName   $optName
+     * @param ?OptionForProdValue $optVal
+     */
+    public function setProdOptionIfNotDefault(OptionForProdName $optName, null|string|int|float|bool $optVal): void
+    {
+        if ($optVal !== OptionsForProdMetadata::get()[$optName->name]->defaultValue()) {
+            $this->setProdOption($optName, AssertEx::notNull($optVal));
         }
     }
 

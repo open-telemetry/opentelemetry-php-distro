@@ -6,35 +6,33 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\Distro;
 
-use OpenTelemetry\Distro\HttpTransport\NativeHttpTransportFactory;
-use OpenTelemetry\Distro\InferredSpans\InferredSpans;
-use OpenTelemetry\Distro\Log\NativeLogWriter;
-use OpenTelemetry\Distro\Util\BoolUtil;
-use OpenTelemetry\Distro\Util\HiddenConstructorTrait;
 use OpenTelemetry\API\Globals;
-use OpenTelemetry\Distro\Util\OTelUtil;
-use OpenTelemetry\Distro\Util\TextUtil;
-use OpenTelemetry\SDK\Registry;
-use OpenTelemetry\SDK\SdkAutoloader;
 use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanKind;
 use OpenTelemetry\API\Trace\StatusCode;
 use OpenTelemetry\Context\Context;
+use OpenTelemetry\Distro\HttpTransport\NativeHttpTransportFactory;
+use OpenTelemetry\Distro\InferredSpans\InferredSpans;
+use OpenTelemetry\Distro\Log\LogBackend;
+use OpenTelemetry\Distro\Log\LoggingClassTrait;
+use OpenTelemetry\Distro\Log\LogFeature;
+use OpenTelemetry\Distro\Log\NativeLogWriter;
+use OpenTelemetry\Distro\Util\DistroRuntimeException;
+use OpenTelemetry\Distro\Util\HiddenConstructorTrait;
+use OpenTelemetry\Distro\Util\OTelUtil;
+use OpenTelemetry\Distro\Util\TextUtil;
+use OpenTelemetry\SDK\Registry;
+use OpenTelemetry\SDK\SdkAutoloader;
 use OpenTelemetry\SemConv\Attributes\CodeAttributes;
 use OpenTelemetry\SemConv\Version;
-use RuntimeException;
 use Throwable;
 
 /**
- * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
- *
- * @internal
- *
  * Called by the extension
  */
 final class PhpPartFacade
 {
-    use BootstrapStageLoggingClassTrait;
+    use LoggingClassTrait;
     /**
      * Constructor is hidden because instance() should be used instead
      */
@@ -49,7 +47,7 @@ final class PhpPartFacade
     private static array $remoteConfigConsumers = [];
     private ?InferredSpans $inferredSpans = null;
 
-    private const IS_DISTRO_ENABLED_ENV_VAR_NAME = 'OTEL_PHP_ENABLED';
+    public const ENABLED_OPT_NAME = 'enabled';
     public const USER_BOOTSTRAP_PHP_FILE_OPT_NAME = 'user_bootstrap_php_file';
 
     /**
@@ -65,25 +63,22 @@ final class PhpPartFacade
     {
         self::$wasBootstrapCalled = true;
 
-        require __DIR__ . DIRECTORY_SEPARATOR . 'BootstrapStageLogger.php';
-        require __DIR__ . DIRECTORY_SEPARATOR . 'Util/StaticClassTrait.php';
-        require __DIR__ . DIRECTORY_SEPARATOR . 'Util/BoolUtil.php';
-
-        BootstrapStageLogger::configure($maxEnabledLogLevel, __DIR__, __NAMESPACE__);
-        self::logDebug(__LINE__, __FUNCTION__, 'Starting bootstrap sequence...', compact('nativePartVersion', 'maxEnabledLogLevel', 'requestInitStartTime'));
+        LogBackend::initSingletonInstance(new LogBackend(maxEnabledLevel: $maxEnabledLogLevel, sourceCodeRootDirs: [ProdPhpDir::$fullPath]));
+        $logDebug = self::logDebug(__FUNCTION__);
+        $logCritical = self::logCritical(__FUNCTION__);
+        $logDebug?->with(__LINE__, 'Starting bootstrap sequence...', compact('nativePartVersion', 'maxEnabledLogLevel', 'requestInitStartTime'));
 
         if (!self::isDistroEnabled()) {
-            self::logCritical(__LINE__, __FUNCTION__, __FUNCTION__ . '() is called but Distro is DISABLED - aborting bootstrap sequence');
+            $logCritical?->with(__LINE__, __FUNCTION__ . '() is called but Distro is DISABLED - aborting bootstrap sequence');
             return false;
         }
 
         if (self::$singletonInstance !== null) {
-            self::logCritical(__LINE__, __FUNCTION__, __FUNCTION__ . '() is called even though singleton instance is already created (probably ' . __FUNCTION__ . '() is called more than once)');
+            $logCritical?->with(__LINE__, __FUNCTION__ . '() is called even though singleton instance is already created (probably ' . __FUNCTION__ . '() is called more than once)');
             return false;
         }
 
         try {
-            require __DIR__ . DIRECTORY_SEPARATOR . 'AutoloaderForClassesInDirectory.php';
             AutoloaderForClassesInDirectory::register(dirRootNamespace: __NAMESPACE__, dirFullPath: __DIR__);
 
             InstrumentationBridge::singletonInstance()->bootstrap();
@@ -103,7 +98,7 @@ final class PhpPartFacade
 
             /** @noinspection PhpInternalEntityUsedInspection */
             if (SdkAutoloader::isExcludedUrl()) {
-                self::logDebug(__LINE__, __FUNCTION__, 'URL is excluded');
+                $logDebug?->with(__LINE__, 'URL is excluded');
                 return false;
             }
 
@@ -129,11 +124,11 @@ final class PhpPartFacade
                 );
             }
         } catch (Throwable $throwable) {
-            self::logCriticalThrowable(__LINE__, __FUNCTION__, $throwable, 'One of the steps in bootstrap sequence has thrown');
+            $logCritical?->withThrowable(__LINE__, 'One of the steps in bootstrap sequence has thrown', $throwable);
             return false;
         }
 
-        self::logDebug(__LINE__, __FUNCTION__, 'Successfully completed bootstrap sequence');
+        $logDebug?->with(__LINE__, 'Successfully completed bootstrap sequence');
         return true;
     }
 
@@ -145,12 +140,12 @@ final class PhpPartFacade
     public static function inferredSpans(int $durationMs, bool $internalFunction): bool
     {
         if (self::$singletonInstance === null) {
-            self::logDebug(__LINE__, __FUNCTION__, 'Missing facade');
+            self::logDebug(__FUNCTION__)?->with(__LINE__, 'Missing facade');
             return true;
         }
 
         if (self::$singletonInstance->inferredSpans === null) {
-            self::logDebug(__LINE__, __FUNCTION__, 'Missing inferred spans instance');
+            self::logDebug(__FUNCTION__)?->with(__LINE__, 'Missing inferred spans instance');
             return true;
         }
         self::$singletonInstance->inferredSpans->captureStackTrace($durationMs, $internalFunction);
@@ -160,16 +155,11 @@ final class PhpPartFacade
 
     private static function isDistroEnabled(): bool
     {
-        return self::getBoolEnvVar(self::IS_DISTRO_ENABLED_ENV_VAR_NAME, default: true);
-    }
-
-    public static function getBoolEnvVar(string $envVarName, bool $default): bool
-    {
-        $envVarVal = getenv($envVarName);
-        if (is_string($envVarVal) && (($parsedVal = BoolUtil::parseValue($envVarVal)) !== null)) {
-            return $parsedVal;
-        }
-        return $default;
+        /**
+         * Use fully qualified names for functions implemented by the extension to make sure scoper correctly detects them
+         * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
+         */
+        return (bool)\OpenTelemetry\Distro\get_config_option_by_name(self::ENABLED_OPT_NAME);
     }
 
     /**
@@ -178,7 +168,7 @@ final class PhpPartFacade
     public static function setEnvVar(string $envVarName, string $envVarValue): void
     {
         if (!putenv($envVarName . '=' . $envVarValue)) {
-            throw new RuntimeException('putenv returned false; $envVarName: ' . $envVarName . '; envVarValue: ' . $envVarValue);
+            throw new DistroRuntimeException('putenv returned false', compact('envVarName', 'envVarValue'));
         }
     }
 
@@ -226,12 +216,13 @@ final class PhpPartFacade
     {
         $vendorAutoloadPhp = VendorDir::$fullPath . DIRECTORY_SEPARATOR . 'autoload.php';
         if (!file_exists($vendorAutoloadPhp)) {
-            throw new RuntimeException("File $vendorAutoloadPhp does not exist");
+            throw new DistroRuntimeException("File $vendorAutoloadPhp does not exist");
         }
-        self::logDebug(__LINE__, __FUNCTION__, 'Before require', compact('vendorAutoloadPhp'));
+        $logDebug = self::logDebug(__FUNCTION__);
+        $logDebug?->with(__LINE__, 'Before require', compact('vendorAutoloadPhp'));
         require $vendorAutoloadPhp;
 
-        self::logDebug(__LINE__, __FUNCTION__, 'Finished successfully');
+        $logDebug?->with(__LINE__, 'Finished successfully');
     }
 
     private static function registerAsyncTransportFactory(): void
@@ -241,7 +232,7 @@ final class PhpPartFacade
          * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
          */
         if (\OpenTelemetry\Distro\get_config_option_by_name('async_transport') === false) {
-            self::logDebug(__LINE__, __FUNCTION__, 'OTEL_PHP_ASYNC_TRANSPORT set to false');
+            self::logDebug(__FUNCTION__)?->with(__LINE__, 'OTEL_PHP_ASYNC_TRANSPORT set to false');
             return;
         }
 
@@ -260,7 +251,7 @@ final class PhpPartFacade
          * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
          */
         if (\OpenTelemetry\Distro\get_config_option_by_name('native_otlp_serializer_enabled') === false) {
-            self::logDebug(__LINE__, __FUNCTION__, 'OTEL_PHP_NATIVE_OTLP_SERIALIZER_ENABLED set to false');
+            self::logDebug(__FUNCTION__)?->with(__LINE__, 'OTEL_PHP_NATIVE_OTLP_SERIALIZER_ENABLED set to false');
         } else {
             // Load classes such as \OpenTelemetry\Contrib\Otlp\SpanExporter to shadow the ones in SDK
             $otelOtlpDir = ProdPhpDir::$fullPath . DIRECTORY_SEPARATOR . 'OpenTelemetry' . DIRECTORY_SEPARATOR . 'Contrib' . DIRECTORY_SEPARATOR . 'Otlp';
@@ -277,7 +268,7 @@ final class PhpPartFacade
      */
     public static function handleError(int $type, string $errorFilename, int $errorLineno, string $message): void
     {
-        self::logDebug(__LINE__, __FUNCTION__, 'Entered', compact('type', 'errorFilename', 'errorLineno', 'message'));
+        self::logDebug(__FUNCTION__)?->with(__LINE__, 'Entered', compact('type', 'errorFilename', 'errorLineno', 'message'));
     }
 
     /**
@@ -362,30 +353,30 @@ final class PhpPartFacade
          */
         $userBootstrapPhpFile = \OpenTelemetry\Distro\get_config_option_by_name(self::USER_BOOTSTRAP_PHP_FILE_OPT_NAME);
         if (!is_string($userBootstrapPhpFile)) {
-            self::logError(
+            self::logError(__FUNCTION__)?->with(
                 __LINE__,
-                __FUNCTION__,
                 self::USER_BOOTSTRAP_PHP_FILE_OPT_NAME . ' configuration option value is not a string',
                 ['actual type' => get_debug_type($userBootstrapPhpFile), 'actual value' => $userBootstrapPhpFile]
             );
             return;
         }
+        $logDebug = self::logDebug(__FUNCTION__);
         if (TextUtil::isEmptyString($userBootstrapPhpFile)) {
-            self::logDebug(__LINE__, __FUNCTION__, self::USER_BOOTSTRAP_PHP_FILE_OPT_NAME . ' configuration option is not set');
+            $logDebug?->with(__LINE__, self::USER_BOOTSTRAP_PHP_FILE_OPT_NAME . ' configuration option is not set');
             return;
         }
 
         if (!file_exists($userBootstrapPhpFile)) {
-            self::logError(__LINE__, __FUNCTION__, self::USER_BOOTSTRAP_PHP_FILE_OPT_NAME . " configuration option value is a path $userBootstrapPhpFile that does not exist");
+            self::logError(__FUNCTION__)?->with(__LINE__, self::USER_BOOTSTRAP_PHP_FILE_OPT_NAME . " configuration option value is a path $userBootstrapPhpFile that does not exist");
             return;
         }
-        self::logDebug(__LINE__, __FUNCTION__, 'Before require', compact('userBootstrapPhpFile'));
+        $logDebug?->with(__LINE__, 'Before require file set by ' . self::USER_BOOTSTRAP_PHP_FILE_OPT_NAME, compact('userBootstrapPhpFile'));
         require $userBootstrapPhpFile;
-        self::logDebug(__LINE__, __FUNCTION__, 'After require', compact('userBootstrapPhpFile'));
+        $logDebug?->with(__LINE__, 'After require file set by ' . self::USER_BOOTSTRAP_PHP_FILE_OPT_NAME, compact('userBootstrapPhpFile'));
     }
 
     /**
-     * Must be defined in class using BootstrapStageLoggingClassTrait
+     * Must be defined in class using LoggingClassTrait
      */
     private static function getCurrentSourceCodeFile(): string
     {
@@ -393,10 +384,10 @@ final class PhpPartFacade
     }
 
     /**
-     * Must be defined in class using BootstrapStageLoggingClassTrait
+     * Must be defined in class using LoggingClassTrait
      */
-    private static function getCurrentSourceCodeClass(): string
+    private static function getCurrentOptionalLogProdFeatureIntOrCategoryString(): int
     {
-        return __CLASS__;
+        return LogFeature::BOOTSTRAP;
     }
 }

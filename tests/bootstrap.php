@@ -2,12 +2,19 @@
 
 declare(strict_types=1);
 
+use OpenTelemetry\Distro\OTelDistroScoperConfig;
 use OTelDistroTests\Util\RepoRootDir;
 use OTelDistroTests\Util\ExceptionUtil;
 
+$repoRootDir = __DIR__ . DIRECTORY_SEPARATOR . '..';
+
 // Ensure that composer has installed all dependencies
-if (!file_exists($vendorAutoload = (__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php'))) {
+if (!file_exists($vendorAutoload = ($repoRootDir . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php'))) {
     die("Error: $vendorAutoload is missing - dependencies must be installed using composer" . PHP_EOL);
+}
+
+if (!class_exists(OTelDistroScoperConfig::class)) {
+    require $repoRootDir . '/prod/php/ScoperConfig.php';
 }
 
 // Disable deprecation notices starting from PHP 8.4
@@ -18,9 +25,9 @@ require $vendorAutoload;
 // Substitutes should be loaded IMMEDIATELY AFTER vendor
 require __DIR__ . '/substitutes/load.php';
 
-ExceptionUtil::runCatchLogRethrow(
-    function (): void {
-        RepoRootDir::setFullPath(__DIR__ . '/..');
+ExceptionUtil::runCatchWriteToStdErrRethrow(
+    function () use ($repoRootDir): void {
+        RepoRootDir::setFullPath($repoRootDir);
 
         require __DIR__ . '/polyfills/load.php';
         require __DIR__ . '/otel_distro_extension_stubs/load.php';

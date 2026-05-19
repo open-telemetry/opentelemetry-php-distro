@@ -14,7 +14,6 @@ use OpenTelemetry\Distro\Util\BoolUtil;
 final class InstallPhpDeps
 {
     use BuildToolsAssertTrait;
-    use BuildToolsLoggingClassTrait;
 
     public static function verifyGeneratedComposerLockFiles(): void
     {
@@ -69,13 +68,5 @@ final class InstallPhpDeps
         } else {
             ComposerUtil::execComposerInstallShellCommand($withDev, envVars: [ComposerUtil::ALLOW_DIRECT_COMPOSER_COMMAND_ENV_VAR_NAME => BoolUtil::toString(true)]);
         }
-    }
-
-    /**
-     * Must be defined in class using BuildToolsLoggingClassTrait
-     */
-    private static function getCurrentSourceCodeFile(): string
-    {
-        return __FILE__;
     }
 }

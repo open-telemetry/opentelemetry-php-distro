@@ -9,11 +9,10 @@ use OpenTelemetry\Distro\Util\TextUtil;
 use OTelDistroTests\Util\ArrayUtilForTests;
 use OTelDistroTests\Util\Log\LoggableTrait;
 use PHPUnit\Framework\Assert;
+use UnitEnum;
 
 /**
- * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
- *
- * @internal
+ * @template TOptionName of UnitEnum
  */
 trait SnapshotTrait
 {
@@ -72,7 +71,10 @@ trait SnapshotTrait
         return $result;
     }
 
-    public function getOptionValueByName(OptionForTestsName $optName): mixed
+    /**
+     * @param TOptionName $optName
+     */
+    public function getOptionValueByName(UnitEnum $optName): mixed
     {
         Assert::assertNotNull($this->optNameToParsedValue);
         return ArrayUtil::getValueIfKeyExistsElse($optName->name, $this->optNameToParsedValue, null);
