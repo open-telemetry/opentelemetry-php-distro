@@ -169,7 +169,7 @@ final class PDOAutoInstrumentationTest extends ComponentTestCaseBase
 
         self::assertNotFalse($queryResult = $pdo->query(self::SELECT_SQL));
         foreach ($queryResult as $row) {
-            $dbgCtx = LoggableToString::convert(['$row' => $row, '$queryResult' => $queryResult]);
+            $dbgCtx = LoggableToString::convert(compact('row', 'queryResult'));
             /** @var ArrayAccess<string, mixed> $row */
             $msgText = $row['text'];
             self::assertIsString($msgText);

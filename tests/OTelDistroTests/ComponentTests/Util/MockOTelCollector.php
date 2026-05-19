@@ -138,8 +138,8 @@ final class MockOTelCollector extends TestInfraHttpServerProcessBase
         $body = $request->getBody()->getContents();
         $bodySize = strlen($body);
         $logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->addAllContext(compact('bodySize'));
-        $loggerProxyDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Deserializing intake trace data request');
+        $logDebug = $logger->logDebug(__FUNCTION__);
+        $logDebug?->with(__LINE__, 'Deserializing intake trace data request');
         Assert::assertSame($bodySize, $request->getBody()->getSize());
 
         if ($bodySize === 0) {
@@ -157,10 +157,10 @@ final class MockOTelCollector extends TestInfraHttpServerProcessBase
         );
 
         $deserializedRequest = AgentBackendCommsAccumulator::deserializeIntakeDataRequestBody($intakeDataRequestRaw);
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Deserialized intake data request', compact('deserializedRequest'));
+        $logDebug?->with(__LINE__, 'Deserialized intake data request', compact('deserializedRequest'));
 
         if ($deserializedRequest->isEmptyAfterDeserialization()) {
-            $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'All data has been discarded by deserialization');
+            $logDebug?->with(__LINE__, 'All data has been discarded by deserialization');
         }
 
         $this->addAgentBackendCommEvent($intakeDataRequestRaw);
@@ -227,8 +227,7 @@ final class MockOTelCollector extends TestInfraHttpServerProcessBase
     {
         $newEvents = $this->hasAgentBackendCommEvents($fromIndex) ? array_slice($this->agentBackendCommEvents, $fromIndex) : [];
 
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Sending response ...', ['fromIndex' => $fromIndex, 'newEvents count' => count($newEvents)]);
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Sending response ...', ['fromIndex' => $fromIndex, 'newEvents count' => count($newEvents)]);
 
         return self::encodeGetAgentBackendCommEvents($newEvents);
     }
@@ -281,8 +280,8 @@ final class MockOTelCollector extends TestInfraHttpServerProcessBase
             return;
         }
 
-        ($loggerProxy = $this->logger->ifWarningLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Timed out while waiting for ' . self::GET_AGENT_BACKEND_COMM_EVENTS_URI_SUBPATH . ' to be fulfilled - returning empty data set...', compact('pendingDataRequestId'));
+        $this->logger->logWarning(__FUNCTION__)
+            ?->with(__LINE__, 'Timed out while waiting for ' . self::GET_AGENT_BACKEND_COMM_EVENTS_URI_SUBPATH . ' to be fulfilled - returning empty data set...', compact('pendingDataRequestId'));
 
         ($pendingDataRequest->callToSendResponse)($this->fulfillGetAgentBackendCommEvents($pendingDataRequest->fromIndex));
     }
@@ -310,7 +309,7 @@ final class MockOTelCollector extends TestInfraHttpServerProcessBase
         MemoryUtil::logMemoryUsage('After cleaning test scoped', $beforeClean);
 
         $collectedCyclesCount = gc_collect_cycles();
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__)) && $loggerProxy->log("gc_collect_cycles() returned $collectedCyclesCount");
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, "gc_collect_cycles() returned $collectedCyclesCount");
         MemoryUtil::logMemoryUsage('After calling gc_collect_cycles()', $beforeClean);
     }
 

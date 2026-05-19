@@ -40,12 +40,12 @@ final class ProcessUtil
     public static function execCommandToTerminateProcess(int $pid, bool $force = false): bool
     {
         $logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->addAllContext(compact('pid', 'force'));
-        $logDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
+        $logDebug = $logger->logDebug(__FUNCTION__);
         $shellCmd = 'kill ' . ($force ? '-9 ' : '') . $pid;
         $logger->addAllContext(compact('shellCmd'));
-        $logDebug?->log(__LINE__, 'About to execute shell command');
+        $logDebug?->with(__LINE__, 'About to execute shell command');
         exec($shellCmd, /* ref */ $cmdOutput, /* ref */ $cmdExitCode);
-        $logDebug?->log(__LINE__, 'Executed shell command', compact('cmdExitCode', 'cmdOutput'));
+        $logDebug?->with(__LINE__, 'Executed shell command', compact('cmdExitCode', 'cmdOutput'));
         return $cmdExitCode === 0;
     }
 
@@ -114,7 +114,7 @@ final class ProcessUtil
         try {
             $processHandle->waitForProcessToExit($maxWaitTimeInMicroseconds, $logLevelTimedout);
             if (!$processHandle->getCurrentInfo()->hasExited()) {
-                $logger->ifLevelEnabled($logLevelTimedout ?? LogLevel::warning, __LINE__, __FUNCTION__)?->log('Wait for the started process to exit timed out - terminating the process');
+                $logger->logWithLevel(__FUNCTION__, $logLevelTimedout ?? LogLevel::warning)?->with(__LINE__, 'Wait for the started process to exit timed out - terminating the process');
                 self::execCommandToTerminateProcess(AssertEx::isInt($processHandle->getCurrentInfo()->pid));
             }
         } finally {
@@ -132,22 +132,22 @@ final class ProcessUtil
         $logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__);
         $logger->addAllContext(compact('dbgProcessName', 'command', 'envVars', 'isBackground'));
 
-        $logDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
-        $logDebug?->log(__LINE__, "Starting process $dbgProcessName ($command) ...");
+        $logDebug = $logger->logDebug(__FUNCTION__);
+        $logDebug?->with(__LINE__, "Starting process $dbgProcessName ($command) ...");
 
         $pipes = [];
         $procOpenRetVal = proc_open($command, /* descriptor_spec: */ [], /* ref */ $pipes, /* cwd: */ null, $envVars);
         $logger->addAllContext(compact('procOpenRetVal'));
         if ($procOpenRetVal === false) {
-            ($loggerProxyError = $logger->ifErrorLevelEnabled(__LINE__, __FUNCTION__)) && $loggerProxyError->log('Failed to start process');
+            $logger->logError(__FUNCTION__)?->with(__LINE__, 'Failed to start process');
             throw new ComponentTestsInfraException(ExceptionUtil::buildMessage('Failed to start process', $logger->getContext()));
         }
 
         $processHandle = new ProcessHandle($dbgProcessName, $procOpenRetVal);
         $resourcesCleanerClient?->registerProcessToTerminate($dbgProcessName, $processHandle->getCurrentInfo()->pid, $isTestScoped);
 
-        $logInfo = $logger->ifInfoLevelEnabledNoLine(__FUNCTION__);
-        $logInfo?->log(__LINE__, "Started process $dbgProcessName ($command)", compact('processHandle'));
+        $logInfo = $logger->logInfo(__FUNCTION__);
+        $logInfo?->with(__LINE__, "Started process $dbgProcessName ($command)", compact('processHandle'));
         return $processHandle;
     }
 

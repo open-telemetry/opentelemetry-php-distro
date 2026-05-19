@@ -66,8 +66,8 @@ final class ExceptionUtil
         try {
             return $callableToRun();
         } catch (Throwable $throwable) {
-            $loggerProxy = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->ifCriticalLevelEnabledNoLine(__FUNCTION__);
-            $loggerProxy?->logThrowable(__LINE__, $throwable, 'Throwable escaped');
+            AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)
+                ->logCritical(__FUNCTION__)?->withThrowable(__LINE__, 'Throwable escaped', $throwable);
             throw $throwable;
         }
     }

@@ -37,7 +37,7 @@ class IncludeStackTraceTest extends TestCaseBase
      */
     private static function includeStackTraceHelperFunc(Logger $logger): array
     {
-        ($lgrPxy = $logger->ifTraceLevelEnabled(__LINE__, __FUNCTION__)) && $lgrPxy->includeStackTrace()->log('');
+        $logger->logTrace(__FUNCTION__)?->includeStackTrace()->with(__LINE__, '');
         $expectedSrcCodeLine = __LINE__ - 1;
         return [
             StackTraceUtil::FUNCTION_KEY => __FUNCTION__,
@@ -53,7 +53,7 @@ class IncludeStackTraceTest extends TestCaseBase
      */
     public static function verifyStackFrame(array $expectedSrcCodeData, array $actualFrame): void
     {
-        $ctx = LoggableToString::convert(['$actualFrame' => $actualFrame]);
+        $ctx = LoggableToString::convert(compact('actualFrame'));
         self::assertCount(4, $actualFrame, $ctx);
 
         self::assertArrayHasKey(StackTraceUtil::FILE_KEY, $actualFrame, $ctx);

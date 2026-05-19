@@ -65,16 +65,15 @@ final class PhpPartFacade
 
         LogBackend::initSingletonInstance(new LogBackend(maxEnabledLevel: $maxEnabledLogLevel, sourceCodeRootDirs: [ProdPhpDir::$fullPath]));
         $logDebug = self::logDebug(__FUNCTION__);
-        $logCritical = self::logCritical(__FUNCTION__);
         $logDebug?->with(__LINE__, 'Starting bootstrap sequence...', compact('nativePartVersion', 'maxEnabledLogLevel', 'requestInitStartTime'));
 
         if (!self::isDistroEnabled()) {
-            $logCritical?->with(__LINE__, __FUNCTION__ . '() is called but Distro is DISABLED - aborting bootstrap sequence');
+            self::logCritical(__FUNCTION__)?->with(__LINE__, __FUNCTION__ . '() is called but Distro is DISABLED - aborting bootstrap sequence');
             return false;
         }
 
         if (self::$singletonInstance !== null) {
-            $logCritical?->with(__LINE__, __FUNCTION__ . '() is called even though singleton instance is already created (probably ' . __FUNCTION__ . '() is called more than once)');
+            self::logCritical(__FUNCTION__)?->with(__LINE__, __FUNCTION__ . '() is called even though singleton instance is already created (this function has been called more than once)');
             return false;
         }
 
@@ -124,7 +123,7 @@ final class PhpPartFacade
                 );
             }
         } catch (Throwable $throwable) {
-            $logCritical?->withThrowable(__LINE__, 'One of the steps in bootstrap sequence has thrown', $throwable);
+            self::logCritical(__FUNCTION__)?->withThrowable(__LINE__, 'One of the steps in bootstrap sequence has thrown', $throwable);
             return false;
         }
 

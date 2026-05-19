@@ -134,22 +134,21 @@ class AppCodeHostParams implements LoggableInterface
      */
     private static function filterBaseEnvVars(array $baseEnvVars, Map $prodOptions): array
     {
-        $logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__);
-        $loggerProxyDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
-        if ($loggerProxyDebug !== null) {
+        $logDebug = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->logDebug(__FUNCTION__);
+        if ($logDebug !== null) {
             ksort(/* ref */ $baseEnvVars);
-            $loggerProxyDebug->log(__LINE__, 'Entered', compact('baseEnvVars'));
+            $logDebug->with(__LINE__, 'Entered', compact('baseEnvVars'));
         }
 
         $areAnyProdLogLevelRelatedOptionsSet = self::areAnyProdLogLevelRelatedOptionsSet($prodOptions);
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Before handling log related options', compact('areAnyProdLogLevelRelatedOptionsSet'));
+        $logDebug?->with(__LINE__, 'Before handling log related options', compact('areAnyProdLogLevelRelatedOptionsSet'));
         $envVars = $baseEnvVars;
         if ($areAnyProdLogLevelRelatedOptionsSet) {
             $envVars = self::removeProdLogLevelRelatedEnvVars($envVars);
         }
-        if ($loggerProxyDebug !== null) {
+        if ($logDebug !== null) {
             ksort(/* ref */ $envVars);
-            $loggerProxyDebug->log(__LINE__, 'After handling log related options', compact('envVars'));
+            $logDebug->with(__LINE__, 'After handling log related options', compact('envVars'));
         }
 
         $result = array_filter(
@@ -192,9 +191,9 @@ class AppCodeHostParams implements LoggableInterface
             ARRAY_FILTER_USE_KEY
         );
 
-        if ($loggerProxyDebug !== null) {
+        if ($logDebug !== null) {
             ksort(/* ref */ $result);
-            $loggerProxyDebug->log(__LINE__, 'Exiting', compact('result'));
+            $logDebug->with(__LINE__, 'Exiting', compact('result'));
         }
         return $result;
     }
@@ -213,8 +212,8 @@ class AppCodeHostParams implements LoggableInterface
             $result[$optName->toEnvVarName()] = ConfigUtilForTests::optionValueToString($optVal);
         }
 
-        $logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__);
-        ($loggerProxy = $logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__)) && $loggerProxy->log('', compact('result'));
+        AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)
+            ->logDebug(__FUNCTION__)?->with(__LINE__, 'Exiting', compact('result'));
         return $result;
     }
 

@@ -209,8 +209,7 @@ final class StackTraceUtil
             case self::METHOD_IS_INSTANCE_KIND_VALUE:
                 return false;
             default:
-                ($loggerProxy = $this->logger->ifErrorLevelEnabled(__LINE__, __FUNCTION__))
-                && $loggerProxy->log('Unexpected `' . self::METHOD_KIND_KEY . '\' value', ['type' => $funcType]);
+                $this->logger->logError(__FUNCTION__)?->with(__LINE__, 'Unexpected `' . self::METHOD_KIND_KEY . '\' value', ['type' => $funcType]);
                 return null;
         }
     }
@@ -289,11 +288,8 @@ final class StackTraceUtil
         }
 
         if (!$isValueTypeFunc($value)) {
-            ($loggerProxy = $this->logger->ifErrorLevelEnabled(__LINE__, __FUNCTION__))
-            && $loggerProxy->log(
-                'Unexpected type for value under key (expected ' . $dbgExpectedType . ')',
-                ['$key' => $key, 'value type' => get_debug_type($value), 'value' => $value]
-            );
+            $this->logger->logError(__FUNCTION__)
+                ?->with(__LINE__, 'Unexpected type for value under key (expected ' . $dbgExpectedType . ')', compact('key', 'value') + ['value type' => get_debug_type($value)]);
             return null;
         }
 

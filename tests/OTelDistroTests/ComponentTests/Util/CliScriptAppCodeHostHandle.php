@@ -53,7 +53,7 @@ final class CliScriptAppCodeHostHandle extends AppCodeHostHandle
     public function execAppCode(AppCodeTarget $appCodeTarget, ?Closure $setParamsFunc = null): int
     {
         $localLogger = $this->logger->inherit()->addAllContext(compact('appCodeTarget'));
-        $loggerProxyDebug = $localLogger->ifDebugLevelEnabledNoLine(__FUNCTION__);
+        $logDebug = $localLogger->logDebug(__FUNCTION__);
         $requestParams = new AppCodeRequestParams($this->appCodeHostParams->spawnedProcessInternalId, $appCodeTarget);
         if ($setParamsFunc !== null) {
             $setParamsFunc($requestParams);
@@ -82,14 +82,14 @@ final class CliScriptAppCodeHostHandle extends AppCodeHostHandle
         ksort(/* ref */ $envVars);
         $localLogger->addAllContext(compact('envVars'));
 
-        $loggerProxyDebug?->log(__LINE__, 'Executing app code ...');
+        $logDebug?->with(__LINE__, 'Executing app code ...');
 
         $appCodeInvocation = $this->beforeAppCodeInvocation($requestParams);
         $exitCode = $this->startProcessAndWaitForItToExit($dbgProcessName, $cmdLine, $envVars, $appCodeInvocation->appCodeRequestParams->dataPerRequest->expectedAppCodeProcessExitCode);
         $localLogger->addAllContext(compact('exitCode'));
         $this->afterAppCodeInvocation($appCodeInvocation);
 
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Executed app code');
+        $logDebug?->with(__LINE__, 'Executed app code');
         return $exitCode;
     }
 

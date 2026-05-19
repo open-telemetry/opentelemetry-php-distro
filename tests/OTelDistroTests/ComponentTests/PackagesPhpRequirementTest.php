@@ -178,8 +178,8 @@ final class PackagesPhpRequirementTest extends ComponentTestCaseBase
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
-        $loggerProxy = self::getLoggerStatic(__NAMESPACE__, __CLASS__, __FILE__)->ifDebugLevelEnabledNoLine(__FUNCTION__);
-        $loggerProxy?->log(__LINE__, 'Entered', compact('installedDistroVendorDir'));
+        $logDebug = self::getLoggerStatic(__NAMESPACE__, __CLASS__, __FILE__)->logDebug(__FUNCTION__);
+        $logDebug?->with(__LINE__, 'Entered', compact('installedDistroVendorDir'));
 
         $parser = (new ParserFactory())->createForHostVersion();
         $throwingErrorHandler = new ThrowingPhpParserErrorHandler();
@@ -191,7 +191,7 @@ final class PackagesPhpRequirementTest extends ComponentTestCaseBase
             }
 
             $dbgCtx->resetTopSubScope(compact('filePath'));
-            $loggerProxy?->log(__LINE__, '', compact('filePath'));
+            $logDebug?->with(__LINE__, '', compact('filePath'));
 
             try {
                 $tokens = $parser->parse(FileUtil::getFileContents($filePath), $throwingErrorHandler);
@@ -208,8 +208,7 @@ final class PackagesPhpRequirementTest extends ComponentTestCaseBase
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
-        $loggerProxy = self::getLoggerStatic(__NAMESPACE__, __CLASS__, __FILE__)->ifDebugLevelEnabledNoLine(__FUNCTION__);
-        $loggerProxy?->log(__LINE__, 'Entered', compact('installedDistroVendorDir'));
+        self::getLoggerStatic(__NAMESPACE__, __CLASS__, __FILE__)->logDebug(__FUNCTION__)?->with(__LINE__, 'Entered', compact('installedDistroVendorDir'));
 
         $helperScript = __DIR__ . DIRECTORY_SEPARATOR . 'helperToTestPackagesPhpRequirement.php';
         $helperScriptFileInfo = new SplFileInfo($helperScript);

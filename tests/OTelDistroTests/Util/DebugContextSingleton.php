@@ -330,7 +330,7 @@ final class DebugContextSingleton implements LoggableInterface
      */
     private function syncScopesStackWithCallStack(int $numberOfStackFramesToSkip, bool $newScopeAboutToBePushed = false): void
     {
-        ($loggerProxy = $this->logger->ifTraceLevelEnabled(__LINE__, __FUNCTION__)) && $loggerProxy->includeStackTrace()->log('Entered');
+        $this->logger->logTrace(__FUNCTION__)?->includeStackTrace()->with(__LINE__, 'Entered');
 
         $newCallStack = $this->captureStackTraceTopFrameLast($numberOfStackFramesToSkip + 1);
         $newCallStackFromFrameIndex = 0;

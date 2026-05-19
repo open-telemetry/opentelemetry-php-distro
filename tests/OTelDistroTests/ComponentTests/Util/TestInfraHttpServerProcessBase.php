@@ -54,11 +54,12 @@ abstract class TestInfraHttpServerProcessBase extends SpawnedProcessBase
             }
         );
 
-        $this->logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->addAllContext(compact('this'));
+        $this->logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__);
 
         parent::__construct();
 
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__)) && $loggerProxy->log('Done');
+        $this->logger->addAllContext(compact('this'));
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Done');
     }
 
     #[Override]
@@ -86,8 +87,8 @@ abstract class TestInfraHttpServerProcessBase extends SpawnedProcessBase
 
     protected function onNewConnection(int $socketIndex, ConnectionInterface $connection): void
     {
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log(
+        $this->logger->logDebug(__FUNCTION__)?->with(
+            __LINE__,
             'New connection',
             [
                 'socketIndex' => $socketIndex,
@@ -121,10 +122,10 @@ abstract class TestInfraHttpServerProcessBase extends SpawnedProcessBase
 
     private function runHttpService(): void
     {
-        $loggerProxyDebug = $this->logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
+        $logDebug = $this->logger->logDebug(__FUNCTION__);
 
         $ports = AmbientContextForTests::testConfig()->dataPerProcess()->thisServerPorts;
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Running HTTP service...', compact('ports'));
+        $logDebug?->with(__LINE__, 'Running HTTP service...', compact('ports'));
 
         $this->reactLoop = Loop::get();
         TestCase::assertNotEmpty($ports);
@@ -147,7 +148,7 @@ abstract class TestInfraHttpServerProcessBase extends SpawnedProcessBase
                     return $this->processRequestWrapper($request);
                 }
             );
-            $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Listening for incoming requests...', ['serverSocket address' => $serverSocket->getAddress()]);
+            $logDebug?->with(__LINE__, 'Listening for incoming requests...', ['serverSocket address' => $serverSocket->getAddress()]);
             $httpServer->listen($serverSocket);
         }
 
@@ -171,27 +172,26 @@ abstract class TestInfraHttpServerProcessBase extends SpawnedProcessBase
      */
     private function processRequestWrapper(ServerRequestInterface $request): Promise|ResponseInterface
     {
-        $loggerProxyDebug = $this->logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Received request', ['URI' => $request->getUri(), 'method' => $request->getMethod(), 'target' => $request->getRequestTarget()]);
+        $logDebug = $this->logger->logDebug(__FUNCTION__);
+        $logDebug?->with(__LINE__, 'Received request', ['URI' => $request->getUri(), 'method' => $request->getMethod(), 'target' => $request->getRequestTarget()]);
 
         try {
             $response = $this->processRequestWrapperImpl($request);
 
             if ($response instanceof ResponseInterface) {
-                $loggerProxyDebug && $loggerProxyDebug->log(
+                $logDebug?->with(
                     __LINE__,
                     'Sending response ...',
                     ['statusCode' => $response->getStatusCode(), 'reasonPhrase' => $response->getReasonPhrase(), 'body' => $response->getBody()]
                 );
             } else {
                 Assert::assertInstanceOf(Promise::class, $response); // @phpstan-ignore staticMethod.alreadyNarrowedType
-                $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Promise returned - response will be returned later...');
+                $logDebug?->with(__LINE__, 'Promise returned - response will be returned later...');
             }
 
             return $response;
         } catch (Throwable $throwable) {
-            ($loggerProxy = $this->logger->ifCriticalLevelEnabled(__LINE__, __FUNCTION__))
-            && $loggerProxy->log('processRequest() exited by exception - terminating this process', compact('throwable'));
+            $this->logger->logCritical(__FUNCTION__)?->withThrowable(__LINE__, 'processRequest() exited by exception - terminating this process', $throwable);
             exit(self::FAILURE_PROCESS_EXIT_CODE);
         }
     }
@@ -242,8 +242,7 @@ abstract class TestInfraHttpServerProcessBase extends SpawnedProcessBase
             $serverSocket->close();
         }
 
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Exiting...');
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Exiting...');
     }
 
     protected static function getRequestHeader(ServerRequestInterface $request, string $headerName): ?string

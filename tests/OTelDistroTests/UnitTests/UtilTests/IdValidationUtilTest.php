@@ -38,17 +38,6 @@ class IdValidationUtilTest extends TestCase
         bool $expectedResult
     ): void {
         $actualResult = IdValidationUtil::isValidHexNumberString($numberAsString, $expectedSizeInBytes);
-        self::assertSame(
-            $expectedResult,
-            $actualResult,
-            LoggableToString::convert(
-                [
-                    'numberAsString'      => $numberAsString,
-                    'expectedSizeInBytes' => $expectedSizeInBytes,
-                    'expectedResult'      => $expectedResult,
-                    '$actualResult'       => $actualResult,
-                ]
-            )
-        );
+        self::assertSame($expectedResult, $actualResult, LoggableToString::convert(compact('numberAsString', 'expectedSizeInBytes', 'expectedResult', 'actualResult')));
     }
 }
