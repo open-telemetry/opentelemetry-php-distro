@@ -19,7 +19,7 @@ final class EnabledLogProxy
     public function __construct(
         private readonly string $file,
         private readonly string $func,
-        private readonly null|int|string $feature,
+        private readonly null|int|string $featureOrCategory,
         private readonly LogLevel $level,
     ) {
     }
@@ -29,7 +29,8 @@ final class EnabledLogProxy
      */
     public function with(int $line, string $message, array $context = []): void
     {
-        LogBackend::getSingletonInstance()->write(file: $this->file, line: $line, func: $this->func, feature: $this->feature, level: $this->level, message: $message, context: $context);
+        LogBackend::getSingletonInstance()
+            ->write(file: $this->file, line: $line, func: $this->func, featureOrCategory: $this->featureOrCategory, level: $this->level, message: $message, context: $context);
     }
 
     /**

@@ -45,11 +45,11 @@ final class SinkForTests extends SinkBase
     /**
      * @phpstan-param Context $context
      */
-    public function formatAndWriteForLogBackend(LogLevel $level, null|int|string $feature, string $file, int $line, string $func, string $message, array $context): void
+    public function formatAndWriteForLogBackend(LogLevel $level, null|int|string $featureOrCategory, string $file, int $line, string $func, string $message, array $context): void
     {
         $this->formatAndWrite(
             level: $level,
-            category: is_int($feature) ? BuildToolsLogUtil::prodLogFeatureIntToString($feature) : $feature,
+            category: is_int($featureOrCategory) ? BuildToolsLogUtil::prodLogFeatureIntToString($featureOrCategory) : $featureOrCategory,
             file: $file,
             line: $line,
             func: $func,

@@ -14,7 +14,7 @@ use RuntimeException;
 /**
  * @phpstan-import-type Context from GetContextInterface
  *
- * @phpstan-type FormatAndWrite Closure(LogLevel $level, null|int|string $feature, string $file, int $line, string $func, string $message, Context $context): void
+ * @phpstan-type FormatAndWrite Closure(LogLevel $level, null|int|string $featureOrCategory, string $file, int $line, string $func, string $message, Context $context): void
  *
  * @phpstan-import-type StringList from SourceCodeFilePathProcessor
  */
@@ -40,7 +40,7 @@ final class LogBackend
         $level = LogLevel::debug;
         if (self::isEnabledForLevel($level)) {
             $ctx = ['this' => $this->toLog()] + compact('maxEnabledLevel', 'sourceCodeRootDirs');
-            self::write(file: __FILE__, line: __LINE__, func: __FUNCTION__, feature: LogFeature::BOOTSTRAP, level: $level, message: 'Exiting...', context: $ctx);
+            self::write(file: __FILE__, line: __LINE__, func: __FUNCTION__, featureOrCategory: LogFeature::BOOTSTRAP, level: $level, message: 'Exiting...', context: $ctx);
         }
     }
 
@@ -106,11 +106,11 @@ final class LogBackend
     /**
      * @phpstan-param Context $context
      */
-    public function write(string $file, int $line, string $func, null|int|string $feature, LogLevel $level, string $message, array $context, bool $isForced = false): void
+    public function write(string $file, int $line, string $func, null|int|string $featureOrCategory, LogLevel $level, string $message, array $context, bool $isForced = false): void
     {
         $processedFilePath = $this->sourceCodeFilePathProcessor->processPath($file);
         if ($this->formatAndWrite === null) {
-            assert(is_int($feature));
+            assert(is_int($featureOrCategory));
             /**
              * Use fully qualified names for functions implemented by the extension to make sure scoper correctly detects them
              *
@@ -119,7 +119,7 @@ final class LogBackend
             \OpenTelemetry\Distro\log_feature(
                 $isForced ? 1 : 0,
                 $level->value,
-                $feature,
+                $featureOrCategory,
                 $processedFilePath,
                 $line,
                 $func,
@@ -128,7 +128,7 @@ final class LogBackend
         } else {
             ($this->formatAndWrite)(
                 $level,
-                $feature,
+                $featureOrCategory,
                 $processedFilePath,
                 $line,
                 $func,

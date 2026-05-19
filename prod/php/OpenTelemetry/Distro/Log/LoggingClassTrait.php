@@ -17,7 +17,7 @@ trait LoggingClassTrait
             ? new EnabledLogProxy(
                 file: self::getCurrentSourceCodeFile() /* <- must be defined in class using LoggingClassTrait */,
                 func: $func,
-                feature: self::getCurrentOptionalLogProdFeatureIntOrCategoryString() /* <- must be defined in class using LoggingClassTrait */,
+                featureOrCategory: self::getCurrentOptionalLogProdFeatureIntOrCategoryString() /* <- must be defined in class using LoggingClassTrait */,
                 level: $level,
             )
             : null;
@@ -29,7 +29,7 @@ trait LoggingClassTrait
             ? new EnabledLogProxy(
                 file: self::getCurrentSourceCodeFile() /* <- must be defined in class using LoggingClassTrait */,
                 func: $func,
-                feature: self::getCurrentOptionalLogProdFeatureIntOrCategoryString() /* <- must be defined in class using LoggingClassTrait */,
+                featureOrCategory: self::getCurrentOptionalLogProdFeatureIntOrCategoryString() /* <- must be defined in class using LoggingClassTrait */,
                 level: LogLevel::critical,
             )
             : null;
@@ -41,7 +41,7 @@ trait LoggingClassTrait
             ? new EnabledLogProxy(
                 file: self::getCurrentSourceCodeFile() /* <- must be defined in class using LoggingClassTrait */,
                 func: $func,
-                feature: self::getCurrentOptionalLogProdFeatureIntOrCategoryString() /* <- must be defined in class using LoggingClassTrait */,
+                featureOrCategory: self::getCurrentOptionalLogProdFeatureIntOrCategoryString() /* <- must be defined in class using LoggingClassTrait */,
                 level: LogLevel::error,
             )
             : null;
@@ -53,7 +53,7 @@ trait LoggingClassTrait
             ? new EnabledLogProxy(
                 file: self::getCurrentSourceCodeFile() /* <- must be defined in class using LoggingClassTrait */,
                 func: $func,
-                feature: self::getCurrentOptionalLogProdFeatureIntOrCategoryString() /* <- must be defined in class using LoggingClassTrait */,
+                featureOrCategory: self::getCurrentOptionalLogProdFeatureIntOrCategoryString() /* <- must be defined in class using LoggingClassTrait */,
                 level: LogLevel::warning,
             )
             : null;
@@ -65,7 +65,7 @@ trait LoggingClassTrait
             ? new EnabledLogProxy(
                 file: self::getCurrentSourceCodeFile() /* <- must be defined in class using LoggingClassTrait */,
                 func: $func,
-                feature: self::getCurrentOptionalLogProdFeatureIntOrCategoryString() /* <- must be defined in class using LoggingClassTrait */,
+                featureOrCategory: self::getCurrentOptionalLogProdFeatureIntOrCategoryString() /* <- must be defined in class using LoggingClassTrait */,
                 level: LogLevel::info,
             )
             : null;
@@ -77,7 +77,7 @@ trait LoggingClassTrait
             ? new EnabledLogProxy(
                 file: self::getCurrentSourceCodeFile() /* <- must be defined in class using LoggingClassTrait */,
                 func: $func,
-                feature: self::getCurrentOptionalLogProdFeatureIntOrCategoryString() /* <- must be defined in class using LoggingClassTrait */,
+                featureOrCategory: self::getCurrentOptionalLogProdFeatureIntOrCategoryString() /* <- must be defined in class using LoggingClassTrait */,
                 level: LogLevel::debug,
             )
             : null;
@@ -89,7 +89,7 @@ trait LoggingClassTrait
             ? new EnabledLogProxy(
                 file: self::getCurrentSourceCodeFile() /* <- must be defined in class using LoggingClassTrait */,
                 func: $func,
-                feature: self::getCurrentOptionalLogProdFeatureIntOrCategoryString() /* <- must be defined in class using LoggingClassTrait */,
+                featureOrCategory: self::getCurrentOptionalLogProdFeatureIntOrCategoryString() /* <- must be defined in class using LoggingClassTrait */,
                 level: LogLevel::trace,
             )
             : null;

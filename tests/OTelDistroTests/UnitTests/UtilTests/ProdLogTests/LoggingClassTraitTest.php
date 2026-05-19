@@ -80,7 +80,7 @@ class LoggingClassTraitTest extends TestCaseBase
      */
     private static function buildAssertCallback(
         LogLevel $expectedLevel,
-        null|int|string $expectedFeature,
+        null|int|string $expectedFeatureOrCategory,
         string $expectedFile,
         int $expectedLine,
         string $expectedFunc,
@@ -105,7 +105,7 @@ class LoggingClassTraitTest extends TestCaseBase
             array $actualContext
         ) use (
             $expectedLevel,
-            $expectedFeature,
+            $expectedFeatureOrCategory,
             $expectedFile,
             $expectedLine,
             $expectedFunc,
@@ -126,7 +126,7 @@ class LoggingClassTraitTest extends TestCaseBase
             }
 
             self::assertSame($expectedLevel, $actualLevel);
-            self::assertSame($expectedFeature, $actualFeature);
+            self::assertSame($expectedFeatureOrCategory, $actualFeature);
             self::assertSame($expectedFile, $actualFile);
             self::assertSame($expectedLine, $actualLine);
             self::assertSame($expectedFunc, $actualFunc);
@@ -152,7 +152,7 @@ class LoggingClassTraitTest extends TestCaseBase
     private static function invokeLogAndAssert(
         LogLevel $maxEnabledLevel,
         LogLevel $statementLevel,
-        null|int|string $feature,
+        null|int|string $featureOrCategory,
         string $file,
         string $func,
         int $line,
@@ -165,14 +165,24 @@ class LoggingClassTraitTest extends TestCaseBase
         $assertEnabled = false;
         $countCallsWhenEnabled = 0;
         $fileToAssert = $expectedProcessedFile ?? $file;
-        $formatAndWrite =
-            self::buildAssertCallback($statementLevel, $feature, $fileToAssert, $line, $func, $message, $context, $maxEnabledLevel, /* ref */ $assertEnabled, /* ref */ $countCallsWhenEnabled);
+        $formatAndWrite = self::buildAssertCallback(
+            expectedLevel: $statementLevel,
+            expectedFeatureOrCategory: $featureOrCategory,
+            expectedFile: $fileToAssert,
+            expectedLine:  $line,
+            expectedFunc: $func,
+            expectedMessage: $message,
+            expectedContext: $context,
+            maxEnabledLevel: $maxEnabledLevel,
+            assertEnabled: /* ref */ $assertEnabled,
+            countCallsWhenEnabled: /* ref */ $countCallsWhenEnabled,
+        );
         $tempLogBackend = new LogBackend(maxEnabledLevel: $maxEnabledLevel->value, sourceCodeRootDirs: $sourceCodeRootDirs, formatAndWrite: $formatAndWrite);
         $assertEnabled = true;
         self::assertSame(0, $countCallsWhenEnabled);
         LogBackendTestUtil::saveActOnTempInstanceRestore(
             $tempLogBackend,
-            fn() => TestLoggingClass::invokeLog($file, $feature, $statementLevel, $func)?->with($line, $message, $context),
+            fn() => TestLoggingClass::invokeLog($statementLevel, $featureOrCategory, $file, $func)?->with($line, $message, $context),
         );
         self::assertSame($statementLevel->value > $maxEnabledLevel->value ? 0 : 1, $countCallsWhenEnabled);
     }
@@ -198,7 +208,7 @@ class LoggingClassTraitTest extends TestCaseBase
         self::invokeLogAndAssert(
             maxEnabledLevel: AssertEx::notNull(LogLevel::tryToFindByName($testArgs->getString(self::MAX_ENABLED_LEVEL_KEY))),
             statementLevel: AssertEx::notNull(LogLevel::tryToFindByName($testArgs->getString(self::STATEMENT_LEVEL_KEY))),
-            feature: LogCategoryForTests::TEST,
+            featureOrCategory: LogCategoryForTests::TEST,
             file: __FILE__,
             func: __FUNCTION__,
             line: __LINE__,
@@ -236,7 +246,7 @@ class LoggingClassTraitTest extends TestCaseBase
         self::invokeLogAndAssert(
             maxEnabledLevel: AssertEx::notNull(LogLevel::tryToFindByName($testArgs->getString(self::MAX_ENABLED_LEVEL_KEY))),
             statementLevel: AssertEx::notNull(LogLevel::tryToFindByName($testArgs->getString(self::STATEMENT_LEVEL_KEY))),
-            feature: $feature,
+            featureOrCategory: $feature,
             file: $testArgs->getString(self::FILE_KEY),
             func: $testArgs->getString(self::FUNC_KEY),
             line: $testArgs->getInt(self::LINE_KEY),
@@ -299,7 +309,7 @@ class LoggingClassTraitTest extends TestCaseBase
         self::invokeLogAndAssert(
             maxEnabledLevel: LogLevel::trace,
             statementLevel: LogLevel::trace,
-            feature: LogCategoryForTests::TEST,
+            featureOrCategory: LogCategoryForTests::TEST,
             file: $testArgs->getString(self::FILE_KEY),
             func: __FUNCTION__,
             line: __LINE__,
@@ -313,7 +323,7 @@ class LoggingClassTraitTest extends TestCaseBase
     /**
      * @phpstan-param Context $context
      */
-    private static function noopFormatAndWrite(LogLevel $level, null|int|string $feature, string $file, int $line, string $func, string $message, array $context): void
+    private static function noopFormatAndWrite(LogLevel $level, null|int|string $featureOrCategory, string $file, int $line, string $func, string $message, array $context): void
     {
     }
 
@@ -344,7 +354,7 @@ class LoggingClassTraitTest extends TestCaseBase
                         if (!$isLevelEnabled) {
                             $detectShouldFail = true;
                         }
-                        TestLoggingClass::invokeLog(file: __FILE__, feature: null, level: $statementLevel, func: __FUNCTION__)
+                        TestLoggingClass::invokeLog(level: $statementLevel, featureOrCategory: null, file: __FILE__, func: __FUNCTION__)
                             ?->with(__LINE__, '$detect(): ' . $detect(), ['$detect()' => $detect()]);
                     },
                 );

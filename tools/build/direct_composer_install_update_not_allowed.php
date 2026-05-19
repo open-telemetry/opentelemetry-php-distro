@@ -21,7 +21,7 @@ global $argv;
  */
 $logError = function (int $line, string $msg, array $context = []): void {
     /** @var array<string, mixed> $context */
-    LogBackend::getSingletonInstance()->write(file: __FILE__, line: $line, func: '', feature: null, level: LogLevel::error, message: $msg, context: $context);
+    LogBackend::getSingletonInstance()->write(file: __FILE__, line: $line, func: '', featureOrCategory: null, level: LogLevel::error, message: $msg, context: $context);
 };
 
 if (count($argv) !== 2) {
