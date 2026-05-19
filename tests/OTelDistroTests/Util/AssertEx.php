@@ -357,6 +357,16 @@ final class AssertEx
         Assert::assertGreaterThanOrEqual($expectedMinCount, count($haystack), $message);
     }
 
+    /**
+     * @param array<array-key, mixed>|Countable $haystack
+     *
+     * @noinspection PhpUnused
+     */
+    public static function countAtMost(int $expectedMaxCount, mixed $haystack, string $message = ''): void
+    {
+        Assert::assertLessThanOrEqual($expectedMaxCount, count($haystack), $message);
+    }
+
     public static function stringIsInt(string $actual, string $message = ''): int
     {
         Assert::assertNotFalse(filter_var($actual, FILTER_VALIDATE_INT), $message);
@@ -504,16 +514,6 @@ final class AssertEx
             Assert::assertArrayHasKey($key, $largerSet);
             self::sameEx($value, $largerSet[$key]);
         }
-    }
-
-    /**
-     * @param array<array-key, mixed>|Countable $haystack
-     *
-     * @noinspection PhpUnused
-     */
-    public static function countAtMost(int $expectedMaxCount, mixed $haystack): void
-    {
-        Assert::assertLessThanOrEqual($expectedMaxCount, count($haystack));
     }
 
     /**

@@ -74,7 +74,7 @@ function parse_args() {
 
 function convert_matrix_row_file_name_suitable_string() {
     local matrix_row=${1:?}
-    # Example: 8.4,deb,cli,no_ext_svc,prod_log_level_syslog=TRACE
+    # Example: 8.4,deb,cli,no_ext_svc,OTEL_PHP_LOG_LEVEL_SYSLOG=TRACE
 
     local result="${matrix_row}"
     result=${result/,/_}

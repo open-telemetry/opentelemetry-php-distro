@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace OTelDistroTests\UnitTests\UtilTests;
 
 use OpenTelemetry\Distro\Util\ArrayUtil;
+use OTelDistroTests\ComponentTests\Util\TestMatrixRowOptionalPart;
 use OTelDistroTests\Util\ArrayUtilForTests;
 use OTelDistroTests\Util\AssertEx;
-use OTelDistroTests\Util\Config\OptionForProdName;
 use OTelDistroTests\Util\Config\OptionForTestsName;
 use OTelDistroTests\Util\DebugContext;
 use OTelDistroTests\Util\OTelDistroProjectProperties;
@@ -33,17 +33,15 @@ final class ComponentTestsGenerateUnpackMatrixTest extends TestCaseBase implemen
     private const UNPACKED_PHP_VERSION_ENV_VAR_NAME = OptionForTestsName::ENV_VAR_NAME_PREFIX . 'PHP_VERSION';
     private const UNPACKED_PACKAGE_TYPE_ENV_VAR_NAME = OptionForTestsName::ENV_VAR_NAME_PREFIX . 'PACKAGE_TYPE';
 
-    private const APP_CODE_HOST_SHORT_TO_LONG_NAME
-        = [
-            'cli'  => 'CLI_script',
-            'http' => 'Builtin_HTTP_server',
-        ];
+    private const APP_CODE_HOST_SHORT_TO_LONG_NAME = [
+        'cli' => 'CLI_script',
+        'http' => 'Builtin_HTTP_server',
+    ];
 
-    private const TESTS_GROUP_SHORT_TO_LONG_NAME
-        = [
-            'no_ext_svc'   => 'does_not_require_external_services',
-            'with_ext_svc' => 'requires_external_services',
-        ];
+    private const TESTS_GROUP_SHORT_TO_LONG_NAME = [
+        'no_ext_svc' => 'does_not_require_external_services',
+        'with_ext_svc' => 'requires_external_services',
+    ];
 
     /**
      * @return string[]
@@ -84,13 +82,13 @@ final class ComponentTestsGenerateUnpackMatrixTest extends TestCaseBase implemen
         $packageType = OTelDistroProjectProperties::singletonInstance()->testAllPhpVersionsWithPackageType;
         $testAppCodeHostKindShortName = OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames[0];
         $testGroupShortName = OTelDistroProjectProperties::singletonInstance()->testGroupsShortNames[0];
-        yield "{$phpVersion->asDotSeparated()},$packageType,$testAppCodeHostKindShortName,$testGroupShortName,prod_log_level_syslog=TRACE";
+        yield "{$phpVersion->asDotSeparated()},$packageType,$testAppCodeHostKindShortName,$testGroupShortName,OTEL_PHP_LOG_LEVEL_SYSLOG=TRACE";
 
         $phpVersion = OTelDistroProjectProperties::singletonInstance()->getHighestSupportedPhpVersion();
         $packageType = self::PACKAGE_TYPE_APK;
         $testAppCodeHostKindShortName = OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames[1];
         $testGroupShortName = OTelDistroProjectProperties::singletonInstance()->testGroupsShortNames[1];
-        yield "{$phpVersion->asDotSeparated()},$packageType,$testAppCodeHostKindShortName,$testGroupShortName,prod_log_level_syslog=DEBUG";
+        yield "{$phpVersion->asDotSeparated()},$packageType,$testAppCodeHostKindShortName,$testGroupShortName,OTEL_PHP_LOG_LEVEL_STDERR=DEBUG";
     }
 
     /**
@@ -174,25 +172,6 @@ final class ComponentTestsGenerateUnpackMatrixTest extends TestCaseBase implemen
     }
 
     /**
-     * @param string               $key
-     * @param string               $value
-     * @param array<string, mixed> $result
-     */
-    private static function unpackRowOptionalPartsToEnvVars(string $key, string $value, array &$result): void
-    {
-        DebugContext::getCurrentScope(/* out */ $dbgCtx);
-
-        switch ($key) {
-            case 'prod_log_level_syslog':
-                ArrayUtilForTests::addAssertingKeyNew(OptionForProdName::log_level_syslog->toEnvVarName(), $value, /* ref */ $result);
-                break;
-            default:
-                $dbgCtx->add(['key' => $key, 'value' => $value]);
-                self::fail('Unexpected key');
-        }
-    }
-
-    /**
      * @param string $matrixRow
      *
      * @return array<string, mixed>
@@ -208,11 +187,13 @@ final class ComponentTestsGenerateUnpackMatrixTest extends TestCaseBase implemen
 
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
-        $matrixRowParts = explode(',', $matrixRow);
-        $dbgCtx->add(compact('matrixRowParts'));
-        AssertEx::countAtLeast(4, $matrixRowParts);
-
         $result = [];
+        ArrayUtilForTests::addAssertingKeyNew(OptionForTestsName::matrix_row->toEnvVarName(), $matrixRow, /* ref */ $result);
+
+        $matrixRowParts = explode(',', $matrixRow, limit: 5);
+        $dbgCtx->add(compact('matrixRowParts'));
+        AssertEx::countAtMost(5, $matrixRowParts);
+
 
         $phpVersion = PhpVersionInfo::fromMajorDotMinor($matrixRowParts[0]);
         self::assertTrue(OTelDistroProjectProperties::singletonInstance()->isSupportedPhpVersion($phpVersion));
@@ -232,16 +213,14 @@ final class ComponentTestsGenerateUnpackMatrixTest extends TestCaseBase implemen
         $testGroup = self::convertTestGroupShortToLongName($testGroupShortName);
         ArrayUtilForTests::addAssertingKeyNew(OptionForTestsName::group->toEnvVarName(), $testGroup, /* ref */ $result);
 
-        $firstOptionalPartIndex = 4;
-        if (count($matrixRowParts) === $firstOptionalPartIndex) {
+        $optionalTailPartIndex = 4;
+        if (count($matrixRowParts) === $optionalTailPartIndex) {
             return $result;
         }
 
-        $matrixRowOptionalParts = array_slice($matrixRowParts, $firstOptionalPartIndex);
-        foreach ($matrixRowOptionalParts as $optionalPart) {
-            $keyValue = explode('=', $optionalPart);
-            self::unpackRowOptionalPartsToEnvVars($keyValue[0], $keyValue[1], /* ref */ $result);
-        }
+        $matrixRowOptionalPart = $matrixRowParts[$optionalTailPartIndex];
+        ArrayUtilForTests::addAssertingKeyNew(OptionForTestsName::matrix_row_optional_part->toEnvVarName(), $matrixRowOptionalPart, /* ref */ $result);
+        TestMatrixRowOptionalPart::parse($matrixRowOptionalPart);
 
         return $result;
     }
@@ -258,6 +237,7 @@ final class ComponentTestsGenerateUnpackMatrixTest extends TestCaseBase implemen
         }
 
         $expectedEnvVars = self::unpackRowToEnvVars($matrixRow);
+        $dbgCtx->add(compact('expectedEnvVars'));
 
         $cmd = $unpackAndPrintEnvVarsScriptFullPath . ' ' . $matrixRow;
         $actualEnvVarNameValueLines = self::execCommand($cmd);

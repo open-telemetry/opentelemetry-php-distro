@@ -33,6 +33,7 @@ enum OptionForTestsName
     case log_level;
     case logs_directory;
 
+    case matrix_row;
     case matrix_row_optional_part;
 
     case mysql_host;

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-set -e -o pipefail
+set -e -u -o pipefail
 #set -x
-
 
 function _assert_value_is_in_array () {
     local is_value_in_array_ret_val
@@ -48,26 +47,13 @@ function convert_test_group_short_to_long_name () {
     esac
 }
 
-function _unpack_row_optional_parts_to_env_vars () {
-    local key="$1"
-    local value="$2"
-    case "${key}" in
-        'prod_log_level_syslog')
-                export OTEL_PHP_LOG_LEVEL_SYSLOG="${value}"
-                ;;
-        *)
-                echo "Unknown optional part key: \`${key}' (value: \`${value}')"
-                exit 1
-                ;;
-    esac
-}
-
 function _export_var_to_env () {
-    local prefix="$1"
-    local key="$2"
-    local value="$3"
-    local verbose=$4
-    local var_name="${prefix}_$(echo $key | tr '[:lower:]' '[:upper:]')"
+    local -r prefix="$1"
+    local -r key="$2"
+    local -r value="$3"
+    local -r verbose=$4
+    local var_name
+    var_name="${prefix}_$(echo "$key" | tr '[:lower:]' '[:upper:]')"
     if [ "${verbose}" == "true" ] ; then
         echo "Exporting env var: ${var_name}=${value}"
     fi
@@ -93,7 +79,6 @@ function unpack_matrix_row {
         verbose="false"
     fi
 
-
     source "tools/shared.sh"
     source "tools/helpers/array_helpers.sh"
     source "tools/read_properties.sh"
@@ -105,27 +90,45 @@ function unpack_matrix_row {
     local php_version_dot_separated=${matrix_row_parts[0]}
     local php_version_no_dot
     php_version_no_dot=$(convert_dot_separated_to_no_dot_version "${php_version_dot_separated}")
+    # SC2086: Double quote to prevent globbing and word splitting.
+    # shellcheck disable=SC2086
+    # SC2046: Quote this to prevent word splitting.
+    # shellcheck disable=SC2046
     _assert_value_is_in_array "${php_version_no_dot}" $(get_array $_PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS)
     _export_var_to_env "${variable_prefix}" "PHP_VERSION" "${php_version_dot_separated}" "${verbose}"
 
     local package_type=${matrix_row_parts[1]}
+    # SC2086: Double quote to prevent globbing and word splitting.
+    # shellcheck disable=SC2086
+    # SC2046: Quote this to prevent word splitting.
+    # shellcheck disable=SC2046
     _assert_value_is_in_array "${package_type}"  $(get_array $_PROJECT_PROPERTIES_SUPPORTED_PACKAGE_TYPES)
     _export_var_to_env "${variable_prefix}" "PACKAGE_TYPE" "${package_type}" "${verbose}"
 
     local test_app_code_host_kind_short_name=${matrix_row_parts[2]}
+    # SC2086: Double quote to prevent globbing and word splitting.
+    # shellcheck disable=SC2086
+    # SC2046: Quote this to prevent word splitting.
+    # shellcheck disable=SC2046
     _assert_value_is_in_array "${test_app_code_host_kind_short_name}" $(get_array $_PROJECT_PROPERTIES_TEST_APP_CODE_HOST_KINDS_SHORT_NAMES)
     local test_app_code_host_kind
     test_app_code_host_kind=$(convert_test_app_host_kind_short_to_long_name "${test_app_code_host_kind_short_name}")
     _export_var_to_env "${variable_prefix}" "APP_CODE_HOST_KIND" "${test_app_code_host_kind}" "${verbose}"
 
     local test_group_short_name=${matrix_row_parts[3]}
+    # SC2086: Double quote to prevent globbing and word splitting.
+    # shellcheck disable=SC2086
+    # SC2046: Quote this to prevent word splitting.
+    # shellcheck disable=SC2046
     _assert_value_is_in_array "${test_group_short_name}" $(get_array $_PROJECT_PROPERTIES_TEST_GROUPS_SHORT_NAMES)
     local test_group
     test_group=$(convert_test_group_short_to_long_name "${test_group_short_name}")
     _export_var_to_env "${variable_prefix}" "GROUP" "${test_group}" "${verbose}"
 
-    for optional_part in "${matrix_row_parts[@]:4}" ; do
-        IFS='=' read -ra optional_part_key_value <<< "${optional_part}"
-        _unpack_row_optional_parts_to_env_vars "${optional_part_key_value[0]}" "${optional_part_key_value[1]}"
-    done
+    _export_var_to_env "${variable_prefix}" MATRIX_ROW "${matrix_row_as_string}" "${verbose}"
+
+    local -r matrix_row_optional_tail="${matrix_row_parts[*]:4}"
+    if [[ -n "${matrix_row_optional_tail}" ]]; then
+        _export_var_to_env "${variable_prefix}" MATRIX_ROW_OPTIONAL_PART "${matrix_row_parts[*]:4}" "${verbose}"
+    fi
 }

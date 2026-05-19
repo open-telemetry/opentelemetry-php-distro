@@ -12,7 +12,7 @@ function show_help() {
     echo "  --logs_dir          Required. Full path to the directory where generated logs will be stored. NOTE: All existing files in this directory will be deleted"
     echo
     echo "Example:"
-    echo "  $0 --matrix_row '8.4,deb,cli,no_ext_svc,prod_log_level_syslog=TRACE' --packages_dir '/directory/with/packages' --logs_dir '/directory/to/store/logs'"
+    echo "  $0 --matrix_row '8.4,deb,cli,no_ext_svc,OTEL_PHP_LOG_LEVEL_SYSLOG=TRACE' --packages_dir '/directory/with/packages' --logs_dir '/directory/to/store/logs'"
 }
 
 function parse_args() {
@@ -124,7 +124,6 @@ function main() {
     source "tools/helpers/array_helpers.sh"
     source "tools/read_properties.sh"
     read_properties "project.properties" _PROJECT_PROPERTIES
-
 
     parse_args "$@"
 

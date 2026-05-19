@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\ComponentTests\Util;
 
-use Ds\Map;
+use OTelDistroTests\Util\ArrayUtilForTests;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\Config\OptionForProdName;
 use OTelDistroTests\Util\DebugContext;
@@ -16,35 +16,37 @@ use PHPUnit\Framework\Assert;
 final class TestMatrixRowOptionalPart
 {
     /**
-     * @param OptionsForProdMap $prodOptions
+     * @param array<string, string> $prodOptionsEnvVarNameToRawVal
      */
     private function __construct(
-        public readonly Map $prodOptions
+        public readonly array $prodOptionsEnvVarNameToRawVal
     ) {
     }
 
-    public static function parse(string $stringToParse): self
+    public static function parse(string $matrixRowOptionalPartAsString): self
     {
         // For example:
-        //              log_level_syslog=TRACE,scoped_deps_enabled=false
+        //              OTEL_PHP_LOG_LEVEL_SYSLOG=TRACE,OTEL_PHP_SCOPED_DEPS_ENABLED=false
 
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
-        $keyValParts = explode(',', $stringToParse);
+        $keyValParts = explode(',', $matrixRowOptionalPartAsString);
         $dbgCtx->add(compact('keyValParts'));
 
-        /** @var OptionsForProdMap $result */
-        $result = new Map();
+        /** @var OptionsForProdMap $prodOptions */
+        $prodOptionsEnvVarNameToRawVal = [];
         $dbgCtx->pushSubScope();
         foreach ($keyValParts as $keyValPart) {
             $dbgCtx->resetTopSubScope(compact('keyValPart'));
             $keyValueArr = explode('=', $keyValPart, limit: 2);
             $dbgCtx->add(compact('keyValueArr'));
             Assert::assertCount(2, AssertEx::isArray($keyValueArr));
-            $result->put(OptionForProdName::findByName($keyValueArr[0]), $keyValueArr[1]);
+            $envVarName = $keyValueArr[0];
+            AssertEx::notNull(OptionForProdName::tryToFindByEnvVarName($envVarName));
+            ArrayUtilForTests::addAssertingKeyNew(key: $envVarName, value: $keyValueArr[1], /* ref */ result: $prodOptionsEnvVarNameToRawVal);
         }
         $dbgCtx->popSubScope();
 
-        return new self($result);
+        return new self($prodOptionsEnvVarNameToRawVal);
     }
 }

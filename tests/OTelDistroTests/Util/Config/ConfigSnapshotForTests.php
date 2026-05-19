@@ -41,6 +41,7 @@ final class ConfigSnapshotForTests implements LoggableInterface
     public readonly LogLevel $logLevel; // @phpstan-ignore property.uninitializedReadonly
     public readonly ?string $logsDirectory; // @phpstan-ignore property.uninitializedReadonly
 
+    public readonly ?string $matrixRow; // @phpstan-ignore property.uninitializedReadonly
     public readonly ?TestMatrixRowOptionalPart $matrixRowOptionalPart; // @phpstan-ignore property.uninitializedReadonly
 
     public readonly ?string $mysqlHost; // @phpstan-ignore property.uninitializedReadonly

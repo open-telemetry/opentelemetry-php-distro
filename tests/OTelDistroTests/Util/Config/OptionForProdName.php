@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\Util\Config;
 
+use OpenTelemetry\Distro\Util\ArrayUtil;
+use OTelDistroTests\Util\ArrayUtilForTests;
 use OTelDistroTests\Util\EnumUtilForTestsTrait;
 use PHPUnit\Framework\Assert;
 
@@ -124,5 +126,19 @@ enum OptionForProdName
     public static function getAllLogLevelRelated(): iterable
     {
         return self::LOG_LEVEL_RELATED;
+    }
+
+    public static function tryToFindByEnvVarName(string $envVarName): ?self
+    {
+        /** @var array<string, self> $envVarNameToOptName */
+        static $envVarNameToOptName = null;
+        if ($envVarNameToOptName === null) {
+            $envVarNameToOptName = [];
+            foreach (self::cases() as $optName) {
+                ArrayUtilForTests::addAssertingKeyNew(key: $optName->toEnvVarName(), value: $optName, /* ref */ result: $envVarNameToOptName);
+            }
+        }
+
+        return ArrayUtil::getValueIfKeyExistsElse($envVarName, $envVarNameToOptName, fallbackValue: null);
     }
 }

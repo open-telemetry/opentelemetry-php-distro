@@ -55,6 +55,7 @@ final class OptionsForTestsMetadata
             [OptionForTestsName::log_level, new LogLevelOptionMetadata(LogLevel::info)],
             [OptionForTestsName::logs_directory, new NullableStringOptionMetadata()],
 
+            [OptionForTestsName::matrix_row, new NullableStringOptionMetadata()],
             [OptionForTestsName::matrix_row_optional_part, new NullableCustomOptionMetadata($parseTestMatrixRowOptionalPart)],
 
             [OptionForTestsName::mysql_host, new NullableStringOptionMetadata()],
