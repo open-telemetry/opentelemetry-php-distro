@@ -35,11 +35,6 @@ class LoggingClassTraitTest extends TestCaseBase
     private const SRC_ROOT_DIRS_KEY = 'src_root_dirs';
     private const EXPECTED_PROCESSED_FILE_KEY = 'expected_processed_file';
 
-//    private const ROOT_DIR_1 = DIRECTORY_SEPARATOR . 'root_dir_1';
-//    private const ROOT_DIR_2 = DIRECTORY_SEPARATOR . 'root' . DIRECTORY_SEPARATOR . 'dir_2';
-//    private const ROOT_DIR_3 = DIRECTORY_SEPARATOR;
-//    private const ROOT_DIRS = [self::ROOT_DIR_1, self::ROOT_DIR_2, self::ROOT_DIR_3];
-
     /**
      * @return Context
      */
@@ -92,8 +87,11 @@ class LoggingClassTraitTest extends TestCaseBase
         string $expectedMessage,
         array $expectedContext,
         LogLevel $maxEnabledLevel,
-        bool &$formatAndWriteShouldBeNoOp
+        bool &$assertEnabled,
+        int &$countCallsWhenEnabled,
     ): callable {
+        self::assertSame(0, $countCallsWhenEnabled);
+
         /**
          * @phpstan-param Context $actualContext
          */
@@ -114,11 +112,14 @@ class LoggingClassTraitTest extends TestCaseBase
             $expectedMessage,
             $expectedContext,
             $maxEnabledLevel,
-            &$formatAndWriteShouldBeNoOp,
+            &$assertEnabled,
+            &$countCallsWhenEnabled,
         ): void {
-            if ($formatAndWriteShouldBeNoOp) {
+            if (!$assertEnabled) {
                 return;
             }
+
+            ++$countCallsWhenEnabled;
 
             if ($expectedLevel->value > $maxEnabledLevel->value) {
                 self::fail('Log statement should not be written');
@@ -161,15 +162,19 @@ class LoggingClassTraitTest extends TestCaseBase
         ?string $expectedProcessedFile = null,
     ): void {
         // $formatAndWrite should be no-op to create $tempLogBackend because LogBackend::__construct itself can issue log statements
-        $formatAndWriteShouldBeNoOp = true;
+        $assertEnabled = false;
+        $countCallsWhenEnabled = 0;
         $fileToAssert = $expectedProcessedFile ?? $file;
-        $formatAndWrite = self::buildAssertCallback($statementLevel, $feature, $fileToAssert, $line, $func, $message, $context, $maxEnabledLevel, /* ref */ $formatAndWriteShouldBeNoOp);
+        $formatAndWrite =
+            self::buildAssertCallback($statementLevel, $feature, $fileToAssert, $line, $func, $message, $context, $maxEnabledLevel, /* ref */ $assertEnabled, /* ref */ $countCallsWhenEnabled);
         $tempLogBackend = new LogBackend(maxEnabledLevel: $maxEnabledLevel->value, sourceCodeRootDirs: $sourceCodeRootDirs, formatAndWrite: $formatAndWrite);
-        $formatAndWriteShouldBeNoOp = false;
+        $assertEnabled = true;
+        self::assertSame(0, $countCallsWhenEnabled);
         LogBackendTestUtil::saveActOnTempInstanceRestore(
             $tempLogBackend,
             fn() => TestLoggingClass::invokeLog($file, $feature, $statementLevel, $func)?->with($line, $message, $context),
         );
+        self::assertSame($statementLevel->value > $maxEnabledLevel->value ? 0 : 1, $countCallsWhenEnabled);
     }
 
     /**
@@ -303,5 +308,55 @@ class LoggingClassTraitTest extends TestCaseBase
             sourceCodeRootDirs: $sourceCodeRootDirs,
             expectedProcessedFile: $testArgs->getString(self::EXPECTED_PROCESSED_FILE_KEY),
         );
+    }
+
+    /**
+     * @phpstan-param Context $context
+     */
+    private static function noopFormatAndWrite(LogLevel $level, null|int|string $feature, string $file, int $line, string $func, string $message, array $context): void
+    {
+    }
+
+    public function testWithIsNotEvaluatedIfLevelDisabled(): void
+    {
+        $detectShouldFail = false;
+        $detectCount = 0;
+        $detect = function () use (&$detectCount, &$detectShouldFail): int {
+            ++$detectCount;
+            if ($detectShouldFail) { // @phpstan-ignore if.alwaysFalse
+                self::fail('$detectShouldFail is true');
+            }
+            return $detectCount;
+        };
+
+        $statementLevels = array_values(array_filter(LogLevel::cases(), fn($logLevel) => $logLevel !== LogLevel::off));
+        foreach ($statementLevels as $statementLevel) {
+            foreach ([true, false] as $isLevelEnabled) {
+                $maxEnabledLevel = $isLevelEnabled ? $statementLevel : LogLevel::from($statementLevel->value - 1);
+                $detectCount = 0;
+                $detectShouldFail = false;
+                $tempLogBackend = new LogBackend(maxEnabledLevel: $maxEnabledLevel->value, sourceCodeRootDirs: [], formatAndWrite: self::noopFormatAndWrite(...));
+                LogBackendTestUtil::saveActOnTempInstanceRestore(
+                    $tempLogBackend,
+                    function () use ($statementLevel, $detect, $isLevelEnabled, &$detectShouldFail): void {
+                        self::assertFalse($detectShouldFail);
+                        $detect();
+                        if (!$isLevelEnabled) {
+                            $detectShouldFail = true;
+                        }
+                        TestLoggingClass::invokeLog(file: __FILE__, feature: null, level: $statementLevel, func: __FUNCTION__)
+                            ?->with(__LINE__, '$detect(): ' . $detect(), ['$detect()' => $detect()]);
+                    },
+                );
+
+                if ($isLevelEnabled) {
+                    self::assertFalse($detectShouldFail);
+                    self::assertSame(3, $detectCount); // @phpstan-ignore staticMethod.impossibleType
+                } else {
+                    self::assertTrue($detectShouldFail);
+                    self::assertSame(1, $detectCount); // @phpstan-ignore staticMethod.impossibleType
+                }
+            }
+        }
     }
 }

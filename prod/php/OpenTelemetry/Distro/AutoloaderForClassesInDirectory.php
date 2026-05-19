@@ -43,7 +43,7 @@ final class AutoloaderForClassesInDirectory
         $logTrace?->with(__LINE__, 'Entered', compact('fqClassName'));
 
         if (!self::shouldAutoloadCodeForClass($fqClassName)) {
-            self::logTrace(__FUNCTION__)?->with(__LINE__, 'shouldAutoloadCodeForClass returned false', compact('fqClassName'));
+            $logTrace?->with(__LINE__, 'shouldAutoloadCodeForClass returned false', compact('fqClassName'));
             return;
         }
 

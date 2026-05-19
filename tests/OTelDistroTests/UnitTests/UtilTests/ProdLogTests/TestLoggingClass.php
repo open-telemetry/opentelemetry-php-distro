@@ -15,12 +15,12 @@ final class TestLoggingClass
     public static string $srcCodeFile = __FILE__;
     public static null|int|string $feature = null;
 
-    public static function invokeLog(string $srcCodeFile, null|int|string $feature, LogLevel $level, string $func): ?EnabledLogProxy
+    public static function invokeLog(string $file, null|int|string $feature, LogLevel $level, string $func): ?EnabledLogProxy
     {
         $srcCodeFileToRestore = self::$srcCodeFile;
         $featureToRestore = self::$feature;
 
-        self::$srcCodeFile = $srcCodeFile;
+        self::$srcCodeFile = $file;
         self::$feature = $feature;
 
         try {

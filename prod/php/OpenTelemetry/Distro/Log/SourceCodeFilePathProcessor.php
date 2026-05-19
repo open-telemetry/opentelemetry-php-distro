@@ -31,10 +31,6 @@ final class SourceCodeFilePathProcessor
      */
     public static function findPrefix(string $text, array $prefixCandidates): ?string
     {
-        if (PHP_VERSION_ID >= 80400) {
-            return array_find($prefixCandidates, fn($prefixCandidate) => str_starts_with($text, $prefixCandidate));
-        }
-
         foreach ($prefixCandidates as $prefixCandidate) {
             if (str_starts_with($text, $prefixCandidate)) {
                 return $prefixCandidate;
