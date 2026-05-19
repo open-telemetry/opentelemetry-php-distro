@@ -86,7 +86,7 @@ final class MemoryUtil
             $ctx = array_merge(self::formatArrayNameValuesSizeInBytes(compact('delta')), $ctx);
         }
 
-        ($loggerProxy = $logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__)) && $loggerProxy->log("Memory message", $ctx);
+        $logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Memory message', $ctx);
 
         return $current;
     }

@@ -58,7 +58,7 @@ $logBackendClass::getSingletonInstance()->write(
     file: __FILE__,
     line: __LINE__,
     func: __FUNCTION__,
-    feature: $logFeatureClass::BOOTSTRAP,
+    featureOrCategory: $logFeatureClass::BOOTSTRAP,
     level: $logLevelClass::off,
     message: 'This is just a dummy message to test production code logging',
     context: ['dummy ctx key' => 'dummy ctx value'],

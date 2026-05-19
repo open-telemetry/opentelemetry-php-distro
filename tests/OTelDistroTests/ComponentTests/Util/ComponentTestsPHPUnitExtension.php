@@ -40,16 +40,14 @@ final class ComponentTestsPHPUnitExtension extends PHPUnitExtensionBase
             // and ResourcesCleaner would track the PHPUnit child process as its master which would be wrong
             self::$globalTestInfra = new GlobalTestInfra();
         } catch (Throwable $throwable) {
-            ($loggerProxy = $this->logger->ifCriticalLevelEnabled(__LINE__, __FUNCTION__))
-            && $loggerProxy->logThrowable($throwable, 'Throwable escaped from GlobalTestInfra constructor');
+            $this->logger->logCritical(__FUNCTION__)?->withThrowable(__LINE__, 'Throwable escaped from GlobalTestInfra constructor', $throwable);
             throw $throwable;
         }
     }
 
     public function __destruct()
     {
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Destroying...');
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Destroying...');
 
         self::$globalTestInfra?->getResourcesCleaner()->signalAndWaitForItToExit();
     }

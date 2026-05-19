@@ -79,13 +79,13 @@ final class BuildToolsLogUtil
     /**
      * @phpstan-param Context $context
      */
-    public static function formatAndWriteForLogBackend(LogLevel $level, null|int|string $feature, string $file, int $line, string $func, string $message, array $context): void
+    public static function formatAndWriteForLogBackend(LogLevel $level, null|int|string $featureOrCategory, string $file, int $line, string $func, string $message, array $context): void
     {
         self::writeLine(
             self::formatStatement(
                 prefix: self::LOG_LINE_PREFIX,
                 level: $level,
-                featureOrCategory: is_int($feature) ? self::prodLogFeatureIntToString($feature) : $feature,
+                featureOrCategory: is_int($featureOrCategory) ? self::prodLogFeatureIntToString($featureOrCategory) : $featureOrCategory,
                 file: $file,
                 line: $line,
                 func: $func,

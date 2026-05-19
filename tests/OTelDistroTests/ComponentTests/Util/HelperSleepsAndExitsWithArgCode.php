@@ -22,7 +22,7 @@ final class HelperSleepsAndExitsWithArgCode extends SpawnedProcessBase
 
         $this->logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->addAllContext(compact('this'));
 
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__)) && $loggerProxy->log('Done');
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Done');
     }
 
     #[Override]

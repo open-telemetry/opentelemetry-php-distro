@@ -63,8 +63,7 @@ final class WaitForOTelSignalCounts implements IsEnoughAgentBackendCommsInterfac
         // If minSpanCount !== 0 then check that there is at least one root span
         $result = ($spansCount >= $this->minSpanCount) && (($this->minSpanCount === 0) || self::isThereAtLeastOneRootSpan($comms->spans()));
 
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Checked if exported data events counts reached the waited for values', compact('result', 'spansCount', 'this'));
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Checked if exported data events counts reached the waited for values', compact('result', 'spansCount', 'this'));
 
         return $result;
     }

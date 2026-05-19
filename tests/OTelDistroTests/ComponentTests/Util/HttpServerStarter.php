@@ -87,18 +87,18 @@ abstract class HttpServerStarter
                     compact('tryCount', 'currentTryPorts', 'currentTrySpawnedProcessInternalId', 'cmdLine', 'envVars')
                 )
             );
-            $loggerProxyDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
+            $logDebug = $logger->logDebug(__FUNCTION__);
 
-            $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Starting HTTP server...');
+            $logDebug?->with(__LINE__, 'Starting HTTP server...');
             ProcessUtil::startBackgroundProcess($dbgProcessName, $cmdLine, $envVars, $this->resourcesCleaner?->getClient(), $isTestScoped);
 
             $pid = -1;
             if ($this->isHttpServerRunning($dbgProcessName, $currentTrySpawnedProcessInternalId, $currentTryPorts[0], $logger, /* ref */ $pid)) {
-                $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Started HTTP server', compact('pid'));
+                $logDebug?->with(__LINE__, 'Started HTTP server', compact('pid'));
                 return new HttpServerHandle($dbgProcessName, $pid, $currentTrySpawnedProcessInternalId, $currentTryPorts);
             }
 
-            $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Failed to start HTTP server');
+            $logDebug?->with(__LINE__, 'Failed to start HTTP server');
         }
 
         throw new ComponentTestsInfraException(ExceptionUtil::buildMessage('Failed to start HTTP server', ['dbgProcessNamePrefix' => $this->dbgProcessNamePrefix]));
@@ -180,18 +180,13 @@ abstract class HttpServerStarter
                         $dataPerRequest
                     );
                 } catch (Throwable $throwable) {
-                    ($loggerProxy = $logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-                    && $loggerProxy->logThrowable($throwable, 'Caught while checking if HTTP server is running');
+                    $logger->logDebug(__FUNCTION__)?->withThrowable(__LINE__, 'Caught while checking if HTTP server is running', $throwable);
                     $lastThrown = $throwable;
                     return false;
                 }
 
                 if ($response->getStatusCode() !== HttpStatusCodes::OK) {
-                    ($loggerProxy = $logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-                    && $loggerProxy->log(
-                        'Received non-OK status code in response to status check',
-                        ['receivedStatusCode' => $response->getStatusCode()]
-                    );
+                    $logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Received non-OK status code in response to status check', ['receivedStatusCode' => $response->getStatusCode()]);
                     return false;
                 }
 
@@ -199,22 +194,19 @@ abstract class HttpServerStarter
                 $decodedBody = JsonUtil::decode($response->getBody()->getContents());
                 TestCase::assertArrayHasKey(HttpServerHandle::PID_KEY, $decodedBody);
                 $receivedPid = $decodedBody[HttpServerHandle::PID_KEY];
-                TestCase::assertIsInt($receivedPid, LoggableToString::convert(['$decodedBody' => $decodedBody]));
+                TestCase::assertIsInt($receivedPid, LoggableToString::convert(compact('decodedBody')));
                 $pid = $receivedPid;
 
-                ($loggerProxy = $logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-                && $loggerProxy->log('HTTP server status is OK', ['PID' => $pid]);
+                $logger->logDebug(__FUNCTION__)?->with(__LINE__, 'HTTP server status is OK', ['PID' => $pid]);
                 return true;
             }
         );
 
         if (!$checkResult) {
             if ($lastThrown === null) {
-                ($loggerProxy = $logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-                && $loggerProxy->log('Failed to send request to check HTTP server status');
+                $logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Failed to send request to check HTTP server status');
             } else {
-                ($loggerProxy = $logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-                && $loggerProxy->logThrowable($lastThrown, 'Failed to send request to check HTTP server status');
+                $logger->logDebug(__FUNCTION__)?->withThrowable(__LINE__, 'Failed to send request to check HTTP server status', $lastThrown);
             }
         }
 

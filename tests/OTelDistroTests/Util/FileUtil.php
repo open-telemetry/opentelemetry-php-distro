@@ -80,13 +80,11 @@ final class FileUtil
         $logger = AmbientContextForTests::loggerFactory()->loggerForClass($logCategory, __NAMESPACE__, __CLASS__, __FILE__);
 
         if ($tempFileFullPath === false) {
-            ($loggerProxy = $logger->ifCriticalLevelEnabled(__LINE__, __FUNCTION__))
-            && $loggerProxy->includeStackTrace()->log('Failed to create a temporary file', compact('fileNamePrefix'));
+            $logger->logCritical(__FUNCTION__)?->includeStackTrace()->with(__LINE__, 'Failed to create a temporary file', compact('fileNamePrefix'));
             Assert::fail(LoggableToString::convert(compact('fileNamePrefix')));
         }
 
-        ($loggerProxy = $logger->ifTraceLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->includeStackTrace()->log('Created a temporary file', compact('tempFileFullPath', 'fileNamePrefix'));
+        $logger->logTrace(__FUNCTION__)?->includeStackTrace()->with(__LINE__, 'Created a temporary file', compact('tempFileFullPath', 'fileNamePrefix'));
 
         return $tempFileFullPath;
     }

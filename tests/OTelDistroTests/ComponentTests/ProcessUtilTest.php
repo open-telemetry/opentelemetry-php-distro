@@ -49,7 +49,7 @@ final class ProcessUtilTest extends ComponentTestCaseBase
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
         $logger = self::getLoggerStatic(__NAMESPACE__, __CLASS__, __FILE__);
-        $loggerProxy = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
+        $logDebug = $logger->logDebug(__FUNCTION__);
 
         $testCaseHandle = $this->getTestCaseHandle();
         $exitCode = $testArgs->getInt(self::PROCESS_EXIT_CODE_KEY);
@@ -80,7 +80,7 @@ final class ProcessUtilTest extends ComponentTestCaseBase
             $testCaseHandle->getResourcesCleaner(),
         );
 
-        $loggerProxy?->log(__LINE__, 'Before ProcessUtil::startProcessAndWaitForItToExit', compact('waitForHelperToExitInSeconds'));
+        $logDebug?->with(__LINE__, 'Before ProcessUtil::startProcessAndWaitForItToExit', compact('waitForHelperToExitInSeconds'));
         $procInfo = ProcessUtil::startProcessAndWaitForItToExit(
             dbgProcessName: $dbgProcessName,
             command: $command,
@@ -91,7 +91,7 @@ final class ProcessUtilTest extends ComponentTestCaseBase
             logLevelTimedout: ($shouldWaitSucceed ? null : LogLevel::debug),
         );
         $dbgCtx->add(compact('procInfo'));
-        $loggerProxy?->log(__LINE__, 'After ProcessUtil::startProcessAndWaitForItToExit');
+        $logDebug?->with(__LINE__, 'After ProcessUtil::startProcessAndWaitForItToExit');
         if ($shouldWaitSucceed) {
             self::assertSame($exitCode, $procInfo->exitCode);
         } else {

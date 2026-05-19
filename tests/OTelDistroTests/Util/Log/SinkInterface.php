@@ -16,5 +16,15 @@ interface SinkInterface
      * @phpstan-param Context $context
      * @param non-negative-int $numberOfStackFramesToSkip
      */
-    public function consume(LogLevel $level, string $category, string $file, int $line, string $func, string $message, array $context, ?bool $includeStacktrace, int $numberOfStackFramesToSkip): void;
+    public function consume(
+        LogLevel $level,
+        string $category,
+        string $file,
+        int $line,
+        string $func,
+        string $message,
+        array $context,
+        ?bool $includeStacktrace,
+        int $numberOfStackFramesToSkip,
+    ): void;
 }

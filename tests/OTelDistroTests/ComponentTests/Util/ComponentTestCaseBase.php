@@ -83,7 +83,7 @@ class ComponentTestCaseBase extends TestCaseBase
     public static function appCodeSetsHowFinished(MixedMap $appCodeRequestArgs): void
     {
         $logger = self::getLoggerStatic(__NAMESPACE__, __CLASS__, __FILE__);
-        $loggerProxyDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
+        $logDebug = $logger->logDebug(__FUNCTION__);
         $logger->addAllContext(compact('appCodeRequestArgs'));
 
         $subAppCode = $appCodeRequestArgs->tryGetArray(self::SUB_APP_CODE_TO_CALL_KEY);
@@ -91,7 +91,7 @@ class ComponentTestCaseBase extends TestCaseBase
         try {
             if ($subAppCode !== null) {
                 self::assertIsCallable($subAppCode);
-                $loggerProxyDebug?->log(__LINE__, 'Calling $subAppCode() ...', compact('subAppCode', 'appCodeRequestArgs'));
+                $logDebug?->with(__LINE__, 'Calling $subAppCode() ...', compact('subAppCode', 'appCodeRequestArgs'));
                 $appSubCodeContextData = $subAppCode($appCodeRequestArgs);
                 if ($appSubCodeContextData !== null) {
                     self::assertIsArray($appSubCodeContextData);
@@ -99,9 +99,9 @@ class ComponentTestCaseBase extends TestCaseBase
                     ArrayUtilForTests::append($appSubCodeContextData, /* in,out */ $appCodeAuxOutput);
                 }
             }
-            $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Call to $appCodeImpl() finished successfully');
+            $logDebug?->with(__LINE__, 'Call to $appCodeImpl() finished successfully');
         } catch (Throwable $throwable) {
-            $loggerProxyDebug && $loggerProxyDebug->logThrowable(__LINE__, $throwable, 'Call to $appCodeImpl() thrown');
+            $logDebug?->withThrowable(__LINE__, 'Call to $appCodeImpl() thrown', $throwable);
             ArrayUtilForTests::addAssertingKeyNew(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY, false, /* in,out */ $appCodeAuxOutput);
             ArrayUtilForTests::addAssertingKeyNew(self::THROWABLE_FROM_APP_CODE_KEY, LoggableToString::convert($throwable), /* in,out */ $appCodeAuxOutput);
             AppCodeAuxOutputUtil::writeDataToTempFile($appCodeAuxOutput, $appCodeRequestArgs);
@@ -236,23 +236,23 @@ class ComponentTestCaseBase extends TestCaseBase
         }
 
         $logger = self::getLoggerStatic(__NAMESPACE__, __CLASS__, __FILE__)->addAllContext(compact('dbgTestDesc', 'initiallyFailedTestException'));
-        $loggerProxyOutsideIt = $logger->ifCriticalLevelEnabledNoLine(__FUNCTION__);
+        $logOutsideIt = $logger->logCritical(__FUNCTION__);
 
-        $loggerProxyOutsideIt && $loggerProxyOutsideIt->log(__LINE__, 'Test case code exited by exception');
+        $logOutsideIt?->with(__LINE__, 'Test case code exited by exception');
 
         if ($this->testCaseHandle === null) {
-            $loggerProxyOutsideIt && $loggerProxyOutsideIt->log(__LINE__, 'Test failed but $this->testCaseHandle is null - NOT re-running the test with escalated log levels');
+            $logOutsideIt?->with(__LINE__, 'Test failed but $this->testCaseHandle is null - NOT re-running the test with escalated log levels');
             throw $initiallyFailedTestException;
         }
         $escalatedProdLogLevelOptName = AmbientContextForTests::testConfig()->escalatedRerunsProdCodeLogLevelOptionName();
         $logger->addAllContext(compact('escalatedProdLogLevelOptName'));
         $initiallyFailedTestLogLevels = $this->getCurrentLogLevels($this->testCaseHandle, $escalatedProdLogLevelOptName);
         if (ArrayUtilForTests::isEmpty($initiallyFailedTestLogLevels)) {
-            $loggerProxyOutsideIt && $loggerProxyOutsideIt->log(__LINE__, 'Test failed but not even one app code host has started successfully - NOT re-running the test with escalated log levels');
+            $logOutsideIt?->with(__LINE__, 'Test failed but not even one app code host has started successfully - NOT re-running the test with escalated log levels');
             throw $initiallyFailedTestException;
         }
         $logger->addAllContext(compact('initiallyFailedTestLogLevels'));
-        $loggerProxyOutsideIt && $loggerProxyOutsideIt->log(__LINE__, 'Test failed');
+        $logOutsideIt?->with(__LINE__, 'Test failed');
 
         $escalatedLogLevelsSeq = self::generateLevelsForRunAndEscalateLogLevelOnFailure($initiallyFailedTestLogLevels, AmbientContextForTests::testConfig()->escalatedRerunsMaxCount);
         $rerunCount = 0;
@@ -261,26 +261,26 @@ class ComponentTestCaseBase extends TestCaseBase
 
             ++$rerunCount;
             $loggerPerIt = $logger->inherit()->addAllContext(compact('rerunCount', 'escalatedLogLevels'));
-            $loggerProxyPerIt = $loggerPerIt->ifCriticalLevelEnabledNoLine(__FUNCTION__);
+            $logPerIt = $loggerPerIt->logCritical(__FUNCTION__);
 
-            $loggerProxyPerIt && $loggerProxyPerIt->log(__LINE__, 'Re-running failed test with escalated log levels...');
+            $logPerIt?->with(__LINE__, 'Re-running failed test with escalated log levels...');
 
             AmbientContextForTests::resetLogLevel($escalatedLogLevels[self::LOG_LEVEL_FOR_TEST_CODE_KEY]);
             $this->initTestCaseHandle($escalatedLogLevels[self::LOG_LEVEL_FOR_PROD_CODE_KEY]);
 
             try {
                 $testCall();
-                $loggerProxyPerIt && $loggerProxyPerIt->log(__LINE__, 'Re-run of failed test with escalated log levels did NOT fail (which is bad :(');
+                $logPerIt?->with(__LINE__, 'Re-run of failed test with escalated log levels did NOT fail (which is bad :(');
             } catch (Throwable $ex) {
-                $loggerProxyPerIt && $loggerProxyPerIt->log(__LINE__, 'Re-run of failed test with escalated log levels failed (which is good :)', compact('ex'));
+                $logPerIt?->with(__LINE__, 'Re-run of failed test with escalated log levels failed (which is good :)', compact('ex'));
                 throw $ex;
             }
         }
 
         if ($rerunCount === 0) {
-            $loggerProxyOutsideIt && $loggerProxyOutsideIt->log(__LINE__, 'There were no test re-runs with escalated log levels - re-throwing original test failure exception');
+            $logOutsideIt?->with(__LINE__, 'There were no test re-runs with escalated log levels - re-throwing original test failure exception');
         } else {
-            $loggerProxyOutsideIt && $loggerProxyOutsideIt->log(__LINE__, 'All test re-runs with escalated log levels did NOT fail (which is bad :( - re-throwing original test failure exception');
+            $logOutsideIt?->with(__LINE__, 'All test re-runs with escalated log levels did NOT fail (which is bad :( - re-throwing original test failure exception');
         }
         throw $initiallyFailedTestException;
     }

@@ -37,14 +37,14 @@ final class DeserializationUtil
     {
         $logCtx = compact('source');
         $logCtx['source count'] = count($source);
-        $logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->addAllContext($logCtx);
-        $loggerProxyDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
+        $logDebug = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->addAllContext($logCtx)
+            ->logDebug(__FUNCTION__);
 
         DebugContext::getCurrentScope(/* out */ $dbgCtx, $logCtx);
 
         $result = [];
         foreach ($source as $sourceElement) {
-            $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, '', compact('sourceElement'));
+            $logDebug?->with(__LINE__, '', compact('sourceElement'));
             if (($resultElement = $deserializeElement($sourceElement)) === null) {
                 continue;
             }

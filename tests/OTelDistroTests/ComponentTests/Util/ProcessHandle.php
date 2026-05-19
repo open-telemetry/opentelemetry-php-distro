@@ -58,14 +58,14 @@ final class ProcessHandle implements LoggableInterface
 
     public function waitForProcessToExit(int $maxWaitTimeInMicroseconds, ?LogLevel $logLevelTimedout = null): bool
     {
-        $logDebug = $this->logger->inherit()->addAllContext(compact('maxWaitTimeInMicroseconds'))->ifDebugLevelEnabledNoLine(__FUNCTION__);
+        $logDebug = $this->logger->inherit()->addAllContext(compact('maxWaitTimeInMicroseconds'))->logDebug(__FUNCTION__);
 
         (new PollingCheck($this->dbgProcessName . ' exited', $maxWaitTimeInMicroseconds))->run(fn() => $this->getCurrentInfo()->hasExited());
 
         if ($this->getCurrentInfo()->hasExited()) {
-            $logDebug?->log(__LINE__, 'Process exited');
+            $logDebug?->with(__LINE__, 'Process exited');
         } else {
-            $this->logger->ifLevelEnabled($logLevelTimedout ?? LogLevel::warning, __LINE__, __FUNCTION__)?->log('Wait for the started process to exit timed out');
+            $this->logger->logWithLevel(__FUNCTION__, $logLevelTimedout ?? LogLevel::warning)?->with(__LINE__, 'Wait for the started process to exit timed out');
         }
 
         return $this->getCurrentInfo()->hasExited();

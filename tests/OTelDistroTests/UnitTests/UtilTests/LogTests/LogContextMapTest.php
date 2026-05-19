@@ -38,7 +38,7 @@ class LogContextMapTest extends TestCaseBase
         $level2Ctx = ['level_2_key_1' => 'level_2_key_1 value', 'level_2_key_2' => 'level_2_key_2 value'];
         $loggerB = $loggerA->inherit()->addAllContext($level2Ctx);
 
-        $loggerProxyDebug = $loggerB->ifDebugLevelEnabledNoLine(__FUNCTION__);
+        $logDebug = $loggerB->logDebug(__FUNCTION__);
 
         $level3Ctx = ['level_3_key_1' => 'level_3_key_1 value', 'level_3_key_2' => 'level_3_key_2 value', 'some_key' => 'some_key level_3 value'];
         $loggerB->addAllContext($level3Ctx);
@@ -46,7 +46,7 @@ class LogContextMapTest extends TestCaseBase
         $stmtMsg = 'Some message';
         $stmtCtx = ['stmt_key_1' => 'stmt_key_1 value', 'stmt_key_2' => 'stmt_key_2 value'];
         $stmtLine = __LINE__ + 1;
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, $stmtMsg, $stmtCtx);
+        $logDebug?->with(__LINE__, $stmtMsg, $stmtCtx);
 
         $actualStmt = ArrayUtilForTests::getSingleValue($mockLogSink->consumed);
 

@@ -35,5 +35,13 @@ abstract class SinkBase implements SinkInterface
     /**
      * @phpstan-param Context $context
      */
-    abstract protected function formatAndWrite(LogLevel $level, ?string $category, string $file, int $line, string $func, string $message, array $context): void;
+    abstract protected function formatAndWrite(
+        LogLevel $level,
+        ?string $category,
+        string $file,
+        int $line,
+        string $func,
+        string $message,
+        array $context
+    ): void;
 }

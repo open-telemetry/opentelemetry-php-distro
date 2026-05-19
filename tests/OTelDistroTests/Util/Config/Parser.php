@@ -54,8 +54,8 @@ final class Parser
             if ($rawValue === null) {
                 $parsedValue = $optMeta->defaultValue();
 
-                ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-                && $loggerProxy->log(
+                $this->logger->logDebug(__FUNCTION__)?->with(
+                    __LINE__,
                     "Input raw config snapshot doesn't have a value for the option - using default value",
                     ['Option name' => $optName, 'Option default value' => $optMeta->defaultValue()]
                 );
@@ -63,16 +63,16 @@ final class Parser
                 try {
                     $parsedValue = self::parseOptionRawValue($rawValue, $optMeta->parser());
 
-                    ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-                    && $loggerProxy->log(
+                    $this->logger->logDebug(__FUNCTION__)?->with(
+                        __LINE__,
                         'Input raw config snapshot has a value - using parsed value',
                         ['Option name' => $optName, 'Raw value' => $rawValue, 'Parsed value' => $parsedValue]
                     );
                 } catch (ParseException $ex) {
                     $parsedValue = $optMeta->defaultValue();
 
-                    ($loggerProxy = $this->logger->ifErrorLevelEnabled(__LINE__, __FUNCTION__))
-                    && $loggerProxy->log(
+                    $this->logger->logError(__FUNCTION__)?->with(
+                        __LINE__,
                         "Input raw config snapshot has a value but it's invalid - using default value",
                         [
                             'Option name'          => $optName,

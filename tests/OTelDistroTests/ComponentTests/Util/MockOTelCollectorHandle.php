@@ -42,8 +42,8 @@ final class MockOTelCollectorHandle extends HttpServerHandle
      */
     public function fetchNewAgentBackendCommEvents(bool $shouldWait): array
     {
-        $loggerProxyDebug = $this->logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Starting...');
+        $logDebug = $this->logger->logDebug(__FUNCTION__);
+        $logDebug?->with(__LINE__, 'Starting...');
 
         $response = $this->sendRequest(
             HttpMethods::GET,
@@ -57,10 +57,10 @@ final class MockOTelCollectorHandle extends HttpServerHandle
         $newEvents = MockOTelCollector::decodeGetAgentBackendCommEvents($response);
 
         if (ArrayUtilForTests::isEmpty($newEvents)) {
-            $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Fetched NO new data from agent receiver events');
+            $logDebug?->with(__LINE__, 'Fetched NO new data from agent receiver events');
         } else {
             $this->nextIntakeDataRequestIndexToFetch += count($newEvents);
-            $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Fetched new data from agent receiver events', ['count(newEvents)' => count($newEvents)]);
+            $logDebug?->with(__LINE__, 'Fetched new data from agent receiver events', ['count(newEvents)' => count($newEvents)]);
         }
         return $newEvents;
     }

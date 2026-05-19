@@ -321,7 +321,7 @@ final class MySqliAutoInstrumentationTest extends ComponentTestCaseBase
                 break;
             }
             ++$rowCount;
-            $dbgCtx = LoggableToString::convert(['$row' => $row, '$queryResult' => $queryResult]);
+            $dbgCtx = LoggableToString::convert(compact('row', 'queryResult'));
             $msgText = $row['text'];
             self::assertIsString($msgText);
             self::assertArrayHasKey($msgText, self::MESSAGES, $dbgCtx);
@@ -344,8 +344,7 @@ final class MySqliAutoInstrumentationTest extends ComponentTestCaseBase
         self::assertNotEmpty(self::MESSAGES); // @phpstan-ignore staticMethod.alreadyNarrowedType
 
         $logger = self::getLoggerStatic(__NAMESPACE__, __CLASS__, __FILE__);
-        ($loggerProxy = $logger->ifTraceLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Entered', ['$testArgs' => $testArgs]);
+        $logger->logTrace(__FUNCTION__)?->with(__LINE__, 'Entered', compact('testArgs'));
 
         $isOOPApi = $testArgs->getBool(self::IS_OOP_API_KEY);
         $connectDbName = $testArgs->getNullableString(self::CONNECT_DB_NAME_KEY);

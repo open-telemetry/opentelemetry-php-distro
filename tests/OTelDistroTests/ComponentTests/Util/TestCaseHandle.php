@@ -159,7 +159,7 @@ final class TestCaseHandle implements LoggableInterface
 
     public function tearDown(): void
     {
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__)) && $loggerProxy->log('Tearing down...');
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Tearing down...');
 
         ExceptionUtil::runCatchLogRethrow(
             function (): void {
@@ -183,14 +183,12 @@ final class TestCaseHandle implements LoggableInterface
 
     private function startBuiltinHttpServerAppCodeHost(Closure $setParamsFunc, string $dbgInstanceName): BuiltinHttpServerAppCodeHostHandle
     {
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Starting built-in HTTP server to host app code ...', compact('dbgInstanceName'));
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Starting built-in HTTP server to host app code ...', compact('dbgInstanceName'));
 
         $result = new BuiltinHttpServerAppCodeHostHandle($this, $setParamsFunc, $this->resourcesCleaner, $this->portsInUse, $dbgInstanceName);
         $this->addPortsInUse($result->httpServerHandle->ports);
 
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Started built-in HTTP server to host app code', ['ports' => $result->httpServerHandle->ports]);
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Started built-in HTTP server to host app code', ['ports' => $result->httpServerHandle->ports]);
 
         return $result;
     }

@@ -78,8 +78,7 @@ abstract class PHPUnitExtensionBase implements Extension
 
         $this->logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__);
 
-        ($loggerProxy = $this->logger->ifLevelEnabled($this->logLevelForEnvInfo(), __LINE__, __FUNCTION__))
-        && $loggerProxy->includeStackTrace()->log('Done', ['environment variables' => EnvVarUtilForTests::getAll()]);
+        $this->logger->logWithLevel(__FUNCTION__, $this->logLevelForEnvInfo())?->includeStackTrace()->with(__LINE__, 'Done', ['environment variables' => EnvVarUtilForTests::getAll()]);
     }
 
     protected function logLevelForEnvInfo(): LogLevel
@@ -359,8 +358,7 @@ abstract class PHPUnitExtensionBase implements Extension
 
     private function afterTestCaseDidNotPass(PHPUnitEvent $event, PHPUnitEventCodeTest $test): void
     {
-        ($loggerProxy = $this->logger->ifCriticalLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->includeStackTrace()->log('Test case did not pass', compact('test', 'event') + self::formatTelemetryForLog($event));
+        $this->logger->logCritical(__FUNCTION__)?->includeStackTrace()->with(__LINE__, 'Test case did not pass', compact('test', 'event') + self::formatTelemetryForLog($event));
     }
 
     public function afterTestCaseConsideredRisky(PHPUnitEventTestConsideredRisky $event): void
