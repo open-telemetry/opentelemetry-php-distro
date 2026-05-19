@@ -12,7 +12,7 @@ use OTelDistroTests\Util\Config\EnvVarsRawSnapshotSource;
 use OTelDistroTests\Util\Config\OptionForTestsName;
 use OTelDistroTests\Util\Config\OptionsForTestsMetadata;
 use OTelDistroTests\Util\Config\RawSnapshotSourceInterface;
-use OTelDistroTests\Util\Log\Backend as LogBackend;
+use OTelDistroTests\Util\Log\LogBackendForTests as LogBackend;
 use OTelDistroTests\Util\Log\LoggerFactory;
 use OTelDistroTests\Util\Log\SinkForTests;
 use PHPUnit\Framework\Assert;

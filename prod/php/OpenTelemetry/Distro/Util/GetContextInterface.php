@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace OpenTelemetry\Distro\Util;
 
 /**
- * @phpstan-type Context array<string, mixed>
+ * @phpstan-type Context array<array-key, mixed>
  */
 interface GetContextInterface
 {

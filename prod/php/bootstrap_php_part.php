@@ -41,13 +41,8 @@ require $otelDistroDir . DIRECTORY_SEPARATOR . 'VendorDir.php';
 $vendorDirClass = $scopePrefixIfEnabled . 'OpenTelemetry\\Distro\\VendorDir';
 $vendorDirClass::$fullPath = $vendorDir;
 
+require $otelDistroDir . '/requireAutoloaderForClassesInDirectory.php';
 require $otelDistroDir . '/Util/HiddenConstructorTrait.php';
-require $otelDistroDir . '/Util/StaticClassTrait.php';
-require $otelDistroDir . '/Util/GetContextInterface.php';
-require $otelDistroDir . '/Log/LogFeature.php';
-require $otelDistroDir . '/BootstrapStageLogger.php';
-require $otelDistroDir . '/BootstrapStageLoggingClassTrait.php';
-require $otelDistroDir . '/Util/DistroRuntimeException.php';
 require $otelDistroDir . '/VendorCustomizationsInterface.php';
 require $otelDistroDir . '/RemoteConfigConsumerInterface.php';
 require $otelDistroDir . '/PhpPartFacade.php';

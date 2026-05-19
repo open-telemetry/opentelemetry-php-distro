@@ -7,12 +7,11 @@ declare(strict_types=1);
 namespace OpenTelemetry\Distro;
 
 use Closure;
-use OpenTelemetry\Distro\Log\BootstrapStageLogger;
-use OpenTelemetry\Distro\Log\BootstrapStageLoggingClassTrait;
+use OpenTelemetry\Distro\Log\LoggingClassTrait;
 use OpenTelemetry\Distro\Log\LogFeature;
 use OpenTelemetry\Distro\Log\LogLevel;
+use OpenTelemetry\Distro\Util\DistroRuntimeException;
 use OpenTelemetry\Distro\Util\SingletonInstanceTrait;
-use RuntimeException;
 use Throwable;
 
 /**
@@ -28,7 +27,7 @@ use Throwable;
  */
 final class InstrumentationBridge
 {
-    use BootstrapStageLoggingClassTrait;
+    use LoggingClassTrait;
     /**
      * Constructor is hidden because instance() should be used instead
      */
@@ -38,16 +37,17 @@ final class InstrumentationBridge
 
     public function bootstrap(): void
     {
-        self::logDebug(__LINE__, __FUNCTION__, 'Entered');
+        $logDebug = self::logTrace(__FUNCTION__);
+        $logDebug?->with(__LINE__, 'Entered');
 
         $instrumentationHookPhp = ProdPhpDir::$fullPath . DIRECTORY_SEPARATOR . 'OpenTelemetry' . DIRECTORY_SEPARATOR . 'Instrumentation' . DIRECTORY_SEPARATOR . 'hook.php';
         if (!file_exists($instrumentationHookPhp)) {
-            throw new RuntimeException("File $instrumentationHookPhp does not exist");
+            throw new DistroRuntimeException("File $instrumentationHookPhp does not exist");
         }
 
-        self::logDebug(__LINE__, __FUNCTION__, 'Before require ' . $instrumentationHookPhp);
+        $logDebug?->with(__LINE__, 'Before require ' . $instrumentationHookPhp);
         require $instrumentationHookPhp;
-        self::logDebug(__LINE__, __FUNCTION__, 'After require ' . $instrumentationHookPhp);
+        $logDebug?->with(__LINE__, 'After require ' . $instrumentationHookPhp);
 
         /**
          * Use fully qualified names for functions implemented by the extension to make sure scoper correctly detects them
@@ -55,7 +55,7 @@ final class InstrumentationBridge
          */
         $this->enableDebugHooks = (bool)\OpenTelemetry\Distro\get_config_option_by_name('debug_php_hooks_enabled');
 
-        self::logDebug(__LINE__, __FUNCTION__, 'Exiting');
+        $logDebug?->with(__LINE__, 'Exiting');
     }
 
     /**
@@ -64,7 +64,8 @@ final class InstrumentationBridge
      */
     public function hook(?string $class, string $function, ?Closure $pre = null, ?Closure $post = null): bool
     {
-        self::logTrace(__LINE__, __FUNCTION__, 'Entered', compact('class', 'function'));
+        $logTrace = self::logTrace(__FUNCTION__);
+        $logTrace?->with(__LINE__, 'Entered', compact('class', 'function'));
 
         $success = self::nativeHookNoThrow($class, $function, $pre, $post);
 
@@ -72,8 +73,13 @@ final class InstrumentationBridge
             self::placeDebugHooks($class, $function);
         }
 
-        self::logTrace(__LINE__, __FUNCTION__, 'Exiting', compact('success', 'class', 'function'));
+        $logTrace?->with(__LINE__, 'Exiting', compact('success', 'class', 'function'));
         return $success;
+    }
+
+    private static function nullableToLog(null|int|string $str): string
+    {
+        return $str === null ? 'null' : strval($str);
     }
 
     /**
@@ -82,8 +88,9 @@ final class InstrumentationBridge
      */
     private static function nativeHook(?string $class, string $function, ?Closure $pre = null, ?Closure $post = null): void
     {
-        $dbgClassAsString = BootstrapStageLogger::nullableToLog($class);
-        self::logTrace(__LINE__, __FUNCTION__, 'Entered', compact('dbgClassAsString', 'function'));
+        $logTrace = self::logTrace(__FUNCTION__);
+        $dbgClassAsString = self::nullableToLog($class);
+        $logTrace?->with(__LINE__, 'Entered', compact('dbgClassAsString', 'function'));
 
         /**
          * Use fully qualified names for functions implemented by the extension to make sure scoper correctly detects them
@@ -91,11 +98,11 @@ final class InstrumentationBridge
          */
         $retVal = \OpenTelemetry\Distro\hook($class, $function, $pre, $post);
         if ($retVal) {
-            self::logTrace(__LINE__, __FUNCTION__, 'Successfully hooked', compact('dbgClassAsString', 'function'));
+            $logTrace?->with(__LINE__, 'Successfully hooked', compact('dbgClassAsString', 'function'));
             return;
         }
 
-        self::logDebug(__LINE__, __FUNCTION__, 'OpenTelemetry\Distro\hook returned false', compact('dbgClassAsString', 'function'));
+        self::logDebug(__FUNCTION__)?->with(__LINE__, 'OpenTelemetry\Distro\hook returned false', compact('dbgClassAsString', 'function'));
     }
 
     /**
@@ -108,7 +115,7 @@ final class InstrumentationBridge
             self::nativeHook($class, $function, $pre, $post);
             return true;
         } catch (Throwable $throwable) {
-            self::logCriticalThrowable(__LINE__, __FUNCTION__, $throwable, 'Call to nativeHook has thrown', compact('class', 'function'));
+            self::logCritical(__FUNCTION__)?->withThrowable(__LINE__, 'Call to nativeHook has thrown', $throwable, compact('class', 'function'));
             return false;
         }
     }
@@ -158,7 +165,7 @@ final class InstrumentationBridge
     }
 
     /**
-     * Must be defined in class using BootstrapStageLoggingClassTrait
+     * Must be defined in class using LoggingClassTrait
      */
     private static function getCurrentSourceCodeFile(): string
     {
@@ -166,17 +173,9 @@ final class InstrumentationBridge
     }
 
     /**
-     * Must be defined in class using BootstrapStageLoggingClassTrait
+     * Must be defined in class using LoggingClassTrait
      */
-    private static function getCurrentSourceCodeClass(): string
-    {
-        return __CLASS__;
-    }
-
-    /**
-     * Must be defined in class using BootstrapStageLoggingClassTrait
-     */
-    private static function getCurrentLogFeature(): int
+    private static function getCurrentOptionalLogProdFeatureIntOrCategoryString(): int
     {
         return LogFeature::INSTRUMENTATION;
     }

@@ -13,7 +13,7 @@ use OTelDistroTests\Util\ClassNameUtil;
  *
  * @internal
  */
-final class Backend implements LoggableInterface
+final class LogBackendForTests implements LoggableInterface
 {
     public const NAMESPACE_KEY = 'namespace';
     public const CLASS_KEY = 'class';
@@ -93,11 +93,11 @@ final class Backend implements LoggableInterface
         int $numberOfStackFramesToSkip
     ): void {
         $this->logSink->consume(
-            statementLevel: $level,
+            level: $level,
             category: $loggerData->category,
-            srcCodeFile: $loggerData->srcCodeFile,
-            srcCodeLine: $srcCodeLine,
-            srcCodeFunc: $srcCodeFunc,
+            file: $loggerData->srcCodeFile,
+            line: $srcCodeLine,
+            func: $srcCodeFunc,
             message: $message,
             context: self::mergeContexts($loggerData, $statementCtx),
             includeStacktrace: $includeStacktrace,

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\DistroTools\Build;
 
+use OpenTelemetry\Distro\Log\LogBackend;
+use OpenTelemetry\Distro\Log\LogLevel;
+
 require __DIR__ . DIRECTORY_SEPARATOR . 'bootstrap_build_tools.php';
 
 if (ComposerUtil::shouldAllowDirectCommand()) {
@@ -18,7 +21,7 @@ global $argv;
  */
 $logError = function (int $line, string $msg, array $context = []): void {
     /** @var array<string, mixed> $context */
-    BuildToolsLog::error(__FILE__, $line, /* fqMethod */ '', $msg, $context);
+    LogBackend::getSingletonInstance()->write(file: __FILE__, line: $line, func: '', feature: null, level: LogLevel::error, message: $msg, context: $context);
 };
 
 if (count($argv) !== 2) {
@@ -42,9 +45,9 @@ $cmdToUseInstead = match ($usedComposerCommand) {
 if ($cmdToUseInstead === null) {
     $logError(__LINE__, "Unexpected composer command: $usedComposerCommand");
 } else {
-    BuildToolsLog::writeLine("Direct `composer $usedComposerCommand' is not allowed");
-    BuildToolsLog::writeLine('Instead use');
-    BuildToolsLog::writeLine("\t" . $cmdToUseInstead);
+    BuildToolsLogUtil::writeLine("Direct `composer $usedComposerCommand' is not allowed");
+    BuildToolsLogUtil::writeLine('Instead use');
+    BuildToolsLogUtil::writeLine("\t" . $cmdToUseInstead);
 }
 
 exit(BuildToolsUtil::FAILURE_EXIT_CODE);

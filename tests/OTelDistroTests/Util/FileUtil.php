@@ -19,6 +19,8 @@ final class FileUtil
 {
     use StaticClassTrait;
 
+    public const UNIX_DIRECTORY_SEPARATOR = '/';
+
     public static function normalizePath(string $inAbsolutePath): string
     {
         $result = realpath($inAbsolutePath);
@@ -30,23 +32,7 @@ final class FileUtil
 
     public static function adaptUnixDirectorySeparators(string $path): string
     {
-        /** @phpstan-var string $unixDirectorySeparator */
-        static $unixDirectorySeparator = '/';
-
-        if (DIRECTORY_SEPARATOR === $unixDirectorySeparator) {
-            return $path;
-        }
-
-        static $unixDirectorySeparatorAsInt = null;
-        if ($unixDirectorySeparatorAsInt === null) {
-            $unixDirectorySeparatorAsInt = ord($unixDirectorySeparator);
-        }
-
-        $result = '';
-        foreach (TextUtilForTests::iterateOverChars($path) as $pathCharAsInt) {
-            $result .= $pathCharAsInt === $unixDirectorySeparatorAsInt ? DIRECTORY_SEPARATOR : chr($pathCharAsInt);
-        }
-        return $result;
+        return str_replace(self::UNIX_DIRECTORY_SEPARATOR, DIRECTORY_SEPARATOR, $path);
     }
 
     /**

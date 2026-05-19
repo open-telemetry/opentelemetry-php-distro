@@ -31,7 +31,7 @@ final class Logger implements LoggableInterface
         string $fqClassName,
         string $srcCodeFile,
         array $context,
-        Backend $backend
+        LogBackendForTests $backend
     ): self {
         return new self(LoggerData::makeRoot($category, $namespace, $fqClassName, $srcCodeFile, $context, $backend));
     }

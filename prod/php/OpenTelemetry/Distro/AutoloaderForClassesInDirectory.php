@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\Distro;
 
-use OpenTelemetry\Distro\Log\BootstrapStageLoggingClassTrait;
+use OpenTelemetry\Distro\Log\LoggingClassTrait;
 use OpenTelemetry\Distro\Log\LogFeature;
 use OpenTelemetry\Distro\Util\DistroRuntimeException;
 
 final class AutoloaderForClassesInDirectory
 {
-    use BootstrapStageLoggingClassTrait;
+    use LoggingClassTrait;
 
     private readonly int $autoloadFqClassNamePrefixLength;
 
@@ -39,10 +39,11 @@ final class AutoloaderForClassesInDirectory
     {
         // Example of $fqClassName: OpenTelemetry\Distro\Autoloader
 
-        self::logTrace(__LINE__, __FUNCTION__, 'Entered', compact('fqClassName'));
+        $logTrace = self::logTrace(__FUNCTION__);
+        $logTrace?->with(__LINE__, 'Entered', compact('fqClassName'));
 
         if (!self::shouldAutoloadCodeForClass($fqClassName)) {
-            self::logTrace(__LINE__, __FUNCTION__, 'shouldAutoloadCodeForClass returned false', compact('fqClassName'));
+            self::logTrace(__FUNCTION__)?->with(__LINE__, 'shouldAutoloadCodeForClass returned false', compact('fqClassName'));
             return;
         }
 
@@ -54,16 +55,16 @@ final class AutoloaderForClassesInDirectory
         $classSrcFileAbsolute = $this->srcFilePathPrefix . $classSrcFileRelative;
 
         if (file_exists($classSrcFileAbsolute)) {
-            self::logTrace(__LINE__, __FUNCTION__, 'Before require', compact('classSrcFileAbsolute'));
+            $logTrace?->with(__LINE__, 'Before require', compact('classSrcFileAbsolute'));
             require $classSrcFileAbsolute;
-            self::logTrace(__LINE__, __FUNCTION__, 'After require', compact('classSrcFileAbsolute'));
+            $logTrace?->with(__LINE__, 'After require', compact('classSrcFileAbsolute'));
         } else {
-            self::logTrace(__LINE__, __FUNCTION__, 'File with the code for class does not exist', compact('fqClassName', 'classSrcFileAbsolute'));
+            $logTrace?->with(__LINE__, 'File with the code for class does not exist', compact('fqClassName', 'classSrcFileAbsolute'));
         }
     }
 
     /**
-     * Must be defined in class using BootstrapStageLoggingClassTrait
+     * Must be defined in class using LoggingClassTrait
      */
     private static function getCurrentSourceCodeFile(): string
     {
@@ -71,17 +72,9 @@ final class AutoloaderForClassesInDirectory
     }
 
     /**
-     * Must be defined in class using BootstrapStageLoggingClassTrait
+     * Must be defined in class using LoggingClassTrait
      */
-    private static function getCurrentSourceCodeClass(): string
-    {
-        return __CLASS__;
-    }
-
-    /**
-     * Must be defined in class using BootstrapStageLoggingClassTrait
-     */
-    private static function getCurrentLogFeature(): int
+    private static function getCurrentOptionalLogProdFeatureIntOrCategoryString(): int
     {
         return LogFeature::BOOTSTRAP;
     }

@@ -12,7 +12,7 @@ use OTelDistroTests\Util\ClassNameUtil;
 use OTelDistroTests\Util\DebugContext;
 use OTelDistroTests\Util\IterableUtil;
 use OTelDistroTests\Util\JsonUtil;
-use OTelDistroTests\Util\Log\Backend as LogBackend;
+use OTelDistroTests\Util\Log\LogBackendForTests as LogBackend;
 use OTelDistroTests\Util\Log\LogCategoryForTests;
 use OTelDistroTests\Util\Log\Logger;
 use OTelDistroTests\Util\Log\LoggerFactory;
@@ -50,11 +50,11 @@ class LogContextMapTest extends TestCaseBase
 
         $actualStmt = ArrayUtilForTests::getSingleValue($mockLogSink->consumed);
 
-        self::assertSame(LogLevel::debug, $actualStmt->statementLevel);
+        self::assertSame(LogLevel::debug, $actualStmt->level);
         self::assertSame(LogCategoryForTests::TEST, $actualStmt->category);
-        self::assertSame(__FILE__, $actualStmt->srcCodeFile);
-        self::assertSame($stmtLine, $actualStmt->srcCodeLine);
-        self::assertSame(__FUNCTION__, $actualStmt->srcCodeFunc);
+        self::assertSame(__FILE__, $actualStmt->file);
+        self::assertSame($stmtLine, $actualStmt->line);
+        self::assertSame(__FUNCTION__, $actualStmt->func);
 
         self::assertSame($stmtMsg, $actualStmt->message);
 

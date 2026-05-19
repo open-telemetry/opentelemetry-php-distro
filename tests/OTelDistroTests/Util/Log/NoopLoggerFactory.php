@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace OTelDistroTests\Util\Log;
 
 use OpenTelemetry\Distro\Util\StaticClassTrait;
-use OTelDistroTests\Util\Log\Backend;
+use OTelDistroTests\Util\Log\LogBackendForTests;
 use OpenTelemetry\Distro\Log\LogLevel;
 
 /**
@@ -22,7 +22,7 @@ final class NoopLoggerFactory
     public static function singletonInstance(): LoggerFactory
     {
         if (self::$singletonInstance === null) {
-            self::$singletonInstance = new LoggerFactory(new Backend(LogLevel::off, NoopLogSink::singletonInstance()));
+            self::$singletonInstance = new LoggerFactory(new LogBackendForTests(LogLevel::off, NoopLogSink::singletonInstance()));
         }
         return self::$singletonInstance;
     }

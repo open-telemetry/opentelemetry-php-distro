@@ -8,7 +8,7 @@ use OpenTelemetry\Distro\Log\LogFeature;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\DebugContext;
 use OTelDistroTests\Util\TestCaseBase;
-use OpenTelemetry\DistroTools\Build\BuildToolsLog;
+use OpenTelemetry\DistroTools\Build\BuildToolsLogUtil;
 use ReflectionClass;
 
 final class BuildToolsUtilTest extends TestCaseBase
@@ -18,7 +18,7 @@ final class BuildToolsUtilTest extends TestCaseBase
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
         $assertValueToName = function (int $value, string $expectedName): void {
-            self::assertSame($expectedName, BuildToolsLog::prodLogFeatureIntToString($value));
+            self::assertSame($expectedName, BuildToolsLogUtil::prodLogFeatureIntToString($value));
         };
 
         $assertValueToName(LogFeature::ALL, 'ALL');

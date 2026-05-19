@@ -11,7 +11,7 @@ use OTelDistroTests\UnitTests\Util\MockLogPreformattedSink;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\ClassNameUtil;
 use OTelDistroTests\Util\JsonUtil;
-use OTelDistroTests\Util\Log\Backend as LogBackend;
+use OTelDistroTests\Util\Log\LogBackendForTests as LogBackend;
 use OTelDistroTests\Util\Log\LogCategoryForTests;
 use OTelDistroTests\Util\Log\LoggableStackTrace;
 use OTelDistroTests\Util\Log\LoggableToString;
@@ -86,13 +86,13 @@ class IncludeStackTraceTest extends TestCaseBase
 
         self::assertCount(1, $mockLogSink->consumed);
         $actualLogStatement = $mockLogSink->consumed[0];
-        self::assertSame(LogLevel::trace, $actualLogStatement->statementLevel);
+        self::assertSame(LogLevel::trace, $actualLogStatement->level);
         self::assertSame(LogCategoryForTests::TEST, $actualLogStatement->category);
-        self::assertSame(__FILE__, $actualLogStatement->srcCodeFile);
-        self::assertSame($expectedSrcCodeDataForTopFrame[StackTraceUtil::LINE_KEY], $actualLogStatement->srcCodeLine);
+        self::assertSame(__FILE__, $actualLogStatement->file);
+        self::assertSame($expectedSrcCodeDataForTopFrame[StackTraceUtil::LINE_KEY], $actualLogStatement->line);
         self::assertSame(
             $expectedSrcCodeDataForTopFrame[StackTraceUtil::FUNCTION_KEY],
-            $actualLogStatement->srcCodeFunc
+            $actualLogStatement->func
         );
 
         $actualCtx = JsonUtil::decode($actualLogStatement->contextAsString);

@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\Util\Log;
 
+use OpenTelemetry\Distro\Log\LogBackend;
 use OpenTelemetry\Distro\Log\LogLevel;
-use OpenTelemetry\DistroTools\Build\BuildToolsLog;
+use OpenTelemetry\DistroTools\Build\BuildToolsLogUtil;
 use Override;
 
+/**
+ * @phpstan-import-type Context from SinkBase
+ */
 final class SinkForTests extends SinkBase
 {
     public const LOG_LINE_PREFIX = '[OTel PHP Distro tests]';
@@ -19,30 +23,39 @@ final class SinkForTests extends SinkBase
     ) {
     }
 
+    /** @inheritDoc */
     #[Override]
-    public function formatAndWrite(
-        int $levelInt,
-        string $levelString,
-        string $category,
-        string $srcCodeFile,
-        int $srcCodeLine,
-        string $srcCodeFunc,
-        string $message,
-        string $contextAsString,
-    ): void {
-        $formattedStatement = BuildToolsLog::formatStatement(
+    public function formatAndWrite(LogLevel $level, ?string $category, string $file, int $line, string $func, string $message, array $context): void
+    {
+        $formattedStatement = BuildToolsLogUtil::formatStatement(
             prefix: self::LOG_LINE_PREFIX . ' [' . $this->dbgProcessName . ']',
-            levelString: $levelString,
-            featureOrCategoryString: $category,
-            file: $srcCodeFile,
-            line: $srcCodeLine,
-            func: $srcCodeFunc,
-            messageWithContext: BuildToolsLog::concatMessageAndContext($message, $contextAsString)
+            level: $level,
+            featureOrCategory: $category,
+            file: $file,
+            line: $line,
+            func: $func,
+            messageWithContext: LogBackend::concatMessageAndContext($message, LoggableToString::convert($context))
         );
 
-        syslog(self::levelToSyslog($levelInt), $formattedStatement);
+        syslog(self::levelToSyslog($level->value), $formattedStatement);
 
         self::writeLineToStdErr($formattedStatement);
+    }
+
+    /**
+     * @phpstan-param Context $context
+     */
+    public function formatAndWriteForLogBackend(LogLevel $level, null|int|string $feature, string $file, int $line, string $func, string $message, array $context): void
+    {
+        $this->formatAndWrite(
+            level: $level,
+            category: is_int($feature) ? BuildToolsLogUtil::prodLogFeatureIntToString($feature) : $feature,
+            file: $file,
+            line: $line,
+            func: $func,
+            message: $message,
+            context: $context,
+        );
     }
 
     public static function writeLineToStdErr(string $text): void
