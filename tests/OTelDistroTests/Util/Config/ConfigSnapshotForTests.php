@@ -131,7 +131,7 @@ final class ConfigSnapshotForTests implements LoggableInterface
 
     private function verifyOptionIsNull(OptionForTestsName $optName): void
     {
-        $propertyName = TextUtil::snakeToCamelCase($optName->name);
+        $propertyName = TextUtilForTests::snakeToCamelCase($optName->name);
         $propertyValue = $this->$propertyName;
         if ($propertyValue !== null) {
             $envVarName = $optName->toEnvVarName();

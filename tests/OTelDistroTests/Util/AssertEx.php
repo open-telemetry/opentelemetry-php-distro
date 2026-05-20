@@ -12,7 +12,6 @@ use PHPUnit\Framework\Constraint\Exception as ConstraintException;
 use PHPUnit\Framework\Constraint\IsEqual;
 use PHPUnit\Framework\Constraint\IsType;
 use PHPUnit\Framework\Constraint\LessThan;
-use PHPUnit\Framework\ExpectationFailedException;
 use Stringable;
 use Throwable;
 
@@ -131,7 +130,9 @@ final class AssertEx
      */
     public static function notEmptyString(string $actual, string $message = ''): string
     {
-        Assert::assertNotEmpty($actual, $message);
+        if ($actual === '') {
+            Assert::fail($message);
+        }
         return $actual;
     }
 
@@ -185,18 +186,6 @@ final class AssertEx
     public static function isNullableString(mixed $actual, string $message = ''): ?string
     {
         return $actual === null ? null : self::isString($actual, $message);
-    }
-
-    /**
-     * @noinspection PhpUnused
-     *
-     * @return non-empty-string
-     */
-    public static function isNonEmptyString(mixed $actual, string $message = ''): string
-    {
-        Assert::assertIsString($actual, $message);
-        Assert::assertNotEmpty($actual, $message);
-        return $actual;
     }
 
     public static function isInt(mixed $actual, string $message = ''): int
@@ -326,26 +315,51 @@ final class AssertEx
      * If successful and the $inspect is not null,
      * then it is called and the caught exception is passed as argument.
      *
-     * @param callable(): mixed $execute
+     * @param class-string<Throwable> $expectedThrowableClass
+     * @param callable(): mixed $actualCodeThatShouldThrow
      * @param ?callable(Throwable): void $inspect
      */
-    public static function throws(string $class, callable $execute, string $message = '', ?callable $inspect = null): void
+    public static function throws(string $expectedThrowableClass, callable $actualCodeThatShouldThrow, string $message = '', ?callable $inspect = null): void
     {
         try {
-            $execute();
-        } catch (ExpectationFailedException $ex) {
-            throw $ex;
-        } catch (Throwable $ex) {
-            Assert::assertThat($ex, new ConstraintException($class), $message);
+            $actualCodeThatShouldThrow();
+        } catch (Throwable $thrown) {
+            Assert::assertThat($thrown, new ConstraintException($expectedThrowableClass), $message);
 
-            if ($inspect === null) {
-                return;
+            if ($inspect !== null) {
+                $inspect($thrown);
             }
 
-            $inspect($ex);
+            return;
         }
 
-        Assert::assertThat(null, new ConstraintException($class), $message);
+        Assert::assertThat(null, new ConstraintException($expectedThrowableClass), $message);
+    }
+
+    /**
+     * @param class-string<Throwable> $expectedThrowableClass
+     * @param callable(): mixed $actualCodeThatShouldThrow
+     */
+    public static function throwsWithMessageCode(
+        string $expectedThrowableClass,
+        ?string $expectedThrowableMessage,
+        ?int $expectedThrowableCode,
+        callable $actualCodeThatShouldThrow,
+        string $message = ''
+    ): void {
+        self::throws(
+            $expectedThrowableClass,
+            $actualCodeThatShouldThrow,
+            message: $message,
+            inspect: static function (Throwable $actualThrown) use ($expectedThrowableMessage, $expectedThrowableCode): void {
+                if ($expectedThrowableMessage !== null) {
+                    Assert::assertSame($expectedThrowableMessage, $actualThrown->getMessage());
+                }
+                if ($expectedThrowableCode !== null) {
+                    Assert::assertSame($expectedThrowableCode, $actualThrown->getCode());
+                }
+            },
+        );
     }
 
     /**
