@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace OTelDistroTests\Util\Config;
 
 use OpenTelemetry\Distro\Log\LogLevel;
-use OpenTelemetry\Distro\Util\TextUtil;
 use OpenTelemetry\Distro\Util\WildcardListMatcher;
 use OTelDistroTests\ComponentTests\Util\AppCodeHostKind;
 use OTelDistroTests\ComponentTests\Util\EnvVarUtilForTests;
@@ -17,6 +16,7 @@ use OTelDistroTests\ComponentTests\Util\TestMatrixRowUtil;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\ExceptionUtil;
 use OTelDistroTests\Util\Log\LoggableInterface;
+use OTelDistroTests\Util\TextUtilForTests;
 use PHPUnit\Framework\Assert;
 
 final class ConfigSnapshotForTests implements LoggableInterface
@@ -119,7 +119,7 @@ final class ConfigSnapshotForTests implements LoggableInterface
 
     private function verifyOptionIsNotNull(OptionForTestsName $optName): void
     {
-        $propertyName = TextUtil::snakeToCamelCase($optName->name);
+        $propertyName = TextUtilForTests::snakeToCamelCase($optName->name);
         $propertyValue = $this->$propertyName;
         if ($propertyValue === null) {
             $envVarName = $optName->toEnvVarName();
@@ -143,7 +143,7 @@ final class ConfigSnapshotForTests implements LoggableInterface
 
     private function verifyFileExistsIfSet(OptionForTestsName $optName): void
     {
-        $propertyName = TextUtil::snakeToCamelCase($optName->name);
+        $propertyName = TextUtilForTests::snakeToCamelCase($optName->name);
         $propertyValue = $this->$propertyName;
         if ($propertyValue === null) {
             return;
@@ -167,7 +167,7 @@ final class ConfigSnapshotForTests implements LoggableInterface
 
     private function verifyDirectoryExistsOrCanBeCreatedIfSet(OptionForTestsName $optName): void
     {
-        $propertyName = TextUtil::snakeToCamelCase($optName->name);
+        $propertyName = TextUtilForTests::snakeToCamelCase($optName->name);
         $propertyValue = $this->$propertyName;
         if ($propertyValue === null) {
             return;

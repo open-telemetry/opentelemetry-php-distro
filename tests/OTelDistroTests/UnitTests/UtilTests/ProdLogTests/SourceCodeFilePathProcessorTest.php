@@ -80,6 +80,7 @@ class SourceCodeFilePathProcessorTest extends TestCaseBase
          * @param array<string> $pathParts
          */
         $invokeAssertOnPathParts = function (array $pathParts, string $partsSeparatorOnInput, string $partsSeparatorOnExpected) use ($invokeAssert): void {
+            /** @var array<string> $pathParts */
             $invokeAssert(implode($partsSeparatorOnInput, $pathParts), $partsSeparatorOnExpected, implode($partsSeparatorOnExpected, $pathParts));
         };
 

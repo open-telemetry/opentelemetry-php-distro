@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace OTelDistroTests\Util;
 
 use OpenTelemetry\Distro\Util\StaticClassTrait;
-use OpenTelemetry\Distro\Util\TextUtil;
 use OTelDistroTests\Util\Log\AdhocLoggableObject;
 use OTelDistroTests\Util\Log\LogCategoryForTests;
 use OTelDistroTests\Util\Log\LoggableStackTrace;
@@ -30,7 +29,7 @@ final class ExceptionUtil
             $messageSuffixObj->addProperties([LoggableStackTrace::STACK_TRACE_KEY => $stacktrace], PropertyLogPriority::MUST_BE_INCLUDED);
         }
         $messageSuffix = LoggableToString::convert($messageSuffixObj, prettyPrint: true);
-        return $messagePrefix . (TextUtil::isEmptyString($messageSuffix) ? '' : ('. ' . $messageSuffix));
+        return $messagePrefix . ($messageSuffix === '' ? '' : ('. ' . $messageSuffix));
     }
 
     /**

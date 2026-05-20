@@ -7,37 +7,40 @@ namespace OTelDistroTests\UnitTests\UtilTests\ConfigTests;
 use OpenTelemetry\Distro\Util\SingletonInstanceTrait;
 use OTelDistroTests\Util\IterableUtil;
 use OTelDistroTests\Util\RangeUtil;
-use OpenTelemetry\Distro\Util\TextUtil;
 use OTelDistroTests\Util\RandomUtil;
 use OTelDistroTests\Util\TextUtilForTests;
 
 /**
  * @implements OptionTestValuesGeneratorInterface<string>
+ *
+ * @phpstan-import-type UnsignedByte from TextUtilForTests
  */
 final class StringOptionTestValuesGenerator implements OptionTestValuesGeneratorInterface
 {
     use SingletonInstanceTrait;
 
     /**
-     * @return iterable<int>
+     * @return iterable<UnsignedByte>
      */
     private static function charsToUse(): iterable
     {
         // latin letters
         foreach (RangeUtil::generateFromToIncluding(ord('A'), ord('Z')) as $charAsInt) {
+            /** @var UnsignedByte $charAsInt */
             yield $charAsInt;
-            yield TextUtil::flipLetterCase($charAsInt);
+            yield TextUtilForTests::flipLetterCase($charAsInt);
         }
 
         // digits
         foreach (RangeUtil::generateFromToIncluding(ord('0'), ord('9')) as $charAsInt) {
+            /** @var UnsignedByte $charAsInt */
             yield $charAsInt;
         }
 
         // punctuation
-        yield from TextUtilForTests::iterateOverChars(',:;.!?');
+        yield from TextUtilForTests::iterateOverChars(',:;.!?'); // @phpstan-ignore generator.valueType
 
-        yield from TextUtilForTests::iterateOverChars('@#$%&*()<>{}[]+-=_~^');
+        yield from TextUtilForTests::iterateOverChars('@#$%&*()<>{}[]+-=_~^'); // @phpstan-ignore generator.valueType
         yield ord('/');
         yield ord('|');
         yield ord('\\');
@@ -46,7 +49,7 @@ final class StringOptionTestValuesGenerator implements OptionTestValuesGenerator
         yield ord('"');
 
         // whitespace
-        yield from TextUtilForTests::iterateOverChars(" \t\r\n");
+        yield from TextUtilForTests::iterateOverChars(" \t\r\n"); // @phpstan-ignore generator.valueType
     }
 
     /**
@@ -59,7 +62,7 @@ final class StringOptionTestValuesGenerator implements OptionTestValuesGenerator
         yield 'abc';
         yield 'abC 123 Xyz';
 
-        /** @var array<int> $charsToUse */
+        /** @var array<UnsignedByte> $charsToUse */
         $charsToUse = IterableUtil::toList(self::charsToUse());
 
         $stringFromAllCharsToUse = '';
@@ -81,7 +84,7 @@ final class StringOptionTestValuesGenerator implements OptionTestValuesGenerator
             $randString = '';
             /** @noinspection PhpUnusedLocalVariableInspection */
             foreach (RangeUtil::generateUpTo($numberOfChars) as $__) {
-                $randString .= chr(RandomUtil::generateIntInRange(0, count($charsToUse) - 1));
+                $randString .= chr($charsToUse[RandomUtil::generateIntInRange(0, count($charsToUse) - 1)]);
             }
             yield $randString;
         }
