@@ -40,6 +40,7 @@ final class DataProviderForTestBuilder
          * @return iterable<T>
          */
         return function () use ($values): iterable {
+            /** @var array<T> $values */
             return $values;
         };
     }
