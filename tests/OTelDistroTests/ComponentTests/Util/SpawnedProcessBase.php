@@ -41,7 +41,7 @@ abstract class SpawnedProcessBase implements LoggableInterface
 
     protected function processConfig(): void
     {
-        AmbientContextForTests::testConfig()->validateForSpawnedProcess();
+        AmbientContextForTests::testConfig()->verifyForSpawnedProcess();
 
         if ($this->shouldRegisterThisProcessWithResourcesCleaner()) {
             TestCase::assertNotNull(

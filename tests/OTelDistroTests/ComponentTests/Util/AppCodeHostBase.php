@@ -38,7 +38,7 @@ abstract class AppCodeHostBase extends SpawnedProcessBase
     protected function processConfig(): void
     {
         parent::processConfig();
-        AmbientContextForTests::testConfig()->validateForAppCode();
+        AmbientContextForTests::testConfig()->verifyForAppCode();
     }
 
     abstract protected function runImpl(): void;
@@ -60,7 +60,7 @@ abstract class AppCodeHostBase extends SpawnedProcessBase
                     throw new ComponentTestsInfraException($adaptedClassName . '::$wasBootstrapCalled is false while it should be true for the process with app code');
                 }
 
-                AmbientContextForTests::testConfig()->validateForAppCodeRequest();
+                AmbientContextForTests::testConfig()->verifyForAppCodeRequest();
 
                 $thisObj->runImpl();
             }

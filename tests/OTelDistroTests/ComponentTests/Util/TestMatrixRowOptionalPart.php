@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\ComponentTests\Util;
 
-use OTelDistroTests\Util\ArrayUtilForTests;
+use Ds\Map;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\Config\OptionForProdName;
 use OTelDistroTests\Util\DebugContext;
@@ -16,25 +16,26 @@ use PHPUnit\Framework\Assert;
 final class TestMatrixRowOptionalPart
 {
     /**
-     * @param array<string, string> $prodOptionsEnvVarNameToRawVal
+     * @param OptionsForProdMap $prodOptions
      */
     private function __construct(
-        public readonly array $prodOptionsEnvVarNameToRawVal
+        public readonly string $originalString,
+        public readonly Map $prodOptions,
     ) {
     }
 
-    public static function parse(string $matrixRowOptionalPartAsString): self
+    public static function parse(string $stringToParse): self
     {
         // For example:
         //              OTEL_PHP_LOG_LEVEL_SYSLOG=TRACE,OTEL_PHP_SCOPED_DEPS_ENABLED=false
 
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
-        $keyValParts = explode(',', $matrixRowOptionalPartAsString);
+        $keyValParts = explode(',', $stringToParse);
         $dbgCtx->add(compact('keyValParts'));
 
         /** @var OptionsForProdMap $prodOptions */
-        $prodOptionsEnvVarNameToRawVal = [];
+        $prodOptions = new Map();
         $dbgCtx->pushSubScope();
         foreach ($keyValParts as $keyValPart) {
             $dbgCtx->resetTopSubScope(compact('keyValPart'));
@@ -42,11 +43,12 @@ final class TestMatrixRowOptionalPart
             $dbgCtx->add(compact('keyValueArr'));
             Assert::assertCount(2, AssertEx::isArray($keyValueArr));
             $envVarName = $keyValueArr[0];
-            AssertEx::notNull(OptionForProdName::tryToFindByEnvVarName($envVarName));
-            ArrayUtilForTests::addAssertingKeyNew(key: $envVarName, value: $keyValueArr[1], /* ref */ result: $prodOptionsEnvVarNameToRawVal);
+            $optName = AssertEx::notNull(OptionForProdName::tryToFindByEnvVarName($envVarName));
+            Assert::assertFalse($prodOptions->hasKey($optName));
+            $prodOptions->put($optName, $keyValueArr[1]);
         }
         $dbgCtx->popSubScope();
 
-        return new self($prodOptionsEnvVarNameToRawVal);
+        return new self(originalString: $stringToParse, prodOptions: $prodOptions);
     }
 }

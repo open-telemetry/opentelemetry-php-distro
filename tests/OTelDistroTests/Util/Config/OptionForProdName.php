@@ -130,7 +130,7 @@ enum OptionForProdName
 
     public static function tryToFindByEnvVarName(string $envVarName): ?self
     {
-        /** @var array<string, self> $envVarNameToOptName */
+        /** @var ?array<string, self> $envVarNameToOptName */
         static $envVarNameToOptName = null;
         if ($envVarNameToOptName === null) {
             $envVarNameToOptName = [];

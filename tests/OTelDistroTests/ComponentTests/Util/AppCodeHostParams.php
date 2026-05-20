@@ -43,7 +43,7 @@ class AppCodeHostParams implements LoggableInterface
     public function __construct(
         public readonly string $dbgProcessNamePrefix
     ) {
-        $this->prodOptions = new Map(AmbientContextForTests::testConfig()->matrixRowOptionalPart->prodOptions ?? []);
+        $this->prodOptions = AmbientContextForTests::testConfig()->matrixRowOptionalPart?->prodOptions->copy() ?? new Map();
     }
 
     /**

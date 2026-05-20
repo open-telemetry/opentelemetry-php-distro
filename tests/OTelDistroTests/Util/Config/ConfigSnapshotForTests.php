@@ -13,6 +13,7 @@ use OTelDistroTests\ComponentTests\Util\TestGroupName;
 use OTelDistroTests\ComponentTests\Util\TestInfraDataPerProcess;
 use OTelDistroTests\ComponentTests\Util\TestInfraDataPerRequest;
 use OTelDistroTests\ComponentTests\Util\TestMatrixRowOptionalPart;
+use OTelDistroTests\ComponentTests\Util\TestMatrixRowUtil;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\ExceptionUtil;
 use OTelDistroTests\Util\Log\LoggableInterface;
@@ -63,11 +64,11 @@ final class ConfigSnapshotForTests implements LoggableInterface
     {
         self::setPropertiesToValuesFrom($optNameToParsedValue);
 
-        $this->validateFileExistsIfSet(OptionForTestsName::app_code_php_exe);
-        $this->validateFileExistsIfSet(OptionForTestsName::app_code_bootstrap_php_part_file);
-        $this->validateFileExistsIfSet(OptionForTestsName::app_code_ext_binary);
+        $this->verifyFileExistsIfSet(OptionForTestsName::app_code_php_exe);
+        $this->verifyFileExistsIfSet(OptionForTestsName::app_code_bootstrap_php_part_file);
+        $this->verifyFileExistsIfSet(OptionForTestsName::app_code_ext_binary);
 
-        $this->validateDirectoryExistsOrCanBeCreatedIfSet(OptionForTestsName::logs_directory);
+        $this->verifyDirectoryExistsOrCanBeCreatedIfSet(OptionForTestsName::logs_directory);
     }
 
     public function appCodeHostKind(): AppCodeHostKind
@@ -116,7 +117,7 @@ final class ConfigSnapshotForTests implements LoggableInterface
         return $result;
     }
 
-    private function validateNotNullOption(OptionForTestsName $optName): void
+    private function verifyOptionIsNotNull(OptionForTestsName $optName): void
     {
         $propertyName = TextUtil::snakeToCamelCase($optName->name);
         $propertyValue = $this->$propertyName;
@@ -128,7 +129,19 @@ final class ConfigSnapshotForTests implements LoggableInterface
         }
     }
 
-    private function validateFileExistsIfSet(OptionForTestsName $optName): void
+    private function verifyOptionIsNull(OptionForTestsName $optName): void
+    {
+        $propertyName = TextUtil::snakeToCamelCase($optName->name);
+        $propertyValue = $this->$propertyName;
+        if ($propertyValue !== null) {
+            $envVarName = $optName->toEnvVarName();
+            $allEnvVars = EnvVarUtilForTests::getAll();
+            ksort(/* ref */ $allEnvVars);
+            throw new ConfigException(ExceptionUtil::buildMessage('Option, that SHOULD NOT be set, IS set (snapshot property value is not null)', compact('optName', 'envVarName', 'allEnvVars')));
+        }
+    }
+
+    private function verifyFileExistsIfSet(OptionForTestsName $optName): void
     {
         $propertyName = TextUtil::snakeToCamelCase($optName->name);
         $propertyValue = $this->$propertyName;
@@ -152,7 +165,7 @@ final class ConfigSnapshotForTests implements LoggableInterface
         }
     }
 
-    private function validateDirectoryExistsOrCanBeCreatedIfSet(OptionForTestsName $optName): void
+    private function verifyDirectoryExistsOrCanBeCreatedIfSet(OptionForTestsName $optName): void
     {
         $propertyName = TextUtil::snakeToCamelCase($optName->name);
         $propertyValue = $this->$propertyName;
@@ -179,25 +192,34 @@ final class ConfigSnapshotForTests implements LoggableInterface
         }
     }
 
-    public function validateForComponentTests(): void
+    public function verifyForComponentTests(): void
     {
-        $this->validateNotNullOption(OptionForTestsName::app_code_host_kind);
+        $this->verifyOptionIsNotNull(OptionForTestsName::app_code_host_kind);
+
+        $this->verifyOptionIsNotNull(OptionForTestsName::matrix_row);
+        TestMatrixRowUtil::split(AssertEx::notNull($this->matrixRow), /* out */ $mandatoryParts, /* out */ $optionalPart);
+        if ($optionalPart === null) {
+            $this->verifyOptionIsNull(OptionForTestsName::matrix_row);
+        } else {
+            Assert::assertSame($optionalPart, AssertEx::notNull($this->matrixRowOptionalPart)->originalString);
+            $this->verifyOptionIsNotNull(OptionForTestsName::matrix_row);
+        }
     }
 
-    public function validateForSpawnedProcess(): void
+    public function verifyForSpawnedProcess(): void
     {
-        $this->validateNotNullOption(OptionForTestsName::data_per_process);
+        $this->verifyOptionIsNotNull(OptionForTestsName::data_per_process);
     }
 
-    public function validateForAppCode(): void
+    public function verifyForAppCode(): void
     {
-        $this->validateForSpawnedProcess();
-        $this->validateNotNullOption(OptionForTestsName::app_code_host_kind);
+        $this->verifyForSpawnedProcess();
+        $this->verifyOptionIsNotNull(OptionForTestsName::app_code_host_kind);
     }
 
-    public function validateForAppCodeRequest(): void
+    public function verifyForAppCodeRequest(): void
     {
-        $this->validateForAppCode();
-        $this->validateNotNullOption(OptionForTestsName::data_per_request);
+        $this->verifyForAppCode();
+        $this->verifyOptionIsNotNull(OptionForTestsName::data_per_request);
     }
 }

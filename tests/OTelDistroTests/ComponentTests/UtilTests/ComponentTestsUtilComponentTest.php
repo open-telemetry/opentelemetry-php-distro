@@ -60,7 +60,7 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
         $dbgCtx->add(['testConfig' => AmbientContextForTests::testConfig()]);
         $expectedLogLevelForProdCode = $appCodeRequestArgs->getLogLevel(self::LOG_LEVEL_FOR_PROD_CODE_KEY);
         $dbgCtx->add(compact('expectedLogLevelForProdCode'));
-        $prodConfig = self::buildProdConfig();
+        $prodConfig = self::buildProdConfigInAppCodeContext();
         $dbgCtx->add(compact('prodConfig'));
         $actualLogLevelForProdCode = $prodConfig->getOptionValueByName(AmbientContextForTests::testConfig()->escalatedRerunsProdCodeLogLevelOptionName());
         $dbgCtx->add(compact('actualLogLevelForProdCode'));
