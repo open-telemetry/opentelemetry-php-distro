@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\Distro\Util;
 
+use function str_starts_with;
+use function strlen;
+
 /**
  * Code in this file is part of implementation internals and thus it is not covered by the backward compatibility.
  *
@@ -27,7 +30,7 @@ final class WildcardMatcher
             self::$wildcardLen = strlen(self::WILDCARD);
         }
 
-        $this->isCaseSensitive = TextUtil::isPrefixOf(self::CASE_SENSITIVE_PREFIX, $expr);
+        $this->isCaseSensitive = str_starts_with($expr, self::CASE_SENSITIVE_PREFIX);
         $exprPos = $this->isCaseSensitive ? strlen(self::CASE_SENSITIVE_PREFIX) : 0;
         $exprLen = strlen($expr);
         $this->literalParts = [];

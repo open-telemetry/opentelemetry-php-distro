@@ -6,7 +6,6 @@ namespace OTelDistroTests\Util;
 
 use Countable;
 use OpenTelemetry\Distro\Util\StaticClassTrait;
-use OpenTelemetry\Distro\Util\TextUtil;
 use Generator;
 use Iterator;
 use PHPUnit\Framework\Assert;
@@ -489,7 +488,7 @@ final class IterableUtil
     {
         $result = '';
         foreach ($iterable as $value) {
-            $result = TextUtil::appendWithOptionalSeparator($result, $separator, $value);
+            $result = TextUtilForTests::appendWithOptionalSeparator($result, $separator, $value);
         }
         return $result;
     }

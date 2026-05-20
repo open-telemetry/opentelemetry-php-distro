@@ -59,7 +59,7 @@ class TextUtilTest extends TestCaseBase
      */
     public function testCamelToSnakeCase(string $inputCamelCase, string $inputSnakeCase): void
     {
-        self::assertSame($inputSnakeCase, TextUtil::camelToSnakeCase($inputCamelCase));
+        self::assertSame($inputSnakeCase, TextUtilForTests::camelToSnakeCase($inputCamelCase));
     }
 
     /**
@@ -70,7 +70,7 @@ class TextUtilTest extends TestCaseBase
      */
     public function testSnakeToCamelCase(string $inputSnakeCase, string $inputCamelCase): void
     {
-        self::assertSame($inputCamelCase, TextUtil::snakeToCamelCase($inputSnakeCase));
+        self::assertSame($inputCamelCase, TextUtilForTests::snakeToCamelCase($inputSnakeCase));
     }
 
     public function testIsPrefixOf(): void
@@ -116,7 +116,7 @@ class TextUtilTest extends TestCaseBase
     public function testFlipLetterCase(): void
     {
         $flipOneLetterString = function (string $src): string {
-            return chr(TextUtil::flipLetterCase(ord($src[0])));
+            return chr(TextUtilForTests::flipLetterCase(ord($src[0])));
         };
 
         self::assertSame('a', $flipOneLetterString('A'));
