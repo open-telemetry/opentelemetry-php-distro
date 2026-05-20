@@ -22,7 +22,7 @@
     },
     "require-dev": {
         "composer/composer": "^2.0",
-        "dealerdirect/phpcodesniffer-composer-installer": "1.0.0",
+        "dealerdirect/phpcodesniffer-composer-installer": "1.2.1",
         "ext-ctype": "*",
         "ext-curl": "*",
         "ext-mysqli": "*",
