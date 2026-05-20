@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace OTelDistroTests\Util;
 
 use OpenTelemetry\Distro\Util\StaticClassTrait;
-use OpenTelemetry\Distro\Util\TextUtil;
 use UnexpectedValueException;
 
 final class TextUtilForTests
@@ -90,9 +89,10 @@ final class TextUtilForTests
         return str_contains($haystack, $needle);
     }
 
+    /** @noinspection PhpUnused */
     public static function combineWithSeparatorIfNotEmpty(string $separator, string $partToAppend): string
     {
-        return (TextUtil::isEmptyString($partToAppend) ? '' : $separator) . $partToAppend;
+        return ($partToAppend === '' ? '' : $separator) . $partToAppend;
     }
 
     /**
