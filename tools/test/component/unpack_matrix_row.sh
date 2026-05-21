@@ -49,7 +49,7 @@ function convert_test_group_short_to_long_name () {
 
 function _export_var_to_env () {
     local -r var_name="${1:?}"
-    local -r var_value="${2:}"
+    local -r var_value="${2:?}"
     local -r verbose=$3
     if [ "${verbose}" == "true" ] ; then
         echo "Exporting env var: ${var_name}=${var_value}"

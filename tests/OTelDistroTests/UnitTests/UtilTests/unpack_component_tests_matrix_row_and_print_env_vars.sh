@@ -1,20 +1,27 @@
 #!/usr/bin/env bash
 set -e -u -o pipefail
-#set -x
+set -x
 
 function main {
-    this_script_dir="$( dirname "${BASH_SOURCE[0]}" )"
-    this_script_dir="$( realpath "${this_script_dir}" )"
-    repo_root_dir="$( realpath "${this_script_dir}/../../../.." )"
+    this_script_dir="$(dirname "${BASH_SOURCE[0]}")"
+    this_script_dir="$(realpath "${this_script_dir}")"
+    repo_root_dir="$(realpath "${this_script_dir}/../../../..")"
 
-    source "${repo_root_dir}/tools/test/component/unpack_matrix_row.sh"
+    pushd "${repo_root_dir}" || exit 1
+
+    echo "Current directory: ${PWD}"
+
+    source ./tools/test/component/unpack_matrix_row.sh
 
     local -r matrix_row="${1:?}"
-    local -r verbose='true'
-    unpack_matrix_row "${matrix_row}" "${verbose}" &> /dev/null
+    local -r env_output_dest_file="${2:?}"
 
-    env | sort 2> /dev/null
+    local -r unpack_matrix_row_verbose='true'
+    unpack_matrix_row "${matrix_row}" "${unpack_matrix_row_verbose}"
+
+    env | sort > "${env_output_dest_file}"
+
+    popd || exit 1
 }
 
 main "$@"
-

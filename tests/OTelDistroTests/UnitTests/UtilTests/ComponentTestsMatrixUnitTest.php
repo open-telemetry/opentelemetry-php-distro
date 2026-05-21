@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\UnitTests\UtilTests;
 
+use OpenTelemetry\DistroTools\Build\BuildToolsUtil;
 use OTelDistroTests\ComponentTests\Util\TestMatrixRow;
 use OTelDistroTests\Util\ArrayUtilForTests;
 use OTelDistroTests\Util\AssertEx;
+use OTelDistroTests\Util\ClassNameUtil;
 use OTelDistroTests\Util\Config\OptionForTestsName;
 use OTelDistroTests\Util\DebugContext;
 use OTelDistroTests\Util\OTelDistroProjectProperties;
@@ -15,6 +17,7 @@ use OTelDistroTests\Util\IterableUtil;
 use OTelDistroTests\Util\OsUtil;
 use OTelDistroTests\Util\RepoRootDir;
 use OTelDistroTests\Util\TestCaseBase;
+use OTelDistroTests\Util\TextUtilForTests;
 
 final class ComponentTestsMatrixUnitTest extends TestCaseBase
 {
@@ -147,11 +150,12 @@ final class ComponentTestsMatrixUnitTest extends TestCaseBase
 
         ArrayUtilForTests::addAssertingKeyNew(self::UNPACKED_PHP_VERSION_ENV_VAR_NAME, $matrixRowParsed->phpVersion, /* ref */ $result);
         ArrayUtilForTests::addAssertingKeyNew(self::UNPACKED_PACKAGE_TYPE_ENV_VAR_NAME, $matrixRowParsed->packageType, /* ref */ $result);
-        ArrayUtilForTests::addAssertingKeyNew(OptionForTestsName::app_code_host_kind->toEnvVarName(), $matrixRowParsed->appCodeHostKindShortName, /* ref */ $result);
-        ArrayUtilForTests::addAssertingKeyNew(OptionForTestsName::group->toEnvVarName(), $matrixRowParsed->testGroupName, /* ref */ $result);
+        ArrayUtilForTests::addAssertingKeyNew(OptionForTestsName::app_code_host_kind->toEnvVarName(), $matrixRowParsed->appCodeHostKind->name, /* ref */ $result);
+        ArrayUtilForTests::addAssertingKeyNew(OptionForTestsName::group->toEnvVarName(), $matrixRowParsed->testGroupName->name, /* ref */ $result);
 
         return $result;
     }
+
 
     private static function execUnpackAndVerify(string $matrixRow): void
     {
@@ -167,20 +171,28 @@ final class ComponentTestsMatrixUnitTest extends TestCaseBase
         $expectedEnvVars = self::unpackRowToEnvVars($matrixRow);
         $dbgCtx->add(compact('expectedEnvVars'));
 
-        $cmd = $unpackAndPrintEnvVarsScriptFullPath . ' ' . $matrixRow;
-        $actualEnvVarNameValueLines = self::execCommand($cmd);
-        self::assertNotEmpty($actualEnvVarNameValueLines);
         $actualEnvVars = [];
-        foreach ($actualEnvVarNameValueLines as $actualEnvVarNameValueLine) {
-            if (trim($actualEnvVarNameValueLine) === '') {
-                continue;
+        $envVarsFromUnpackScriptFile = FileUtil::createTempFile(FileUtil::generateTempFileNamePrefix(ClassNameUtil::fqToShortFromRawString(__CLASS__) . '_env_vars_from_matrix_unpack'));
+        try {
+            $cmd = BuildToolsUtil::buildShellCommand(BuildToolsUtil::surroundEachInSingleQuotes([$unpackAndPrintEnvVarsScriptFullPath, $matrixRow, $envVarsFromUnpackScriptFile]));
+            $cmd .= ' 2>&1';
+            $unpackScriptDebugOutput = self::execCommand($cmd);
+            $dbgCtx->add(compact('unpackScriptDebugOutput'));
+            $actualEnvVarNameValueLines = FileUtil::getFileContents($envVarsFromUnpackScriptFile);
+            self::assertNotEmpty($actualEnvVarNameValueLines);
+            foreach (TextUtilForTests::iterateLines($actualEnvVarNameValueLines) as $actualEnvVarNameValueLine) {
+                if (trim($actualEnvVarNameValueLine) === '') {
+                    continue;
+                }
+                $actualEnvVarNameValue = explode('=', $actualEnvVarNameValueLine, limit: 2);
+                self::assertCount(2, $actualEnvVarNameValue);
+                /** @var array{string, string} $actualEnvVarNameValue */
+                $actualEnvVars[trim($actualEnvVarNameValue[0])] = trim($actualEnvVarNameValue[1]);
             }
-            $actualEnvVarNameValue = explode('=', $actualEnvVarNameValueLine, limit: 2);
-            self::assertCount(2, $actualEnvVarNameValue);
-            /** @var array{string, string} $actualEnvVarNameValue */
-            $actualEnvVars[trim($actualEnvVarNameValue[0])] = trim($actualEnvVarNameValue[1]);
+            $dbgCtx->add(compact('actualEnvVarNameValueLines', 'actualEnvVars'));
+        } finally {
+            BuildToolsUtil::deleteTempFile($envVarsFromUnpackScriptFile);
         }
-        $dbgCtx->add(compact('actualEnvVarNameValueLines', 'actualEnvVars'));
 
         AssertEx::mapIsSubsetOf($expectedEnvVars, $actualEnvVars);
     }

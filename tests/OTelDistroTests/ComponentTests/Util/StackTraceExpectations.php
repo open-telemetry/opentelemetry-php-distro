@@ -74,7 +74,7 @@ final class StackTraceExpectations implements ExpectationsInterface
         $index = 0;
         $encounteredMain = false;
         $dbgCtx->pushSubScope();
-        foreach (TextUtilForTests::iterateLines($convertedToString, keepEndOfLine: false) as $textLine) {
+        foreach (TextUtilForTests::iterateLines($convertedToString) as $textLine) {
             $dbgCtx->resetTopSubScope(compact('index', 'textLine'));
 
             if ($textLine === '') {

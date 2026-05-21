@@ -6,8 +6,10 @@ namespace OTelDistroTests\Util;
 
 use OpenTelemetry\Distro\Log\LogBackend;
 use OpenTelemetry\Distro\Log\LogLevel;
+use OpenTelemetry\DistroTools\Build\BuildToolsUtil;
 use OTelDistroTests\ComponentTests\Util\ConfigUtilForTests;
 use OTelDistroTests\ComponentTests\Util\EnvVarUtilForTests;
+use OTelDistroTests\Util\Config\OptionForTestsName;
 use OTelDistroTests\Util\Log\LogCategoryForTests;
 use OTelDistroTests\Util\Log\Logger;
 use OTelDistroTests\Util\Log\StdOut;
@@ -44,11 +46,6 @@ use PHPUnit\Runner\Extension\Facade;
 use PHPUnit\Runner\Extension\ParameterCollection;
 use PHPUnit\TextUI\Configuration\Configuration;
 
-/**
- * Code in this file is part of implementation internals and thus it is not covered by the backward compatibility.
- *
- * @internal
- */
 abstract class PHPUnitExtensionBase implements Extension
 {
     public static SystemTime $timestampBeforeTest;
@@ -66,6 +63,7 @@ abstract class PHPUnitExtensionBase implements Extension
                 AmbientContextForTests::assertIsInited();
                 DebugContext::ensureInited();
                 ConfigUtilForTests::verifyTracingIsDisabled();
+                BuildToolsUtil::setConfigEnvVarPrefix(OptionForTestsName::ENV_VAR_NAME_PREFIX);
                 LogBackend::initSingletonInstance(
                     new LogBackend(
                         maxEnabledLevel: AmbientContextForTests::testConfig()->logLevel->value,

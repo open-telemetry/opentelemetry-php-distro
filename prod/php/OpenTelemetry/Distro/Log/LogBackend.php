@@ -123,7 +123,7 @@ final class LogBackend
                 $processedFilePath,
                 $line,
                 $func,
-                self::concatMessageAndContext($message, self::contextToText($context))
+                self::concatMessageAndContext($message, $context === [] ? '' : self::contextToText($context)),
             );
         } else {
             ($this->formatAndWrite)(

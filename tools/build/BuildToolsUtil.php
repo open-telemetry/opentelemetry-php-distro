@@ -25,9 +25,23 @@ final class BuildToolsUtil
     use BuildToolsAssertTrait;
     use LoggingClassTrait;
 
-    private const KEEP_TEMP_FILES_ENV_VAR_NAME = 'OTEL_PHP_TOOLS_KEEP_TEMP_FILES';
+    public const DEFAULT_CONFIG_ENV_VAR_NAME_PREFIX = 'OTEL_PHP_TOOLS_';
+
+    private const KEEP_TEMP_FILES_ENV_VAR_NAME_SUFFIX = 'KEEP_TEMP_FILES';
 
     public const FAILURE_EXIT_CODE = 1;
+
+    private static string $configEnvVarPrefix = self::DEFAULT_CONFIG_ENV_VAR_NAME_PREFIX;
+
+    public static function setConfigEnvVarPrefix(string $envVarNameSuffix): void
+    {
+        self::$configEnvVarPrefix = $envVarNameSuffix;
+    }
+
+    private static function buildConfigEnvVar(string $envVarNameSuffix): string
+    {
+        return self::$configEnvVarPrefix . $envVarNameSuffix;
+    }
 
     /**
      * @param callable(): void $code
@@ -101,6 +115,21 @@ final class BuildToolsUtil
         $retVal = system($shellCmd . ' 1>&2', /* out */ $exitCode);
         self::assertNotFalse($retVal, compact('retVal'));
         self::assert($exitCode === 0, '$exitCode === 0' . ' ; shellCmd: ' . $shellCmd . ' ; exitCode: ' . $exitCode . ' ; retVal: ' . $retVal);
+    }
+
+    public static function surroundInSingleQuotes(string $string): string
+    {
+        return '\'' . $string . '\'';
+    }
+
+    /**
+     * @param list<string> $parts
+     *
+     * @return list<string>
+     */
+    public static function surroundEachInSingleQuotes(array $parts): array
+    {
+        return array_map(self::surroundInSingleQuotes(...), $parts);
     }
 
     /**
@@ -347,17 +376,34 @@ final class BuildToolsUtil
         return null;
     }
 
-    private static function shouldKeepTemporaryFiles(): bool
+    /**
+     * @param-out string $reason
+     *
+     * @phpstan-assert string $reason
+     */
+    private static function shouldKeepTemporaryFiles(/* out */ ?string &$reason): bool
     {
-        /** @var ?bool $cachedVal */
-        static $cachedVal = null;
+        /** @var ?bool $cachedRetVal */
+        static $cachedRetVal = null;
+        /** @var ?string $cachedReason */
+        static $cachedReason = null;
 
-        if ($cachedVal === null) {
-            $cachedVal = self::getBoolEnvVar(self::KEEP_TEMP_FILES_ENV_VAR_NAME) ?? false;
+        if ($cachedRetVal === null) {
+            $envVarName = self::buildConfigEnvVar(self::KEEP_TEMP_FILES_ENV_VAR_NAME_SUFFIX);
+            $envVarValue = self::getBoolEnvVar($envVarName);
+            if ($envVarValue === null) {
+                $cachedRetVal = false;
+                $cachedReason = $envVarName . ' is not set';
+            } else {
+                $cachedRetVal = $envVarValue;
+                $cachedReason = $envVarName . ' is set to ' . BoolUtil::toString($cachedRetVal);
+            }
         }
-        /** @var bool $cachedVal */
+        /** @var bool $cachedRetVal */
+        /** @var string $cachedReason */
 
-        return $cachedVal;
+        $reason = $cachedReason;
+        return $cachedRetVal;
     }
 
     public static function deleteDirectory(string $dirPath): void
@@ -372,10 +418,21 @@ final class BuildToolsUtil
 
     public static function deleteTempDirectory(string $dirPath): void
     {
-        if (self::shouldKeepTemporaryFiles()) {
-            self::logDebug(__FUNCTION__)?->with(__LINE__, "Keeping temporary directory $dirPath");
+        if (self::shouldKeepTemporaryFiles(/* out */ $reason)) {
+            self::logDebug(__FUNCTION__)?->with(__LINE__, "Keeping temporary directory $dirPath because $reason");
         } else {
+            self::logDebug(__FUNCTION__)?->with(__LINE__, "Deleting temporary directory $dirPath because $reason");
             self::deleteDirectory($dirPath);
+        }
+    }
+
+    public static function deleteTempFile(string $filePath): void
+    {
+        if (self::shouldKeepTemporaryFiles(/* out */ $reason)) {
+            self::logDebug(__FUNCTION__)?->with(__LINE__, "Keeping temporary file $filePath because $reason");
+        } else {
+            self::logDebug(__FUNCTION__)?->with(__LINE__, "Deleting temporary file $filePath because $reason");
+            self::deleteFile($filePath);
         }
     }
 

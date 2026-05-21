@@ -72,7 +72,7 @@ final class TextUtilForTests
      *
      * @return iterable<string>
      */
-    public static function iterateLines(string $text, bool $keepEndOfLine): iterable
+    public static function iterateLines(string $text, bool $keepEndOfLine = false): iterable
     {
         foreach (self::iterateLinesEx($text) as [$lineText, $endOfLine]) {
             yield $lineText . ($keepEndOfLine ? $endOfLine : '');

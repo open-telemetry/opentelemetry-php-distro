@@ -34,7 +34,7 @@ final class SinkForTests extends SinkBase
             file: $file,
             line: $line,
             func: $func,
-            messageWithContext: LogBackend::concatMessageAndContext($message, LoggableToString::convert($context))
+            messageWithContext: LogBackend::concatMessageAndContext($message, $context === [] ? '' : LoggableToString::convert($context))
         );
 
         syslog(self::levelToSyslog($level->value), $formattedStatement);

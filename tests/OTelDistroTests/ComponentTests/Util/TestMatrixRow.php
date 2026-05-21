@@ -30,9 +30,9 @@ final class TestMatrixRow
     private function __construct(
         public readonly string $phpVersion,
         public readonly string $packageType,
-        public readonly string $appCodeHostKindShortName,
+        private readonly string $appCodeHostKindShortName,
         public readonly AppCodeHostKind $appCodeHostKind,
-        public readonly string $testGroupShortName,
+        private readonly string $testGroupShortName,
         public readonly TestGroupName $testGroupName,
         public readonly ?TestMatrixRowOptionalPart $optionalPart,
     ) {

@@ -6,11 +6,6 @@ namespace OTelDistroTests\Util\Config;
 
 use OTelDistroTests\Util\EnumUtilForTestsTrait;
 
-/**
- * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
- *
- * @internal
- */
 enum OptionForTestsName
 {
     use EnumUtilForTestsTrait;
