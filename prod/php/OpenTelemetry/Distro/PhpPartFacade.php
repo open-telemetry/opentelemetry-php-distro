@@ -20,7 +20,6 @@ use OpenTelemetry\Distro\Log\NativeLogWriter;
 use OpenTelemetry\Distro\Util\DistroRuntimeException;
 use OpenTelemetry\Distro\Util\HiddenConstructorTrait;
 use OpenTelemetry\Distro\Util\OTelUtil;
-use OpenTelemetry\Distro\Util\TextUtil;
 use OpenTelemetry\SDK\Common\Configuration\Configuration as OTelSdkConfiguration;
 use OpenTelemetry\SDK\Common\Configuration\Variables as OTelSdkConfigVariables;
 use OpenTelemetry\SDK\Registry;
