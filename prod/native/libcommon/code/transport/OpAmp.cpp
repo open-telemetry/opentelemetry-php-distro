@@ -158,9 +158,11 @@ void OpAmp::sendInitialAgentToServer() {
         throw std::runtime_error("Failed to serialize AgentToServer initial message");
     }
 
-    auto callback = [self = shared_from_this()](int16_t responseCode, std::span<std::byte> data) {
-        ELOG_DEBUG(self->log_, OPAMP, "sendInitialAgentToServer response code: {}, data size: {}", responseCode, data.size_bytes());
-        self->handleServerToAgent(reinterpret_cast<const char *>(data.data()), data.size_bytes());
+    auto callback = [weak_self = weak_from_this()](int16_t responseCode, std::span<std::byte> data) {
+        if (auto self = weak_self.lock()) {
+            ELOG_DEBUG(self->log_, OPAMP, "sendInitialAgentToServer response code: {}, data size: {}", responseCode, data.size_bytes());
+            self->handleServerToAgent(reinterpret_cast<const char *>(data.data()), data.size_bytes());
+        }
     };
 
     transport_->enqueue(endpointHash_, {reinterpret_cast<std::byte *>(payload.data()), payload.length()}, callback);
@@ -185,9 +187,11 @@ void OpAmp::sendHeartbeat() {
         throw std::runtime_error("Failed to serialize AgentToServer heartbeat message");
     }
 
-    auto callback = [self = shared_from_this()](int16_t responseCode, std::span<std::byte> data) {
-        ELOG_DEBUG(self->log_, OPAMP, "sendHeartbeat response code: {} payload size: {}", responseCode, data.size());
-        self->handleServerToAgent(reinterpret_cast<const char *>(data.data()), data.size_bytes());
+    auto callback = [weak_self = weak_from_this()](int16_t responseCode, std::span<std::byte> data) {
+        if (auto self = weak_self.lock()) {
+            ELOG_DEBUG(self->log_, OPAMP, "sendHeartbeat response code: {} payload size: {}", responseCode, data.size());
+            self->handleServerToAgent(reinterpret_cast<const char *>(data.data()), data.size_bytes());
+        }
     };
     transport_->enqueue(endpointHash_, {reinterpret_cast<std::byte *>(payload.data()), payload.length()}, callback);
 }
