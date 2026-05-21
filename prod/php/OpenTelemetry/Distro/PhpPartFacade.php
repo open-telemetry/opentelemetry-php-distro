@@ -91,7 +91,7 @@ final class PhpPartFacade
             self::loadUserBootstrapPhpFile();
             // Declarative configuration (OTEL_CONFIG_FILE) and remote configuration (OpAMP) are mutually exclusive
             if (self::isDeclarativeConfigActive()) {
-                self::logDebug(__LINE__, __FUNCTION__, 'Declarative configuration (OTEL_CONFIG_FILE) is active - skipping remote configuration');
+                self::logDebug(__FUNCTION__)?->with(__LINE__, 'Declarative configuration (OTEL_CONFIG_FILE) is active - skipping remote configuration');
             } else {
                 // RemoteConfigHandler::fetchAndApply depends on OTel SDK so it has to be called after autoloader for OTel SDK is registered
                 RemoteConfigHandler::fetchAndApply();
