@@ -9,13 +9,9 @@ use OpenTelemetry\Distro\Util\WildcardListMatcher;
 use OTelDistroTests\Util\Duration;
 use OTelDistroTests\Util\Log\LoggableInterface;
 
-/**
- * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
- *
- * @internal
- */
 final class ConfigSnapshotForProd implements LoggableInterface
 {
+    /** @use SnapshotTrait<OptionForProdName> */
     use SnapshotTrait;
 
     private readonly ?bool $autoloadEnabled; // @phpstan-ignore property.uninitializedReadonly
@@ -44,25 +40,6 @@ final class ConfigSnapshotForProd implements LoggableInterface
     public function __construct(array $optNameToParsedValue)
     {
         self::setPropertiesToValuesFrom($optNameToParsedValue);
-    }
-
-    public function effectiveLogLevel(): LogLevel
-    {
-        $maxFoundLevel = LogLevel::off;
-
-        $keepMaxLevel = function (LogLevel $logLevel) use (&$maxFoundLevel): void {
-            if ($logLevel->value > $maxFoundLevel->value) {
-                $maxFoundLevel = $logLevel;
-            }
-        };
-
-        $keepMaxLevel($this->logLevelStderr);
-        $keepMaxLevel($this->logLevelSyslog);
-        if ($this->logFile !== null) {
-            $keepMaxLevel($this->logLevelFile);
-        }
-
-        return $maxFoundLevel;
     }
 
     /** @noinspection PhpUnused */

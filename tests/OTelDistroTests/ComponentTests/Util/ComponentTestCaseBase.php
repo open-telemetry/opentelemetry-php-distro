@@ -8,6 +8,7 @@ use OpenTelemetry\Distro\Log\LogLevel;
 use OTelDistroTests\ComponentTests\Util\OtlpData\Span;
 use OTelDistroTests\Util\AmbientContextForTests;
 use OTelDistroTests\Util\ArrayUtilForTests;
+use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\ClassNameUtil;
 use OTelDistroTests\Util\Config\CompositeRawSnapshotSource;
 use OTelDistroTests\Util\Config\ConfigSnapshotForProd;
@@ -15,8 +16,8 @@ use OTelDistroTests\Util\Config\EnvVarsRawSnapshotSource;
 use OTelDistroTests\Util\Config\OptionForProdName;
 use OTelDistroTests\Util\Config\OptionsForProdMetadata;
 use OTelDistroTests\Util\Config\Parser as ConfigParser;
-use OTelDistroTests\Util\DataProviderForTestBuilder;
 use OTelDistroTests\Util\DebugContext;
+use OTelDistroTests\Util\DebugContextScopeRef;
 use OTelDistroTests\Util\IterableUtil;
 use OTelDistroTests\Util\Log\LoggableToString;
 use OTelDistroTests\Util\Log\LogLevelUtil;
@@ -36,6 +37,7 @@ class ComponentTestCaseBase extends TestCaseBase
     protected const SHOULD_APP_CODE_CREATE_DUMMY_SPAN_KEY = 'should_app_code_create_dummy_span';
     protected const APP_CODE_DUMMY_SPAN_NAME = 'app_code_dummy_span_name';
 
+    protected const SUB_APP_CODE_TO_CALL_KEY = 'app_sub_code_to_call';
     protected const DID_APP_CODE_FINISH_SUCCESSFULLY_KEY = 'is_app_code_finished_successfully';
     protected const THROWABLE_FROM_APP_CODE_KEY = 'throwable_from_app_code';
 
@@ -76,53 +78,98 @@ class ComponentTestCaseBase extends TestCaseBase
     }
 
     /**
-     * @param ?callable(): array<string, mixed> $appCodeImpl
-     *
      * @noinspection PhpDocMissingThrowsInspection
      */
-    public static function appCodeSetsHowFinished(MixedMap $appCodeArgs, ?callable $appCodeImpl = null): void
+    public static function appCodeSetsHowFinished(MixedMap $appCodeRequestArgs): void
     {
         $logger = self::getLoggerStatic(__NAMESPACE__, __CLASS__, __FILE__);
-        $loggerProxyDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
-        $logger->addAllContext(compact('appCodeArgs'));
+        $logDebug = $logger->logDebug(__FUNCTION__);
+        $logger->addAllContext(compact('appCodeRequestArgs'));
 
-        $loggerProxyDebug?->log(__LINE__, 'Calling $appCodeImpl() ...');
+        $subAppCode = $appCodeRequestArgs->tryGetArray(self::SUB_APP_CODE_TO_CALL_KEY);
+        $appCodeAuxOutput = [];
         try {
-            $appCodeContextData = [];
-            if ($appCodeImpl !== null) {
-                $appCodeContextData = $appCodeImpl();
+            if ($subAppCode !== null) {
+                self::assertIsCallable($subAppCode);
+                $logDebug?->with(__LINE__, 'Calling $subAppCode() ...', compact('subAppCode', 'appCodeRequestArgs'));
+                $appSubCodeContextData = $subAppCode($appCodeRequestArgs);
+                if ($appSubCodeContextData !== null) {
+                    self::assertIsArray($appSubCodeContextData);
+                    /** @var array<string, mixed> $appSubCodeContextData */
+                    ArrayUtilForTests::append($appSubCodeContextData, /* in,out */ $appCodeAuxOutput);
+                }
             }
-            $loggerProxyDebug?->log(__LINE__, 'Call to $appCodeImpl() finished successfully');
+            $logDebug?->with(__LINE__, 'Call to $appCodeImpl() finished successfully');
         } catch (Throwable $throwable) {
-            $loggerProxyDebug?->logThrowable(__LINE__, $throwable, 'Call to $appCodeImpl() thrown');
-            ArrayUtilForTests::addAssertingKeyNew(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY, false, /* in,out */ $appCodeContextData);
-            ArrayUtilForTests::addAssertingKeyNew(self::THROWABLE_FROM_APP_CODE_KEY, LoggableToString::convert($throwable), /* in,out */ $appCodeContextData);
-            AppCodeContextDataUtil::writeDataToTempFile($appCodeContextData, $appCodeArgs);
+            $logDebug?->withThrowable(__LINE__, 'Call to $appCodeImpl() thrown', $throwable);
+            ArrayUtilForTests::addAssertingKeyNew(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY, false, /* in,out */ $appCodeAuxOutput);
+            ArrayUtilForTests::addAssertingKeyNew(self::THROWABLE_FROM_APP_CODE_KEY, LoggableToString::convert($throwable), /* in,out */ $appCodeAuxOutput);
+            AppCodeAuxOutputUtil::writeDataToTempFile($appCodeAuxOutput, $appCodeRequestArgs);
             throw $throwable;
         }
-        ArrayUtilForTests::addAssertingKeyNew(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY, true, /* in,out */ $appCodeContextData);
-        AppCodeContextDataUtil::writeDataToTempFile($appCodeContextData, $appCodeArgs);
+        ArrayUtilForTests::addAssertingKeyNew(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY, true, /* in,out */ $appCodeAuxOutput);
+        AppCodeAuxOutputUtil::writeDataToTempFile($appCodeAuxOutput, $appCodeRequestArgs);
     }
 
-    public static function appCodeCreatesDummySpan(MixedMap $appCodeArgs): void
+    /**
+     * @phpstan-param ?callable(MixedMap): (void|array<string, mixed>) $subAppCode
+     * @phpstan-param ?positive-int $expectedMinSpanCount
+     * @phpstan-param ?callable(DebugContextScopeRef $dbgCtx, AgentBackendComms $agentBackendComms, MixedMap $appCodeAuxOutput): void $additionalAssertCode
+     */
+    protected function implTestForAppCodeSetsHowFinished(MixedMap $testArgs, ?callable $subAppCode = null, ?int $expectedMinSpanCount = null, ?callable $additionalAssertCode = null): void
     {
-        if ($appCodeArgs->tryToGetBool(self::SHOULD_APP_CODE_CREATE_DUMMY_SPAN_KEY) ?? true) {
+        DebugContext::getCurrentScope(/* out */ $dbgCtx);
+
+        $testCaseHandle = $this->getTestCaseHandle();
+
+        $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
+            function (AppCodeHostParams $appCodeHostParams) use ($testArgs): void {
+                self::ensureTransactionSpanEnabled($appCodeHostParams);
+                self::disableTimingDependentFeatures($appCodeHostParams);
+                self::copyProdOptionsToAppCodeHostParams($testArgs, $appCodeHostParams);
+            }
+        );
+
+        /** @var array<string, mixed> $appCodeRequestArgs */
+        $appCodeRequestArgs = $testArgs->cloneAsArray();
+        AppCodeAuxOutputUtil::createTempFile(__CLASS__, $testCaseHandle, /* in,out */ $appCodeRequestArgs);
+
+        ArrayUtilForTests::addAssertingKeyNew(self::SUB_APP_CODE_TO_CALL_KEY, $subAppCode, /* in,out */ $appCodeRequestArgs);
+        $appCodeHost->execAppCode(
+            AppCodeTarget::asRouted([__CLASS__, 'appCodeSetsHowFinished']),
+            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeRequestArgs): void {
+                $appCodeRequestParams->setAppCodeRequestArgs($appCodeRequestArgs);
+            }
+        );
+
+        $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(WaitForOTelSignalCounts::spans(min: $expectedMinSpanCount ?? 1)); // 1 span (the root span) is the default
+        $dbgCtx->add(compact('agentBackendComms'));
+
+        // Assert
+
+        $appCodeAuxOutput = AppCodeAuxOutputUtil::readDataAsMixedMapFromTempFile($appCodeRequestArgs);
+        $dbgCtx->add(compact('appCodeAuxOutput'));
+        self::assertTrue($appCodeAuxOutput->getBool(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY));
+
+        if ($additionalAssertCode !== null) {
+            $additionalAssertCode($dbgCtx, $agentBackendComms, $appCodeAuxOutput);
+        }
+    }
+
+    public static function appCodeCreatesDummySpan(MixedMap $appCodeRequestArgs): void
+    {
+        if ($appCodeRequestArgs->tryToGetBool(self::SHOULD_APP_CODE_CREATE_DUMMY_SPAN_KEY) ?? true) {
             OTelUtilForTests::startEndSpan(self::APP_CODE_DUMMY_SPAN_NAME);
         }
     }
 
-    protected static function buildResourcesClientForAppCode(): ResourcesClient
+    protected static function buildResourcesCleanerClientForAppCode(): ResourcesCleanerClient
     {
         $resCleanerId = AmbientContextForTests::testConfig()->dataPerProcess()->resourcesCleanerSpawnedProcessInternalId;
         Assert::assertNotNull($resCleanerId);
         $resCleanerPort = AmbientContextForTests::testConfig()->dataPerProcess()->resourcesCleanerPort;
         Assert::assertNotNull($resCleanerPort);
-        return new ResourcesClient($resCleanerId, $resCleanerPort);
-    }
-
-    public static function isSmoke(): bool
-    {
-        return AmbientContextForTests::testConfig()->isSmoke();
+        return new ResourcesCleanerClient($resCleanerId, $resCleanerPort);
     }
 
     public static function isMainAppCodeHostHttp(): bool
@@ -160,90 +207,6 @@ class ComponentTestCaseBase extends TestCaseBase
     }
 
     /**
-     * @template T
-     *
-     * @param iterable<T> $variants
-     *
-     * @return iterable<T>
-     */
-    public static function adaptToSmoke(iterable $variants): iterable
-    {
-        if (!self::isSmoke()) {
-            return $variants;
-        }
-        foreach ($variants as $key => $value) {
-            if (ArrayUtilForTests::isOfArrayKeyType($key)) {
-                return [$key => $value];
-            } else {
-                return [$value];
-            }
-        }
-        return [];
-    }
-
-    /**
-     * @template TKey of array-key
-     * @template TValue
-     *
-     * @param iterable<TKey, TValue> $variants
-     *
-     * @return iterable<TKey, TValue>
-     */
-    public function adaptKeyValueToSmoke(iterable $variants): iterable
-    {
-        if (!self::isSmoke()) {
-            return $variants;
-        }
-        foreach ($variants as $key => $value) {
-            return [$key => $value];
-        }
-        return [];
-    }
-
-    /**
-     * @return callable(iterable<mixed>): iterable<mixed>
-     */
-    public static function adaptToSmokeAsCallable(): callable
-    {
-        /**
-         * @template T
-         *
-         * @param iterable<T> $dataSets
-         *
-         * @return iterable<T>
-         */
-        return function (iterable $dataSets): iterable {
-            return self::adaptToSmoke($dataSets);
-        };
-    }
-
-    /**
-     * @param callable(): iterable<array<string, mixed>> $dataSetsGenerator
-     *
-     * @return iterable<string, array{MixedMap}>
-     */
-    public static function adaptDataSetsGeneratorToSmokeToDescToMixedMap(callable $dataSetsGenerator): iterable
-    {
-        return DataProviderForTestBuilder::convertEachDataSetToMixedMapAndAddDesc(fn() => self::adaptToSmoke($dataSetsGenerator()));
-    }
-
-    /**
-     * @return iterable<string, array{MixedMap}>
-     */
-    public static function adaptDataProviderForTestBuilderToSmokeToDescToMixedMap(DataProviderForTestBuilder $dataProviderForTestBuilder): iterable
-    {
-        return self::adaptDataSetsGeneratorToSmokeToDescToMixedMap(fn() => $dataProviderForTestBuilder->buildWithoutDataSetName()); // @phpstan-ignore argument.type
-    }
-
-    /**
-     * @return iterable<array{bool}>
-     */
-    public static function dataProviderOneBoolArgAdaptedToSmoke(): iterable
-    {
-        return self::adaptToSmoke(self::dataProviderOneBoolArg());
-    }
-
-    /**
      * @param callable(): void $testCall
      *
      * @noinspection PhpDocMissingThrowsInspection
@@ -273,21 +236,23 @@ class ComponentTestCaseBase extends TestCaseBase
         }
 
         $logger = self::getLoggerStatic(__NAMESPACE__, __CLASS__, __FILE__)->addAllContext(compact('dbgTestDesc', 'initiallyFailedTestException'));
-        $loggerProxyOutsideIt = $logger->ifCriticalLevelEnabledNoLine(__FUNCTION__);
+        $logOutsideIt = $logger->logCritical(__FUNCTION__);
 
-        $loggerProxyOutsideIt && $loggerProxyOutsideIt->log(__LINE__, 'Test case code exited by exception');
+        $logOutsideIt?->with(__LINE__, 'Test case code exited by exception');
 
         if ($this->testCaseHandle === null) {
-            $loggerProxyOutsideIt && $loggerProxyOutsideIt->log(__LINE__, 'Test failed but $this->testCaseHandle is null - NOT re-running the test with escalated log levels');
+            $logOutsideIt?->with(__LINE__, 'Test failed but $this->testCaseHandle is null - NOT re-running the test with escalated log levels');
             throw $initiallyFailedTestException;
         }
-        $initiallyFailedTestLogLevels = $this->getCurrentLogLevels($this->testCaseHandle);
+        $escalatedProdLogLevelOptName = AmbientContextForTests::testConfig()->escalatedRerunsProdCodeLogLevelOptionName();
+        $logger->addAllContext(compact('escalatedProdLogLevelOptName'));
+        $initiallyFailedTestLogLevels = $this->getCurrentLogLevels($this->testCaseHandle, $escalatedProdLogLevelOptName);
         if (ArrayUtilForTests::isEmpty($initiallyFailedTestLogLevels)) {
-            $loggerProxyOutsideIt && $loggerProxyOutsideIt->log(__LINE__, 'Test failed but not even one app code host has started successfully - NOT re-running the test with escalated log levels');
+            $logOutsideIt?->with(__LINE__, 'Test failed but not even one app code host has started successfully - NOT re-running the test with escalated log levels');
             throw $initiallyFailedTestException;
         }
         $logger->addAllContext(compact('initiallyFailedTestLogLevels'));
-        $loggerProxyOutsideIt && $loggerProxyOutsideIt->log(__LINE__, 'Test failed');
+        $logOutsideIt?->with(__LINE__, 'Test failed');
 
         $escalatedLogLevelsSeq = self::generateLevelsForRunAndEscalateLogLevelOnFailure($initiallyFailedTestLogLevels, AmbientContextForTests::testConfig()->escalatedRerunsMaxCount);
         $rerunCount = 0;
@@ -296,26 +261,26 @@ class ComponentTestCaseBase extends TestCaseBase
 
             ++$rerunCount;
             $loggerPerIt = $logger->inherit()->addAllContext(compact('rerunCount', 'escalatedLogLevels'));
-            $loggerProxyPerIt = $loggerPerIt->ifCriticalLevelEnabledNoLine(__FUNCTION__);
+            $logPerIt = $loggerPerIt->logCritical(__FUNCTION__);
 
-            $loggerProxyPerIt && $loggerProxyPerIt->log(__LINE__, 'Re-running failed test with escalated log levels...');
+            $logPerIt?->with(__LINE__, 'Re-running failed test with escalated log levels...');
 
             AmbientContextForTests::resetLogLevel($escalatedLogLevels[self::LOG_LEVEL_FOR_TEST_CODE_KEY]);
             $this->initTestCaseHandle($escalatedLogLevels[self::LOG_LEVEL_FOR_PROD_CODE_KEY]);
 
             try {
                 $testCall();
-                $loggerProxyPerIt && $loggerProxyPerIt->log(__LINE__, 'Re-run of failed test with escalated log levels did NOT fail (which is bad :(');
+                $logPerIt?->with(__LINE__, 'Re-run of failed test with escalated log levels did NOT fail (which is bad :(');
             } catch (Throwable $ex) {
-                $loggerProxyPerIt && $loggerProxyPerIt->log(__LINE__, 'Re-run of failed test with escalated log levels failed (which is good :)', compact('ex'));
+                $logPerIt?->with(__LINE__, 'Re-run of failed test with escalated log levels failed (which is good :)', compact('ex'));
                 throw $ex;
             }
         }
 
         if ($rerunCount === 0) {
-            $loggerProxyOutsideIt && $loggerProxyOutsideIt->log(__LINE__, 'There were no test re-runs with escalated log levels - re-throwing original test failure exception');
+            $logOutsideIt?->with(__LINE__, 'There were no test re-runs with escalated log levels - re-throwing original test failure exception');
         } else {
-            $loggerProxyOutsideIt && $loggerProxyOutsideIt->log(__LINE__, 'All test re-runs with escalated log levels did NOT fail (which is bad :( - re-throwing original test failure exception');
+            $logOutsideIt?->with(__LINE__, 'All test re-runs with escalated log levels did NOT fail (which is bad :( - re-throwing original test failure exception');
         }
         throw $initiallyFailedTestException;
     }
@@ -337,15 +302,13 @@ class ComponentTestCaseBase extends TestCaseBase
     }
 
     /**
-     * @param TestCaseHandle $testCaseHandle
-     *
      * @return array<string, LogLevel>
      */
-    private function getCurrentLogLevels(TestCaseHandle $testCaseHandle): array
+    private function getCurrentLogLevels(TestCaseHandle $testCaseHandle, OptionForProdName $logLevelOptName): array
     {
         /** @var array<string, LogLevel> $result */
         $result = [];
-        $prodCodeLogLevels = $testCaseHandle->getProdCodeLogLevels();
+        $prodCodeLogLevels = $testCaseHandle->getProdCodeLogLevels($logLevelOptName);
         if (ArrayUtilForTests::isEmpty($prodCodeLogLevels)) {
             return [];
         }
@@ -437,7 +400,7 @@ class ComponentTestCaseBase extends TestCaseBase
         return $array[$key];
     }
 
-    protected static function buildProdConfigFromAppCode(): ConfigSnapshotForProd
+    protected static function buildProdConfigInAppCodeContext(): ConfigSnapshotForProd
     {
         /** @var ?array<string, string[]> $envVarPrefixToOptNames */
         static $envVarPrefixToOptNames = null;
@@ -473,26 +436,28 @@ class ComponentTestCaseBase extends TestCaseBase
             : CliScriptAppCodeHostHandle::getRunScriptNameFullPath();
     }
 
-    protected static function disableTimingDependentFeatures(AppCodeHostParams $appCodeParams): void
+    protected static function disableTimingDependentFeatures(AppCodeHostParams $appCodeHostParams): void
     {
-        $appCodeParams->setProdOption(OptionForProdName::inferred_spans_enabled, false);
+        $appCodeHostParams->setProdOption(OptionForProdName::inferred_spans_enabled, false);
     }
 
-    protected static function ensureTransactionSpanEnabled(AppCodeHostParams $appCodeParams): void
+    protected static function ensureTransactionSpanEnabled(AppCodeHostParams $appCodeHostParams): void
     {
-        $appCodeParams->setProdOption(OptionForProdName::transaction_span_enabled, true);
-        $appCodeParams->setProdOption(OptionForProdName::transaction_span_enabled_cli, true);
+        $appCodeHostParams->setProdOption(OptionForProdName::transaction_span_enabled, true);
+        $appCodeHostParams->setProdOption(OptionForProdName::transaction_span_enabled_cli, true);
     }
 
-    protected static function copyProdOptionsToAppCodeHostParams(MixedMap $testArgs, AppCodeHostParams $appCodeParams): void
+    protected static function copyProdOptionsToAppCodeHostParams(MixedMap $testArgs, AppCodeHostParams $appCodeHostParams): void
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
         $dbgCtx->pushSubScope();
         foreach ($testArgs as $testArgKey => $testArgVal) {
-            if ((($optName = OptionForProdName::tryToFindByName($testArgKey)) !== null) && ($testArgVal !== OptionsForProdMetadata::get()[$optName->name]->defaultValue())) {
+            if (array_key_exists($testArgKey, OptionsForProdMetadata::get())) {
                 $dbgCtx->resetTopSubScope(compact('testArgKey', 'testArgVal'));
-                self::assertTrue(is_string($testArgVal) || is_int($testArgVal) || is_float($testArgVal) || is_bool($testArgVal));
-                $appCodeParams->setProdOption($optName, $testArgVal);
+                $appCodeHostParams->setProdOptionIfNotDefault(
+                    AssertEx::notNull(OptionForProdName::tryToFindByName($testArgKey)),
+                    $testArgVal === null ? null : AppCodeHostParams::assertValidProdOptionValueType($testArgVal, $testArgKey),
+                );
             }
         }
         $dbgCtx->popSubScope();

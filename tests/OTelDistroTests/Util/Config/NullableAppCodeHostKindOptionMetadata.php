@@ -17,6 +17,6 @@ final class NullableAppCodeHostKindOptionMetadata extends NullableOptionMetadata
 {
     public function __construct()
     {
-        parent::__construct(EnumOptionParser::useEnumCasesValues(AppCodeHostKind::class, isCaseSensitive: false, isUnambiguousPrefixAllowed: false));
+        parent::__construct(EnumOptionParser::useEnumCasesNames(AppCodeHostKind::class, isCaseSensitive: true, isUnambiguousPrefixAllowed: false));
     }
 }

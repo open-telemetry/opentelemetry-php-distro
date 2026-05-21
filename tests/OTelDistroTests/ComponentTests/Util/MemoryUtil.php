@@ -21,10 +21,7 @@ final class MemoryUtil
     {
         /** @var list<string> $unitsSuffixes */
         static $unitsSuffixes = ['B', 'KB', 'MB', 'GB', 'TB'];
-        /**
-         * @var int $unitsStep
-         * @noinspection PhpRedundantVariableDocTypeInspection
-         */
+        /** @phpstan-var int $unitsStep */
         static $unitsStep = 1024;
 
         $absSizeInBytes = AssertEx::isInt(abs($sizeInBytes));
@@ -86,7 +83,7 @@ final class MemoryUtil
             $ctx = array_merge(self::formatArrayNameValuesSizeInBytes(compact('delta')), $ctx);
         }
 
-        ($loggerProxy = $logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__)) && $loggerProxy->log("Memory message", $ctx);
+        $logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Memory message', $ctx);
 
         return $current;
     }

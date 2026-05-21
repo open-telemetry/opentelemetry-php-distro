@@ -48,7 +48,7 @@ final class TransactionSpanTest extends ComponentTestCaseBase
     /**
      * @return iterable<string, array{MixedMap}>
      */
-    public static function dataProviderForTestFeatureWithVariousEnabledConfigCombos(): iterable
+    public static function dataProviderForTestTransactionSpan(): iterable
     {
         /**
          * @return iterable<array<string, mixed>>
@@ -71,44 +71,7 @@ final class TransactionSpanTest extends ComponentTestCaseBase
         return self::adaptDataSetsGeneratorToSmokeToDescToMixedMap($generateDataSets);
     }
 
-    public static function appCodeForTestFeatureWithVariousEnabledConfigCombos(MixedMap $appCodeArgs): void
-    {
-        ///////////////////////////////////////////////////////////////////////////
-        // TODO: Sergey Kleyman: BEGIN: REMOVE: ::
-        ///////////////////////////////////////
-        $log = self::getLoggerStatic(__NAMESPACE__, __CLASS__, __FILE__)->ifCriticalLevelEnabledNoLine(__FUNCTION__);
-        $isScopingEnabled = AppCodeContextUtil::isScopingEnabled();
-        $log?->log(__LINE__, '', compact('isScopingEnabled'));
-        $pdoInstrumOriginalFqClassName = 'OpenTelemetry\\Contrib\\Instrumentation\\PDO\\PDOInstrumentation';
-        $pdoInstrumenScopedFqClassName = AppCodeContextUtil::buildScopedClassNameFromRawString($pdoInstrumOriginalFqClassName);
-        if ($isScopingEnabled) {
-            self::assertSame($pdoInstrumenScopedFqClassName, AppCodeContextUtil::adaptClassNameRawStringToScoping($pdoInstrumOriginalFqClassName));
-            self::assertFalse(class_exists($pdoInstrumOriginalFqClassName));
-            self::assertTrue(class_exists($pdoInstrumenScopedFqClassName));
-            self::assertStringStartsWith(OTelDistroScoperConfig::PREFIX, $pdoInstrumenScopedFqClassName);
-            self::assertStringEndsWith($pdoInstrumOriginalFqClassName, $pdoInstrumenScopedFqClassName);
-        } else {
-            self::assertSame($pdoInstrumOriginalFqClassName, AppCodeContextUtil::adaptClassNameRawStringToScoping($pdoInstrumOriginalFqClassName));
-            self::assertTrue(class_exists($pdoInstrumOriginalFqClassName));
-            self::assertFalse(class_exists($pdoInstrumenScopedFqClassName));
-            self::fail('Dummy fail when scoping is disabled');
-        }
-        ///////////////////////////////////////
-        // END: REMOVE
-        ////////////////////////////////////////////////////////////////////////////
-        self::appCodeSetsHowFinished(
-            $appCodeArgs,
-            /**
-             * @retrun array<string, mixed>
-             */
-            function () use ($appCodeArgs): array {
-                self::appCodeCreatesDummySpan($appCodeArgs);
-                return [];
-            }
-        );
-    }
-
-    public function implTestFeatureWithVariousEnabledConfigCombos(MixedMap $testArgs): void
+    private function implTestTransactionSpan(MixedMap $testArgs): void
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
@@ -119,19 +82,20 @@ final class TransactionSpanTest extends ComponentTestCaseBase
         $shouldAppCodeCreateDummySpan = $testArgs->getBool(self::SHOULD_APP_CODE_CREATE_DUMMY_SPAN_KEY);
 
         $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
-            function (AppCodeHostParams $appCodeParams) use ($transactionSpanEnabled, $transactionSpanEnabledCli): void {
-                $appCodeParams->setProdOptionIfNotNull(OptionForProdName::transaction_span_enabled, $transactionSpanEnabled);
-                $appCodeParams->setProdOptionIfNotNull(OptionForProdName::transaction_span_enabled_cli, $transactionSpanEnabledCli);
+            function (AppCodeHostParams $appCodeHostParams) use ($transactionSpanEnabled, $transactionSpanEnabledCli): void {
+                $appCodeHostParams->setProdOptionIfNotNull(OptionForProdName::transaction_span_enabled, $transactionSpanEnabled);
+                $appCodeHostParams->setProdOptionIfNotNull(OptionForProdName::transaction_span_enabled_cli, $transactionSpanEnabledCli);
             }
         );
 
-        $appCodeArgs = $testArgs->cloneAsArray();
-        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeArgs);
+        $appCodeRequestArgs = $testArgs->cloneAsArray();
+        AppCodeAuxOutputUtil::createTempFile(__CLASS__, $testCaseHandle, /* in,out */ $appCodeRequestArgs);
 
+        ArrayUtilForTests::addAssertingKeyNew(self::SUB_APP_CODE_TO_CALL_KEY, [__CLASS__, 'appCodeCreatesDummySpan'], /* in,out */ $appCodeRequestArgs);
         $appCodeHost->execAppCode(
-            AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestFeatureWithVariousEnabledConfigCombos']),
-            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeArgs): void {
-                $appCodeRequestParams->setAppCodeArgs($appCodeArgs);
+            AppCodeTarget::asRouted([__CLASS__, 'appCodeSetsHowFinished']),
+            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeRequestArgs): void {
+                $appCodeRequestParams->setAppCodeRequestArgs($appCodeRequestArgs);
             }
         );
 
@@ -185,9 +149,9 @@ final class TransactionSpanTest extends ComponentTestCaseBase
 
         // Assert
 
-        $appCodeContextData = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeArgs);
-        $dbgCtx->add(compact('appCodeContextData'));
-        self::assertTrue($appCodeContextData->getBool(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY));
+        $appCodeAuxOutput = AppCodeAuxOutputUtil::readDataAsMixedMapFromTempFile($appCodeRequestArgs);
+        $dbgCtx->add(compact('appCodeAuxOutput'));
+        self::assertTrue($appCodeAuxOutput->getBool(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY));
 
         $rootSpan = null;
         $dummySpan = null;
@@ -220,15 +184,10 @@ final class TransactionSpanTest extends ComponentTestCaseBase
 
 
     /**
-     * @dataProvider dataProviderForTestFeatureWithVariousEnabledConfigCombos
+     * @dataProvider dataProviderForTestTransactionSpan
      */
-    public function testFeatureWithVariousEnabledConfigCombos(MixedMap $testArgs): void
+    public function testTransactionSpan(MixedMap $testArgs): void
     {
-        self::runAndEscalateLogLevelOnFailure(
-            self::buildDbgDescForTestWithArgs(__CLASS__, __FUNCTION__, $testArgs),
-            function () use ($testArgs): void {
-                $this->implTestFeatureWithVariousEnabledConfigCombos($testArgs);
-            }
-        );
+        $this->runAndEscalateLogLevelOnFailure(self::buildDbgDescForTestWithArgs(__CLASS__, __FUNCTION__, $testArgs), fn() => $this->implTestTransactionSpan($testArgs));
     }
 }

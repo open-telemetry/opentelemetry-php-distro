@@ -25,7 +25,7 @@ abstract class AppCodeHostBase extends SpawnedProcessBase
 
         $this->logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->addAllContext(compact('this'));
 
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__)) && $loggerProxy->log('Done');
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Done');
     }
 
     #[Override]
@@ -38,7 +38,7 @@ abstract class AppCodeHostBase extends SpawnedProcessBase
     protected function processConfig(): void
     {
         parent::processConfig();
-        AmbientContextForTests::testConfig()->validateForAppCode();
+        AmbientContextForTests::testConfig()->verifyForAppCode();
     }
 
     abstract protected function runImpl(): void;
@@ -60,7 +60,7 @@ abstract class AppCodeHostBase extends SpawnedProcessBase
                     throw new ComponentTestsInfraException($adaptedClassName . '::$wasBootstrapCalled is false while it should be true for the process with app code');
                 }
 
-                AmbientContextForTests::testConfig()->validateForAppCodeRequest();
+                AmbientContextForTests::testConfig()->verifyForAppCodeRequest();
 
                 $thisObj->runImpl();
             }
@@ -76,9 +76,9 @@ abstract class AppCodeHostBase extends SpawnedProcessBase
     protected function callAppCode(): void
     {
         $dataPerRequest = AmbientContextForTests::testConfig()->dataPerRequest();
-        $loggerProxyDebug = $this->logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
+        $logDebug = $this->logger->logDebug(__FUNCTION__);
 
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Calling application code...', compact('dataPerRequest'));
+        $logDebug?->with(__LINE__, 'Calling application code...', compact('dataPerRequest'));
 
         $msg = LoggableToString::convert(AmbientContextForTests::testConfig());
         $appCodeTarget = $dataPerRequest->appCodeTarget;
@@ -89,18 +89,18 @@ abstract class AppCodeHostBase extends SpawnedProcessBase
         try {
             $methodToCall = [$appCodeTarget->appCodeClass, $appCodeTarget->appCodeMethod];
             Assert::assertIsCallable($methodToCall, $msg);
-            $appCodeArguments = $dataPerRequest->appCodeArguments;
-            if ($appCodeArguments === null) {
+            $appCodeRequestArgs = $dataPerRequest->appCodeRequestArgs;
+            if ($appCodeRequestArgs === null) {
                 call_user_func($methodToCall);
             } else {
-                call_user_func($methodToCall, new MixedMap($appCodeArguments));
+                call_user_func($methodToCall, new MixedMap($appCodeRequestArgs));
             }
         } catch (Throwable $throwable) {
-            $loggerProxy = ($dataPerRequest->isAppCodeExpectedToThrow) ? $loggerProxyDebug : $this->logger->ifCriticalLevelEnabledNoLine(__FUNCTION__);
-            $loggerProxy && $loggerProxy->logThrowable(__LINE__, $throwable, 'Call to application code exited by exception');
+            $logThrown = ($dataPerRequest->isAppCodeExpectedToThrow) ? $logDebug : $this->logger->logCritical(__FUNCTION__);
+            $logThrown?->withThrowable(__LINE__, 'Call to application code exited by exception', $throwable);
             throw $dataPerRequest->isAppCodeExpectedToThrow ? new WrappedAppCodeException($throwable) : $throwable;
         }
 
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Call to application code completed');
+        $logDebug?->with(__LINE__, 'Call to application code completed');
     }
 }

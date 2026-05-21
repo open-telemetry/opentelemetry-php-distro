@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace OTelDistroTests\ComponentTests\UtilTests;
 
 use OpenTelemetry\Distro\Log\LogLevel;
-use OTelDistroTests\ComponentTests\Util\AppCodeContextDataUtil;
+use OTelDistroTests\ComponentTests\Util\AppCodeAuxOutputUtil;
+use OTelDistroTests\ComponentTests\Util\AppCodeHostParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeRequestParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeTarget;
 use OTelDistroTests\ComponentTests\Util\ComponentTestCaseBase;
 use OTelDistroTests\ComponentTests\Util\EnvVarUtilForTests;
+use OTelDistroTests\ComponentTests\Util\WaitForOTelSignalCounts;
 use OTelDistroTests\Util\AmbientContextForTests;
 use OTelDistroTests\Util\ArrayUtilForTests;
 use OTelDistroTests\Util\Config\OptionForProdName;
@@ -51,151 +53,67 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
         return 'Dummy failed; run count: ' . $runCount;
     }
 
-    public static function appCodeForTestRunAndEscalateLogLevelOnFailure(MixedMap $appCodeArgs): void
+    public static function appCodeForTestRunAndEscalateLogLevelOnFailure(MixedMap $appCodeRequestArgs): void
     {
-        self::appCodeSetsHowFinished(
-            $appCodeArgs,
-            /**
-             * @retrun array<string, mixed>
-             */
-            function () use ($appCodeArgs): array {
-                DebugContext::getCurrentScope(/* out */ $dbgCtx);
-                $dbgCtx->add(compact('appCodeArgs'));
-                $dbgCtx->add(['testConfig' => AmbientContextForTests::testConfig()]);
-                $expectedLogLevelForProdCode = $appCodeArgs->getLogLevel(self::LOG_LEVEL_FOR_PROD_CODE_KEY);
-                $dbgCtx->add(compact('expectedLogLevelForProdCode'));
-                $prodConfig = self::buildProdConfigFromAppCode();
-                $dbgCtx->add(compact('prodConfig'));
-                $actualLogLevelForProdCode = $prodConfig->effectiveLogLevel();
-                $dbgCtx->add(compact('actualLogLevelForProdCode'));
-                self::assertSame($expectedLogLevelForProdCode, $actualLogLevelForProdCode);
-                $expectedLogLevelForTestCode = $appCodeArgs->getLogLevel(self::LOG_LEVEL_FOR_TEST_CODE_KEY);
-                $dbgCtx->add(compact('expectedLogLevelForTestCode'));
-                $actualLogLevelForTestCode = AmbientContextForTests::testConfig()->logLevel;
-                $dbgCtx->add(compact('actualLogLevelForTestCode'));
-                self::assertSame($expectedLogLevelForTestCode, $actualLogLevelForTestCode);
-                return [];
-            }
-        );
+        DebugContext::getCurrentScope(/* out */ $dbgCtx);
+        $dbgCtx->add(compact('appCodeRequestArgs'));
+        $dbgCtx->add(['testConfig' => AmbientContextForTests::testConfig()]);
+        $expectedLogLevelForProdCode = $appCodeRequestArgs->getLogLevel(self::LOG_LEVEL_FOR_PROD_CODE_KEY);
+        $dbgCtx->add(compact('expectedLogLevelForProdCode'));
+        $prodConfig = self::buildProdConfigInAppCodeContext();
+        $dbgCtx->add(compact('prodConfig'));
+        $actualLogLevelForProdCode = $prodConfig->getOptionValueByName(AmbientContextForTests::testConfig()->escalatedRerunsProdCodeLogLevelOptionName());
+        $dbgCtx->add(compact('actualLogLevelForProdCode'));
+        self::assertSame($expectedLogLevelForProdCode, $actualLogLevelForProdCode);
+        $expectedLogLevelForTestCode = $appCodeRequestArgs->getLogLevel(self::LOG_LEVEL_FOR_TEST_CODE_KEY);
+        $dbgCtx->add(compact('expectedLogLevelForTestCode'));
+        $actualLogLevelForTestCode = AmbientContextForTests::testConfig()->logLevel;
+        $dbgCtx->add(compact('actualLogLevelForTestCode'));
+        self::assertSame($expectedLogLevelForTestCode, $actualLogLevelForTestCode);
     }
 
     public function test0WithoutEscalation(): void
     {
+        /**
+         * This test case cannot be refactored to use ComponentTestCaseBase::implTestForAppCodeSetsHowFinished
+         * because it needs for the main app code host to be created for $testCaseHandle->getProdCodeLogLevels
+         * to work correctly
+         */
+
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
         $testCaseHandle = $this->getTestCaseHandle();
-        $appCodeHost = $testCaseHandle->ensureMainAppCodeHost();
 
-        $appCodeArgs = [];
-        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeArgs);
-
-        $appCodeHost->execAppCode(
-            AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestRunAndEscalateLogLevelOnFailure']),
-            function (AppCodeRequestParams $appCodeRequestParams) use ($testCaseHandle, $appCodeArgs): void {
-                $appCodeRequestParams->setAppCodeArgs(
-                    $appCodeArgs
-                    + [
-                        self::LOG_LEVEL_FOR_PROD_CODE_KEY => ArrayUtilForTests::getSingleValue($testCaseHandle->getProdCodeLogLevels()),
-                        self::LOG_LEVEL_FOR_TEST_CODE_KEY => AmbientContextForTests::testConfig()->logLevel,
-                    ]
-                );
+        $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
+            function (AppCodeHostParams $appCodeHostParams): void {
+                self::ensureTransactionSpanEnabled($appCodeHostParams);
             }
         );
 
-        $this->waitForOneSpan($testCaseHandle);
+        /** @var array<string, mixed> $appCodeRequestArgs */
+        $appCodeRequestArgs = [
+            self::LOG_LEVEL_FOR_PROD_CODE_KEY =>
+                ArrayUtilForTests::getSingleValue($testCaseHandle->getProdCodeLogLevels(AmbientContextForTests::testConfig()->escalatedRerunsProdCodeLogLevelOptionName())),
+            self::LOG_LEVEL_FOR_TEST_CODE_KEY => AmbientContextForTests::testConfig()->logLevel,
+        ];
+        AppCodeAuxOutputUtil::createTempFile(__CLASS__, $testCaseHandle, /* in,out */ $appCodeRequestArgs);
+
+        ArrayUtilForTests::addAssertingKeyNew(self::SUB_APP_CODE_TO_CALL_KEY, [__CLASS__, 'appCodeForTestRunAndEscalateLogLevelOnFailure'], /* in,out */ $appCodeRequestArgs);
+        $appCodeHost->execAppCode(
+            AppCodeTarget::asRouted([__CLASS__, 'appCodeSetsHowFinished']),
+            function (AppCodeRequestParams $appCodeRequestParams) use ($appCodeRequestArgs): void {
+                $appCodeRequestParams->setAppCodeRequestArgs($appCodeRequestArgs);
+            }
+        );
+
+        $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(WaitForOTelSignalCounts::spans(1)); // exactly 1 span (the root span) is expected
+        $dbgCtx->add(compact('agentBackendComms'));
 
         // Assert
 
-        $appCodeContextData = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeArgs);
-        $dbgCtx->add(compact('appCodeContextData'));
-        self::assertTrue($appCodeContextData->getBool(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY));
-    }
-
-    /**
-     * @return array<string, ?string>
-     */
-    private static function unsetLogLevelRelatedEnvVars(): array
-    {
-        $envVars = EnvVarUtilForTests::getAll();
-        $logLevelRelatedEnvVarsToRestore = [];
-        foreach (OptionForProdName::getAllLogLevelRelated() as $optName) {
-            $envVarName = $optName->toEnvVarName();
-            if (array_key_exists($envVarName, $envVars)) {
-                $logLevelRelatedEnvVarsToRestore[$envVarName] = $envVars[$envVarName];
-                EnvVarUtilForTests::unset($envVarName);
-            } else {
-                $logLevelRelatedEnvVarsToRestore[$envVarName] = null;
-            }
-
-            self::assertNull(EnvVarUtilForTests::get($envVarName));
-        }
-        return $logLevelRelatedEnvVarsToRestore;
-    }
-
-    /**
-     * @dataProvider dataProviderForTestRunAndEscalateLogLevelOnFailure
-     */
-    public function testRunAndEscalateLogLevelOnFailure(MixedMap $testArgs): void
-    {
-        // TODO: Re-enable ComponentTestsUtilComponentTest::testRunAndEscalateLogLevelOnFailure
-        // Temporarily disable this test since it's flaky
-        if (self::dummyAssert()) {
-            return;
-        }
-
-        $logLevelRelatedEnvVarsToRestore = self::unsetLogLevelRelatedEnvVars();
-        $prodCodeSyslogLevelEnvVarName = OptionForProdName::log_level_syslog->toEnvVarName();
-        $initialLogLevelForProdCode = $testArgs->getLogLevel(self::LOG_LEVEL_FOR_PROD_CODE_KEY);
-        EnvVarUtilForTests::set($prodCodeSyslogLevelEnvVarName, $initialLogLevelForProdCode->name);
-
-        $logLevelForTestCodeToRestore = AmbientContextForTests::testConfig()->logLevel;
-        $initialLogLevelForTestCode = $testArgs->getLogLevel(self::LOG_LEVEL_FOR_TEST_CODE_KEY);
-        AmbientContextForTests::resetLogLevel($initialLogLevelForTestCode);
-
-        $rerunsMaxCountToRestore = AmbientContextForTests::testConfig()->escalatedRerunsMaxCount;
-        $rerunsMaxCount = $testArgs->getInt(OptionForTestsName::escalated_reruns_max_count->name);
-        AmbientContextForTests::resetEscalatedRerunsMaxCount($rerunsMaxCount);
-
-        $initialLevels = [];
-        foreach (self::LOG_LEVEL_FOR_CODE_KEYS as $levelTypeKey) {
-            $initialLevels[$levelTypeKey] = $testArgs->getLogLevel($levelTypeKey);
-        }
-        $testArgs[self::INITIAL_LOG_LEVELS_KEY] = $initialLevels;
-        $expectedEscalatedLevelsSeqCount = IterableUtil::count(self::generateLevelsForRunAndEscalateLogLevelOnFailure($initialLevels, $rerunsMaxCount));
-        if ($rerunsMaxCount === 0) {
-            self::assertSame(0, $expectedEscalatedLevelsSeqCount);
-        }
-        $failOnRerunCountArg = $testArgs->getInt(self::FAIL_ON_RERUN_COUNT_KEY);
-        $expectedFailOnRunCount = $failOnRerunCountArg <= $expectedEscalatedLevelsSeqCount ? ($failOnRerunCountArg + 1) : 1;
-        $expectedMessage = self::buildFailMessage($expectedFailOnRunCount);
-        $shouldFail = $testArgs->getBool(self::SHOULD_FAIL_KEY);
-
-        $nextRunCount = 1;
-        try {
-            self::runAndEscalateLogLevelOnFailure(
-                self::buildDbgDescForTestWithArgs(__CLASS__, __FUNCTION__, $testArgs),
-                function () use ($testArgs, &$nextRunCount): void {
-                    $testArgs['currentRunCount'] = $nextRunCount++;
-                    $this->implTestRunAndEscalateLogLevelOnFailure($testArgs);
-                }
-            );
-            $runAndEscalateLogLevelOnFailureExitedNormally = true;
-        } catch (PHPUnitFrameworkException $ex) {
-            $runAndEscalateLogLevelOnFailureExitedNormally = false;
-            self::assertStringContainsString($expectedMessage, $ex->getMessage());
-        }
-        self::assertSame(!$shouldFail, $runAndEscalateLogLevelOnFailureExitedNormally);
-
-        self::assertSame($rerunsMaxCount, AmbientContextForTests::testConfig()->escalatedRerunsMaxCount);
-        AmbientContextForTests::resetEscalatedRerunsMaxCount($rerunsMaxCountToRestore);
-
-        self::assertSame($initialLogLevelForTestCode, AmbientContextForTests::testConfig()->logLevel);
-        AmbientContextForTests::resetLogLevel($logLevelForTestCodeToRestore);
-
-        self::assertSame($initialLogLevelForProdCode->name, EnvVarUtilForTests::get($prodCodeSyslogLevelEnvVarName));
-        foreach ($logLevelRelatedEnvVarsToRestore as $envVarName => $envVarValue) {
-            EnvVarUtilForTests::setOrUnset($envVarName, $envVarValue);
-        }
+        $appCodeAuxOutput = AppCodeAuxOutputUtil::readDataAsMixedMapFromTempFile($appCodeRequestArgs);
+        $dbgCtx->add(compact('appCodeAuxOutput'));
+        self::assertTrue($appCodeAuxOutput->getBool(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY));
     }
 
     private function implTestRunAndEscalateLogLevelOnFailure(MixedMap $testArgs): void
@@ -227,16 +145,16 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
         $testCaseHandle = $this->getTestCaseHandle();
         $appCodeHost = $testCaseHandle->ensureMainAppCodeHost();
 
-        $appCodeArgs = [];
-        AppCodeContextDataUtil::createTempFile($testCaseHandle, /* in,out */ $appCodeArgs);
+        $appCodeRequestArgs = [];
+        AppCodeAuxOutputUtil::createTempFile(__CLASS__, $testCaseHandle, /* in,out */ $appCodeRequestArgs);
 
         $appCodeHost->execAppCode(
             AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestRunAndEscalateLogLevelOnFailure']),
-            function (AppCodeRequestParams $appCodeRequestParams) use ($expectedLevels, $appCodeArgs): void {
+            function (AppCodeRequestParams $appCodeRequestParams) use ($expectedLevels, $appCodeRequestArgs): void {
                 foreach (self::LOG_LEVEL_FOR_CODE_KEYS as $levelTypeKey) {
-                    $appCodeArgs[$levelTypeKey] = $expectedLevels[$levelTypeKey];
+                    $appCodeRequestArgs[$levelTypeKey] = $expectedLevels[$levelTypeKey];
                 }
-                $appCodeRequestParams->setAppCodeArgs($appCodeArgs);
+                $appCodeRequestParams->setAppCodeRequestArgs($appCodeRequestArgs);
             }
         );
 
@@ -244,12 +162,74 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
 
         // Assert
 
-        $appCodeContextData = AppCodeContextDataUtil::readDataAsMixedMapFromTempFile($appCodeArgs);
-        $dbgCtx->add(compact('appCodeContextData'));
-        self::assertTrue($appCodeContextData->getBool(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY));
+        $appCodeAuxOutput = AppCodeAuxOutputUtil::readDataAsMixedMapFromTempFile($appCodeRequestArgs);
+        $dbgCtx->add(compact('appCodeAuxOutput'));
+        self::assertTrue($appCodeAuxOutput->getBool(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY));
 
         if ($shouldCurrentRunFail) {
             self::fail(self::buildFailMessage($currentRunCount));
         }
+    }
+
+    /**
+     * @dataProvider dataProviderForTestRunAndEscalateLogLevelOnFailure
+     */
+    public function testRunAndEscalateLogLevelOnFailure(MixedMap $testArgs): void
+    {
+        // TODO: Re-enable ComponentTestsUtilComponentTest::testRunAndEscalateLogLevelOnFailure
+        // Temporarily disable this test since it's flaky
+        if (self::dummyAssert()) {
+            return;
+        }
+
+        $prodCodeSyslogLevelEnvVarName = OptionForProdName::log_level_syslog->toEnvVarName();
+        $initialLogLevelForProdCode = $testArgs->getLogLevel(self::LOG_LEVEL_FOR_PROD_CODE_KEY);
+        EnvVarUtilForTests::set($prodCodeSyslogLevelEnvVarName, $initialLogLevelForProdCode->name);
+
+        $logLevelForTestCodeToRestore = AmbientContextForTests::testConfig()->logLevel;
+        $initialLogLevelForTestCode = $testArgs->getLogLevel(self::LOG_LEVEL_FOR_TEST_CODE_KEY);
+        AmbientContextForTests::resetLogLevel($initialLogLevelForTestCode);
+
+        $rerunsMaxCountToRestore = AmbientContextForTests::testConfig()->escalatedRerunsMaxCount;
+        $rerunsMaxCount = $testArgs->getInt(OptionForTestsName::escalated_reruns_max_count->name);
+        AmbientContextForTests::resetEscalatedRerunsMaxCount($rerunsMaxCount);
+
+        $initialLevels = [];
+        foreach (self::LOG_LEVEL_FOR_CODE_KEYS as $levelTypeKey) {
+            $initialLevels[$levelTypeKey] = $testArgs->getLogLevel($levelTypeKey);
+        }
+        $testArgs[self::INITIAL_LOG_LEVELS_KEY] = $initialLevels;
+        $expectedEscalatedLevelsSeqCount = IterableUtil::count(self::generateLevelsForRunAndEscalateLogLevelOnFailure($initialLevels, $rerunsMaxCount));
+        if ($rerunsMaxCount === 0) {
+            self::assertSame(0, $expectedEscalatedLevelsSeqCount);
+        }
+        $failOnRerunCountArg = $testArgs->getInt(self::FAIL_ON_RERUN_COUNT_KEY);
+        $expectedFailOnRunCount = $failOnRerunCountArg <= $expectedEscalatedLevelsSeqCount ? ($failOnRerunCountArg + 1) : 1;
+        $expectedMessage = self::buildFailMessage($expectedFailOnRunCount);
+        $shouldFail = $testArgs->getBool(self::SHOULD_FAIL_KEY);
+
+        $nextRunCount = 1;
+        try {
+            $this->runAndEscalateLogLevelOnFailure(
+                self::buildDbgDescForTestWithArgs(__CLASS__, __FUNCTION__, $testArgs),
+                function () use ($testArgs, &$nextRunCount): void {
+                    $testArgs['currentRunCount'] = $nextRunCount++;
+                    $this->implTestRunAndEscalateLogLevelOnFailure($testArgs);
+                }
+            );
+            $runAndEscalateLogLevelOnFailureExitedNormally = true;
+        } catch (PHPUnitFrameworkException $ex) {
+            $runAndEscalateLogLevelOnFailureExitedNormally = false;
+            self::assertStringContainsString($expectedMessage, $ex->getMessage());
+        }
+        self::assertSame(!$shouldFail, $runAndEscalateLogLevelOnFailureExitedNormally);
+
+        self::assertSame($rerunsMaxCount, AmbientContextForTests::testConfig()->escalatedRerunsMaxCount);
+        AmbientContextForTests::resetEscalatedRerunsMaxCount($rerunsMaxCountToRestore);
+
+        self::assertSame($initialLogLevelForTestCode, AmbientContextForTests::testConfig()->logLevel);
+        AmbientContextForTests::resetLogLevel($logLevelForTestCodeToRestore);
+
+        self::assertSame($initialLogLevelForProdCode->name, EnvVarUtilForTests::get($prodCodeSyslogLevelEnvVarName));
     }
 }

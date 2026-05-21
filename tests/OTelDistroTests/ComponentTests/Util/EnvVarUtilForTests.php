@@ -33,7 +33,6 @@ final class EnvVarUtilForTests
         Assert::assertNull(self::get($envVarName));
     }
 
-    /** @noinspection PhpUnused */
     public static function setOrUnset(string $envVarName, ?string $envVarValue): void
     {
         if ($envVarValue === null) {
@@ -41,6 +40,32 @@ final class EnvVarUtilForTests
         } else {
             self::set($envVarName, $envVarValue);
         }
+    }
+
+    /**
+     * @param array<string, ?string> $envVarNameToOptValue
+     *
+     * @noinspection PhpUnused
+     */
+    public static function setOrUnsetForNames(array $envVarNameToOptValue): void
+    {
+        array_walk($envVarNameToOptValue, fn($envOptValue, $envVarName) => self::setOrUnset($envVarName, $envOptValue));
+    }
+
+    /**
+     * @param array<string> $envVarNames
+     *
+     * @return array<string, ?string>
+     *
+     * @noinspection PhpUnused
+     */
+    public static function getForNames(array $envVarNames): array
+    {
+        $result = [];
+        foreach ($envVarNames as $envVarName) {
+            $result[$envVarName] = self::get($envVarName);
+        }
+        return $result;
     }
 
     /**

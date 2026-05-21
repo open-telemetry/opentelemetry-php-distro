@@ -21,6 +21,17 @@ final class ClassNameUtil
         return $shortName;
     }
 
+    /**
+     * @param class-string $fqClassName
+     */
+    public static function fqToNamespace(string $fqClassName): string
+    {
+        $namespace = '';
+        $shortName = '';
+        self::splitFqClassName($fqClassName, /* ref */ $namespace, /* ref */ $shortName);
+        return $namespace;
+    }
+
     public static function fqToShortFromRawString(string $fqClassName): string
     {
         return self::fqToShort($fqClassName); // @phpstan-ignore argument.type

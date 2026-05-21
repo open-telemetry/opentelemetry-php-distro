@@ -23,7 +23,7 @@ final class HttpClientUtilForTests
 {
     use StaticClassTrait;
 
-    public const MAX_WAIT_TIME_SECONDS = 10;
+    public const MAX_WAIT_TIME_SECONDS = 60;
     public const CONNECT_TIMEOUT_SECONDS = self::MAX_WAIT_TIME_SECONDS * 2;
     public const TIMEOUT_SECONDS = self::MAX_WAIT_TIME_SECONDS * 2;
 
@@ -43,9 +43,9 @@ final class HttpClientUtilForTests
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
         $localLogger = self::getLogger()->inherit()->addAllContext(compact('requestParams'));
-        $loggerProxyDebug = $localLogger->ifDebugLevelEnabledNoLine(__FUNCTION__);
+        $logDebug = $localLogger->logDebug(__FUNCTION__);
 
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Sending HTTP request to app code...');
+        $logDebug?->with(__LINE__, 'Sending HTTP request to app code...');
 
         $response = HttpClientUtilForTests::sendRequest($requestParams->httpRequestMethod, $requestParams->urlParts, $requestParams->dataPerRequest);
         $actualResponseStatusCode = $response->getStatusCode();
@@ -56,7 +56,7 @@ final class HttpClientUtilForTests
             TestCase::assertSame($requestParams->expectedHttpResponseStatusCode, $actualResponseStatusCode);
         }
 
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Successfully sent HTTP request to app code');
+        $logDebug?->with(__LINE__, 'Successfully sent HTTP request to app code');
         return $response;
     }
 
@@ -68,12 +68,12 @@ final class HttpClientUtilForTests
     public static function sendRequest(string $httpMethod, UrlParts $urlParts, TestInfraDataPerRequest $dataPerRequest, array $headers = []): ResponseInterface
     {
         $localLogger = self::getLogger()->inherit()->addAllContext(compact('httpMethod', 'urlParts', 'dataPerRequest', 'headers'));
-        ($loggerProxyDebug = $localLogger->ifDebugLevelEnabledNoLine(__FUNCTION__));
+        $logDebug = $localLogger->logDebug(__FUNCTION__);
 
         $baseUrl = UrlUtil::buildRequestBaseUrl($urlParts);
         $urlRelPart = UrlUtil::buildRequestMethodArg($urlParts);
 
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, "Sending HTTP request...", compact('baseUrl', 'urlRelPart'));
+        $logDebug?->with(__LINE__, "Sending HTTP request...", compact('baseUrl', 'urlRelPart'));
 
         $client = new Client(['base_uri' => $baseUrl]);
         $response = $client->request(
@@ -113,16 +113,16 @@ final class HttpClientUtilForTests
             ]
         );
 
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Sent HTTP request', ['response status code' => $response->getStatusCode()]);
+        $logDebug?->with(__LINE__, 'Sent HTTP request', ['response status code' => $response->getStatusCode()]);
         return $response;
     }
 
     /** @noinspection PhpUnused */
-    public static function createCurlHandleToSendRequestToAppCode(UrlParts $urlParts, TestInfraDataPerRequest $dataPerRequest, ResourcesClient $resourcesClient): CurlHandleForTests
+    public static function createCurlHandleToSendRequestToAppCode(UrlParts $urlParts, TestInfraDataPerRequest $dataPerRequest, ResourcesCleanerClient $resourcesCleanerClient): CurlHandleForTests
     {
         $curlInitRetVal = curl_init(UrlUtil::buildFullUrl($urlParts));
         Assert::assertInstanceOf(CurlHandle::class, $curlInitRetVal);
-        $curlHandle = new CurlHandleForTests($curlInitRetVal, $resourcesClient);
+        $curlHandle = new CurlHandleForTests($curlInitRetVal, $resourcesCleanerClient);
         $dataPerRequestHeaderName = RequestHeadersRawSnapshotSource::optionNameToHeaderName(OptionForTestsName::data_per_request->name);
         $dataPerRequestHeaderVal = PhpSerializationUtil::serializeToString($dataPerRequest);
         $curlHandle->setOpt(CURLOPT_HTTPHEADER, [$dataPerRequestHeaderName . ': ' . $dataPerRequestHeaderVal]);

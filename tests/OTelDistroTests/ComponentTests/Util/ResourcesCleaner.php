@@ -58,7 +58,7 @@ final class ResourcesCleaner extends TestInfraHttpServerProcessBase
 
         parent::__construct();
 
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__)) && $loggerProxy->log('Done');
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Done');
     }
 
     #[Override]
@@ -72,8 +72,7 @@ final class ResourcesCleaner extends TestInfraHttpServerProcessBase
             function () {
                 $rootProcessId = AmbientContextForTests::testConfig()->dataPerProcess()->rootProcessId;
                 if (!ProcessUtil::doesProcessExist($rootProcessId)) {
-                    ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-                    && $loggerProxy->log('Detected that parent process does not exist');
+                    $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Detected that parent process does not exist');
                     $this->exit();
                 }
             }
@@ -113,25 +112,40 @@ final class ResourcesCleaner extends TestInfraHttpServerProcessBase
     private function cleanSpawnedProcessesFrom(string $dbgProcessesSetDesc, Set $processesToTerminateIds): void
     {
         $processesToTerminateIdsCount = $processesToTerminateIds->count();
-        $localLogger = $this->logger->inherit();
-        $localLogger->addAllContext(compact('dbgProcessesSetDesc', 'processesToTerminateIdsCount'));
-        $loggerProxyDebug = $localLogger->ifDebugLevelEnabledNoLine(__FUNCTION__);
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Terminating spawned processes...');
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Terminating spawned processes...', compact('dbgProcessesSetDesc', 'processesToTerminateIdsCount'));
 
         /** @var string $dbgProcessName */
         /** @var int $pid */
         foreach ($processesToTerminateIds as [$dbgProcessName, $pid]) {
-            $localLogger->addAllContext(compact('dbgProcessName', 'pid'));
-            if (!ProcessUtil::doesProcessExist($pid)) {
-                $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Spawned process does not exist anymore - no need to terminate');
-                continue;
+            foreach ([false, true] as $force) {
+                $this->terminateSpawnedProcess($dbgProcessName, $pid, $force);
             }
-            $hasExitedNormally = ProcessUtil::terminateProcess($pid);
-            $hasExited = ProcessUtil::waitForProcessToExitUsingPid($dbgProcessName, $pid, /* maxWaitTimeInMicroseconds = 10 seconds */ 10 * 1000 * 1000);
-            $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Issued command to terminate spawned process', compact('hasExited', 'hasExitedNormally'));
         }
 
         $processesToTerminateIds->clear();
+    }
+
+    private function terminateSpawnedProcess(string $dbgProcessName, int $pid, bool $force): void
+    {
+        $localLogger = $this->logger->inherit();
+        $localLogger->addAllContext(compact('dbgProcessName', 'pid', 'force'));
+        $logDebug = $localLogger->logDebug(__FUNCTION__);
+
+        if (!ProcessUtil::doesProcessExist($pid)) {
+            $logDebug?->with(__LINE__, 'Spawned process does not exist anymore - no need to terminate');
+            return;
+        }
+
+        $logDebug?->with(__LINE__, 'Terminating spawned processes...');
+        $logWarning = $localLogger->logWarning(__FUNCTION__);
+
+        $terminateCommandExitedNormally = ProcessUtil::execCommandToTerminateProcess($pid, $force);
+        $localLogger->addAllContext(compact('terminateCommandExitedNormally'));
+        $waitTimeInSeconds = $force ? 1 : 3;
+        $localLogger->addAllContext(compact('waitTimeInSeconds'));
+        $hasExited = ProcessUtil::waitForProcessToExitUsingPid($dbgProcessName, $pid, maxWaitTimeInMicroseconds: $waitTimeInSeconds * 1000 * 1000);
+
+        ($force ? $logWarning : $logDebug)?->with(__LINE__, $hasExited ? 'Terminated spawned process' : 'Failed to terminate spawned process');
     }
 
     private function cleanFiles(bool $isTestScopedOnly): void
@@ -148,17 +162,17 @@ final class ResourcesCleaner extends TestInfraHttpServerProcessBase
     private function cleanFilesFrom(string $dbgFilesSetDesc, Set $filesToDeletePaths): void
     {
         $filesToDeletePathsCount = $filesToDeletePaths->count();
-        $loggerProxyDebug = $this->logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Deleting files...', compact('dbgFilesSetDesc', 'filesToDeletePathsCount'));
+        $logDebug = $this->logger->logDebug(__FUNCTION__);
+        $logDebug?->with(__LINE__, 'Deleting files...', compact('dbgFilesSetDesc', 'filesToDeletePathsCount'));
 
         foreach ($filesToDeletePaths as $fileToDeletePath) {
             if (!file_exists($fileToDeletePath)) {
-                $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'File does not exist - so there is nothing to delete', compact('fileToDeletePath'));
+                $logDebug?->with(__LINE__, 'File does not exist - so there is nothing to delete', compact('fileToDeletePath'));
                 continue;
             }
 
             $unlinkRetVal = unlink($fileToDeletePath);
-            $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Called unlink() to delete file', compact('fileToDeletePath', 'unlinkRetVal'));
+            $logDebug?->with(__LINE__, 'Called unlink() to delete file', compact('fileToDeletePath', 'unlinkRetVal'));
         }
 
         $filesToDeletePaths->clear();
@@ -192,8 +206,7 @@ final class ResourcesCleaner extends TestInfraHttpServerProcessBase
         $processesToTerminateIds = $isTestScoped ? $this->testScopedProcessesToTerminate : $this->globalProcessesToTerminate;
         $processesToTerminateIds->add([$dbgProcessName, $pid]);
         $processesToTerminateIdsCount = $processesToTerminateIds->count();
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Successfully registered process to terminate', compact('pid', 'isTestScoped', 'processesToTerminateIdsCount'));
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Successfully registered process to terminate', compact('pid', 'isTestScoped', 'processesToTerminateIdsCount'));
     }
 
     protected function registerFileToDelete(ServerRequestInterface $request): void
@@ -204,8 +217,7 @@ final class ResourcesCleaner extends TestInfraHttpServerProcessBase
         $filesToDeletePaths = $isTestScoped ? $this->testScopedFilesToDeletePaths : $this->globalFilesToDeletePaths;
         $filesToDeletePaths->add($path);
         $filesToDeletePathsCount = $filesToDeletePaths->count();
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Successfully registered file to delete', compact('path', 'isTestScoped', 'filesToDeletePathsCount'));
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Successfully registered file to delete', compact('path', 'isTestScoped', 'filesToDeletePathsCount'));
     }
 
     #[Override]

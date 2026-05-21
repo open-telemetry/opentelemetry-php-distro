@@ -6,7 +6,6 @@ namespace OTelDistroTests\Util;
 
 use Countable;
 use OpenTelemetry\Distro\Util\StaticClassTrait;
-use OpenTelemetry\Distro\Util\TextUtil;
 use Generator;
 use Iterator;
 use PHPUnit\Framework\Assert;
@@ -125,11 +124,11 @@ final class IterableUtil
      *
      * @param iterable<TValue> $iterable
      *
-     * @return array<TValue>
+     * @return list<TValue>
      */
     public static function toList(iterable $iterable): array
     {
-        if (is_array($iterable)) {
+        if (is_array($iterable) && array_is_list($iterable)) {
             return $iterable;
         }
 
@@ -420,7 +419,7 @@ final class IterableUtil
      *
      * @return ?TValue
      */
-    public static function max(iterable $iterable): mixed
+    public static function max(iterable $iterable): int|null|float
     {
         /** @var ?TValue $result */
         $result = null;
@@ -489,7 +488,7 @@ final class IterableUtil
     {
         $result = '';
         foreach ($iterable as $value) {
-            $result = TextUtil::appendWithOptionalSeparator($result, $separator, $value);
+            $result = TextUtilForTests::appendWithOptionalSeparator($result, $separator, $value);
         }
         return $result;
     }

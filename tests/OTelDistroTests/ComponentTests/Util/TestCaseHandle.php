@@ -7,8 +7,10 @@ namespace OTelDistroTests\ComponentTests\Util;
 use Closure;
 use OpenTelemetry\Distro\Log\LogLevel;
 use OTelDistroTests\Util\AmbientContextForTests;
+use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\Config\OptionForProdName;
 use OTelDistroTests\Util\DebugContext;
+use OTelDistroTests\Util\ExceptionUtil;
 use OTelDistroTests\Util\Log\LogCategoryForTests;
 use OTelDistroTests\Util\Log\LoggableInterface;
 use OTelDistroTests\Util\Log\LoggableToString;
@@ -42,13 +44,19 @@ final class TestCaseHandle implements LoggableInterface
     public function __construct(
         private readonly ?LogLevel $escalatedLogLevelForProdCode,
     ) {
-        $this->logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->addAllContext(compact('this'));
+        $this->logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__);
 
-        $globalTestInfra = ComponentTestsPHPUnitExtension::getGlobalTestInfra();
-        $globalTestInfra->onTestStart();
-        $this->resourcesCleaner = $globalTestInfra->getResourcesCleaner();
-        $this->mockOTelCollector = $globalTestInfra->getMockOTelCollector();
-        $this->portsInUse = $globalTestInfra->getPortsInUse();
+        ExceptionUtil::runCatchLogRethrow(
+            function (): void {
+                $globalTestInfra = ComponentTestsPHPUnitExtension::getGlobalTestInfra();
+                $this->resourcesCleaner = $globalTestInfra->getResourcesCleaner();
+                $this->mockOTelCollector = $globalTestInfra->getMockOTelCollector();
+                $this->portsInUse = $globalTestInfra->getPortsInUse();
+                $globalTestInfra->onTestStart();
+            }
+        );
+
+        $this->logger->addAllContext(compact('this'));
     }
 
     /**
@@ -116,8 +124,7 @@ final class TestCaseHandle implements LoggableInterface
     private function autoSetProdOptions(AppCodeHostParams $params): void
     {
         if ($this->escalatedLogLevelForProdCode !== null) {
-            $escalatedLogLevelForProdCodeAsString = $this->escalatedLogLevelForProdCode->name;
-            $params->setProdOption(AmbientContextForTests::testConfig()->escalatedRerunsProdCodeLogLevelOptionName() ?? OptionForProdName::log_level_syslog, $escalatedLogLevelForProdCodeAsString);
+            $params->setProdOption(AmbientContextForTests::testConfig()->escalatedRerunsProdCodeLogLevelOptionName(), $this->escalatedLogLevelForProdCode->name);
         }
         /** @noinspection HttpUrlsUsage */
         $params->setProdOption(OptionForProdName::exporter_otlp_endpoint, 'http://' . HttpServerHandle::CLIENT_LOCALHOST_ADDRESS . ':' . $this->mockOTelCollector->getPortForAgent());
@@ -136,15 +143,15 @@ final class TestCaseHandle implements LoggableInterface
     }
 
     /**
-     * @return list<LogLevel>
+     * @return array<string, LogLevel>
      */
-    public function getProdCodeLogLevels(): array
+    public function getProdCodeLogLevels(OptionForProdName $logLevelOptName): array
     {
         $result = [];
         /** @var ?AppCodeHostHandle $appCodeHost */
-        foreach ([$this->mainAppCodeHost, $this->additionalHttpAppCodeHost] as $appCodeHost) {
+        foreach (['mainAppCodeHost' => $this->mainAppCodeHost, 'additionalHttpAppCodeHost' => $this->additionalHttpAppCodeHost] as $dbgDesc => $appCodeHost) {
             if ($appCodeHost !== null) {
-                $result[] = $appCodeHost->appCodeHostParams->buildProdConfig()->effectiveLogLevel();
+                $result[$dbgDesc] = AssertEx::isInstanceOf(LogLevel::class, $appCodeHost->appCodeHostParams->buildProdConfig()->getOptionValueByName($logLevelOptName));
             }
         }
         return $result;
@@ -152,10 +159,13 @@ final class TestCaseHandle implements LoggableInterface
 
     public function tearDown(): void
     {
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Tearing down...');
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Tearing down...');
 
-        ComponentTestsPHPUnitExtension::getGlobalTestInfra()->onTestEnd();
+        ExceptionUtil::runCatchLogRethrow(
+            function (): void {
+                ComponentTestsPHPUnitExtension::getGlobalTestInfra()->onTestEnd();
+            }
+        );
     }
 
     /**
@@ -173,14 +183,12 @@ final class TestCaseHandle implements LoggableInterface
 
     private function startBuiltinHttpServerAppCodeHost(Closure $setParamsFunc, string $dbgInstanceName): BuiltinHttpServerAppCodeHostHandle
     {
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Starting built-in HTTP server to host app code ...', compact('dbgInstanceName'));
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Starting built-in HTTP server to host app code ...', compact('dbgInstanceName'));
 
         $result = new BuiltinHttpServerAppCodeHostHandle($this, $setParamsFunc, $this->resourcesCleaner, $this->portsInUse, $dbgInstanceName);
         $this->addPortsInUse($result->httpServerHandle->ports);
 
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Started built-in HTTP server to host app code', ['ports' => $result->httpServerHandle->ports]);
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Started built-in HTTP server to host app code', ['ports' => $result->httpServerHandle->ports]);
 
         return $result;
     }
@@ -191,8 +199,8 @@ final class TestCaseHandle implements LoggableInterface
     private function startAppCodeHost(Closure $setParamsFunc, string $dbgInstanceName): AppCodeHostHandle
     {
         return match (AmbientContextForTests::testConfig()->appCodeHostKind()) {
-            AppCodeHostKind::cliScript => new CliScriptAppCodeHostHandle($this, $setParamsFunc, $this->resourcesCleaner, $dbgInstanceName),
-            AppCodeHostKind::builtinHttpServer => $this->startBuiltinHttpServerAppCodeHost($setParamsFunc, $dbgInstanceName),
+            AppCodeHostKind::CLI_script => new CliScriptAppCodeHostHandle($this, $setParamsFunc, $this->resourcesCleaner, $dbgInstanceName),
+            AppCodeHostKind::Builtin_HTTP_server => $this->startBuiltinHttpServerAppCodeHost($setParamsFunc, $dbgInstanceName),
         };
     }
 
@@ -201,7 +209,7 @@ final class TestCaseHandle implements LoggableInterface
         return $this->resourcesCleaner;
     }
 
-    public function getResourcesClient(): ResourcesClient
+    public function getResourcesCleanerClient(): ResourcesCleanerClient
     {
         return $this->resourcesCleaner->getClient();
     }

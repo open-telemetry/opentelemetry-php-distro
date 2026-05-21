@@ -12,41 +12,57 @@ use OTelDistroTests\Util\Config\EnvVarsRawSnapshotSource;
 use OTelDistroTests\Util\Config\OptionForTestsName;
 use OTelDistroTests\Util\Config\OptionsForTestsMetadata;
 use OTelDistroTests\Util\Config\RawSnapshotSourceInterface;
-use OTelDistroTests\Util\Log\Backend as LogBackend;
+use OTelDistroTests\Util\Log\LogBackendForTests as LogBackend;
+use OTelDistroTests\Util\Log\LoggableInterface;
 use OTelDistroTests\Util\Log\LoggerFactory;
+use OTelDistroTests\Util\Log\LogStreamInterface;
 use OTelDistroTests\Util\Log\SinkForTests;
 use PHPUnit\Framework\Assert;
 
-final class AmbientContextForTests
+final class AmbientContextForTests implements LoggableInterface
 {
     private static ?self $singletonInstance = null;
-    private static ?string $dbgProcessName = null;
+
+    private readonly SinkForTests $logSink;
     private readonly LogBackend $logBackend;
-    private static ?LoggerFactory $loggerFactory = null;
+    private readonly LoggerFactory $loggerFactory;
     private readonly Clock $clock;
     private ConfigSnapshotForTests $testConfig;
 
-    private function __construct(string $dbgProcessName)
-    {
-        self::$dbgProcessName = $dbgProcessName;
+    private function __construct(
+        private readonly string $dbgProcessName,
+    ) {
         $maxEnabledLogLevelBeforeRealConfig = LogLevel::error;
-        $this->logBackend = new LogBackend($maxEnabledLogLevelBeforeRealConfig, new SinkForTests($dbgProcessName));
-        self::$loggerFactory = new LoggerFactory($this->logBackend);
-        $this->clock = new Clock(self::$loggerFactory);
-        // Now that we have a logger, we can read real config and see the potential issues with it logged
-        $this->readAndApplyConfig();
+        $this->logSink = new SinkForTests($dbgProcessName);
+        $this->logBackend = new LogBackend($maxEnabledLogLevelBeforeRealConfig, $this->logSink);
+        $this->loggerFactory = new LoggerFactory($this->logBackend);
+        $this->clock = new Clock($this->loggerFactory);
+
+        // Reading and parsing config might call back to AmbientContextForTests singleton instance
+        // so we should finish contructing it first and then read and parse actual config in init()
+        $this->testConfig = self::buildDefaultConfig();
+    }
+
+    private static function buildDefaultConfig(): ConfigSnapshotForTests
+    {
+        $optNameToParsedValue = [];
+        foreach (OptionForTestsName::cases() as $optName) {
+            $optNameToParsedValue[$optName->name] = OptionsForTestsMetadata::get()[$optName->name]->defaultValue();
+        }
+        return new ConfigSnapshotForTests($optNameToParsedValue);
     }
 
     public static function init(string $dbgProcessName): void
     {
-        ExceptionUtil::runCatchLogRethrow(
+        ExceptionUtil::runCatchWriteToStdErrRethrow(
             function () use ($dbgProcessName): void {
                 if (self::$singletonInstance !== null) {
-                    Assert::assertSame(self::$dbgProcessName, $dbgProcessName);
+                    Assert::assertSame(self::$singletonInstance->dbgProcessName, $dbgProcessName);
                     return;
                 }
 
                 self::$singletonInstance = new self($dbgProcessName);
+                self::$singletonInstance->readAndApplyConfig();
             }
         );
     }
@@ -58,7 +74,7 @@ final class AmbientContextForTests
 
     public static function assertIsInited(): void
     {
-        ExceptionUtil::runCatchLogRethrow(
+        ExceptionUtil::runCatchWriteToStdErrRethrow(
             function (): void {
                 Assert::assertTrue(self::isInited(), 'Assertion that, ' . __CLASS__ . ' is initialized, failed');
             }
@@ -67,10 +83,9 @@ final class AmbientContextForTests
 
     private static function getSingletonInstance(): self
     {
-        return ExceptionUtil::runCatchLogRethrow(
+        return ExceptionUtil::runCatchWriteToStdErrRethrow(
             function (): self {
-                Assert::assertNotNull(self::$singletonInstance);
-                return self::$singletonInstance;
+                return AssertEx::notNull(self::$singletonInstance);
             }
         );
     }
@@ -112,29 +127,33 @@ final class AmbientContextForTests
         return self::getSingletonInstance()->testConfig;
     }
 
-    /** @noinspection PhpUnused */
     public static function dbgProcessName(): string
     {
-        return ExceptionUtil::runCatchLogRethrow(
-            function (): string {
-                Assert::assertNotNull(self::$dbgProcessName);
-                return self::$dbgProcessName;
-            }
-        );
+        return self::getSingletonInstance()->dbgProcessName;
     }
 
     public static function loggerFactory(): LoggerFactory
     {
-        return ExceptionUtil::runCatchLogRethrow(
-            function (): LoggerFactory {
-                Assert::assertNotNull(self::$loggerFactory);
-                return self::$loggerFactory;
-            }
-        );
+        return self::getSingletonInstance()->loggerFactory;
     }
 
     public static function clock(): Clock
     {
         return self::getSingletonInstance()->clock;
+    }
+
+    public static function logSink(): SinkForTests
+    {
+        return self::getSingletonInstance()->logSink;
+    }
+
+    public function toLog(LogStreamInterface $stream): void
+    {
+        $stream->toLogAs(
+            [
+                'dbgProcessName' => $this->dbgProcessName,
+                'testConfig' => $this->testConfig,
+            ],
+        );
     }
 }

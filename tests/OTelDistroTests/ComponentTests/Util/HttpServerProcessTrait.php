@@ -48,6 +48,6 @@ trait HttpServerProcessTrait
 
     protected static function buildResponseWithPid(): ResponseInterface
     {
-        return Response::json([HttpServerHandle::PID_KEY => getmypid()]);
+        return Response::json([HttpServerHandle::PID_KEY => ProcessUtil::getCurrentPid()]);
     }
 }

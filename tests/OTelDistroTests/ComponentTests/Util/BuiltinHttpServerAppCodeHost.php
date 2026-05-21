@@ -24,8 +24,7 @@ final class BuiltinHttpServerAppCodeHost extends AppCodeHostBase
 
         $this->logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->addAllContext(compact('this'));
 
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Received request', ['URI' => GlobalUnderscoreServer::requestUri(), 'method' => GlobalUnderscoreServer::requestMethod()]);
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Received request', ['URI' => GlobalUnderscoreServer::requestUri(), 'method' => GlobalUnderscoreServer::requestMethod()]);
     }
 
     protected static function isStatusCheck(): bool
@@ -68,11 +67,10 @@ final class BuiltinHttpServerAppCodeHost extends AppCodeHostBase
 
     private static function sendResponse(ResponseInterface $response): void
     {
-        $localLogger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__);
-        $loggerProxyDebug = $localLogger->ifDebugLevelEnabledNoLine(__FUNCTION__);
-
         $httpResponseStatusCode = $response->getStatusCode();
-        $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Sending response ...', compact('httpResponseStatusCode', 'response'));
+
+        AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)
+            ->logDebug(__FUNCTION__)?->with(__LINE__, 'Sending response ...', compact('httpResponseStatusCode', 'response'));
 
         http_response_code($httpResponseStatusCode);
         echo $response->getBody();

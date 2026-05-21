@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace OTelDistroTests\Util\Config;
 
 use OpenTelemetry\Distro\Util\ArrayUtil;
-use OpenTelemetry\Distro\Util\TextUtil;
 use OTelDistroTests\Util\ArrayUtilForTests;
 use OTelDistroTests\Util\Log\LoggableTrait;
+use OTelDistroTests\Util\TextUtilForTests;
 use PHPUnit\Framework\Assert;
+use UnitEnum;
 
 /**
- * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
- *
- * @internal
+ * @template TOptionName of UnitEnum
  */
 trait SnapshotTrait
 {
@@ -31,7 +30,7 @@ trait SnapshotTrait
 
         $actualClass = get_called_class();
         foreach ($optNameToParsedValue as $optName => $parsedValue) {
-            $propertyName = TextUtil::snakeToCamelCase($optName);
+            $propertyName = TextUtilForTests::snakeToCamelCase($optName);
             if (!property_exists($actualClass, $propertyName)) {
                 throw new ConfigException("Property `$propertyName' doesn't exist in class " . $actualClass);
             }
@@ -72,7 +71,10 @@ trait SnapshotTrait
         return $result;
     }
 
-    public function getOptionValueByName(OptionForTestsName $optName): mixed
+    /**
+     * @param TOptionName $optName
+     */
+    public function getOptionValueByName(UnitEnum $optName): mixed
     {
         Assert::assertNotNull($this->optNameToParsedValue);
         return ArrayUtil::getValueIfKeyExistsElse($optName->name, $this->optNameToParsedValue, null);

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\UnitTests\UtilTests\ConfigTests;
 
-use OpenTelemetry\Distro\Util\TextUtil;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\Config\BoolOptionParser;
 use OTelDistroTests\Util\Config\CustomOptionParser;
@@ -42,6 +41,7 @@ class VariousOptionsParsingTest extends TestCaseBase
         $optionParser = $optMeta->parser();
 
         if ($optionParser instanceof BoolOptionParser) {
+            /** @noinspection PhpParamsInspection */
             return new EnumOptionTestValuesGenerator($optionParser, additionalValidValues: [new OptionTestValidValue('', false)]); /** @phpstan-ignore return.type */
         }
         if ($optionParser instanceof DurationOptionParser) {
@@ -183,7 +183,7 @@ class VariousOptionsParsingTest extends TestCaseBase
         foreach ($invalidRawValues as $invalidRawValue) {
             $invalidRawValue = self::genOptionalWhitespace() . $invalidRawValue . self::genOptionalWhitespace();
             $dbgCtx->add([...compact('invalidRawValue'), 'strlen($invalidRawValue)' => strlen($invalidRawValue)]);
-            if (!TextUtil::isEmptyString($invalidRawValue)) {
+            if ($invalidRawValue !== '') {
                 $dbgCtx->add(['ord($invalidRawValue[0])' => ord($invalidRawValue[0])]);
             }
             AssertEx::throws(
@@ -235,12 +235,12 @@ class VariousOptionsParsingTest extends TestCaseBase
                 return $value;
             }
 
-            return ['$value' => $value, 'number_format($value)' => number_format($value)];
+            return compact('value') + ['number_format($value)' => number_format($value)];
         };
 
         /** @var OptionTestValidValue<mixed> $validValueData */
         foreach ($validValues as $validValueData) {
-            $dbgCtx->add(['validValueData' => $validValueData, '$validValueData->parsedValue' => $valueWithDetails($validValueData->parsedValue)]);
+            $dbgCtx->add(compact('validValueData') + ['$validValueData->parsedValue' => $valueWithDetails($validValueData->parsedValue)]);
             $validValueData->rawValue = self::genOptionalWhitespace() . $validValueData->rawValue . self::genOptionalWhitespace();
             $actualParsedValue = Parser::parseOptionRawValue($validValueData->rawValue, $optParser);
             $dbgCtx->add(['actualParsedValue' => $valueWithDetails($actualParsedValue)]);

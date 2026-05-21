@@ -30,8 +30,7 @@ final class MySqliApiFacade implements LoggableInterface
 
     public function connect(string $host, int $port, string $username, string $password, ?string $dbName): ?MySqliWrapped
     {
-        ($loggerProxy = $this->logger->ifTraceLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Entered', compact('host', 'port', 'username', 'password', 'dbName'));
+        $this->logger->logTrace(__FUNCTION__)?->with(__LINE__, 'Entered', compact('host', 'port', 'username', 'password', 'dbName'));
 
         $wrappedObj = $this->isOOPApi
             ? new mysqli($host, $username, $password, $dbName, $port)

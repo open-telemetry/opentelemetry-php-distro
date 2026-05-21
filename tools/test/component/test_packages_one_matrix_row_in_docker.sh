@@ -12,7 +12,7 @@ function show_help() {
     echo "  --logs_dir          Required. Full path to the directory where generated logs will be stored. NOTE: All existing files in this directory will be deleted"
     echo
     echo "Example:"
-    echo "  $0 --matrix_row '8.4,deb,cli,no_ext_svc,prod_log_level_syslog=TRACE' --packages_dir '/directory/with/packages' --logs_dir '/directory/to/store/logs'"
+    echo "  $0 --matrix_row '8.4,deb,cli,no_ext_svc,OTEL_PHP_LOG_LEVEL_SYSLOG=TRACE' --packages_dir '/directory/with/packages' --logs_dir '/directory/to/store/logs'"
 }
 
 function parse_args() {
@@ -125,7 +125,6 @@ function main() {
     source "tools/read_properties.sh"
     read_properties "project.properties" _PROJECT_PROPERTIES
 
-
     parse_args "$@"
 
     echo "Current directory: ${PWD}"
@@ -157,11 +156,9 @@ function main() {
     OTEL_PHP_TESTS_DOCKER_RUNNING_USER_GROUP_ID="$(id -g)"
 
     source tools/test/component/unpack_matrix_row.sh
-    unpack_matrix_row "${matrix_row}" "OTEL_PHP_TESTS" "true"
+    local -r unpack_matrix_row_verbose='true'
+    unpack_matrix_row "${matrix_row}" "${unpack_matrix_row_verbose}"
 
-    export OTEL_PHP_TESTS_MATRIX_ROW="${matrix_row}"
-
-    # unpack_matrix_row "${matrix_row:?}" "OTEL_PHP_TESTS" "true"
     echo "Environment variables after unpacking the matrix row:"
     env | grep OTEL_PHP_TESTS_ | sort
 

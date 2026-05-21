@@ -11,7 +11,7 @@ use OTelDistroTests\UnitTests\Util\MockLogPreformattedSink;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\ClassNameUtil;
 use OTelDistroTests\Util\JsonUtil;
-use OTelDistroTests\Util\Log\Backend as LogBackend;
+use OTelDistroTests\Util\Log\LogBackendForTests as LogBackend;
 use OTelDistroTests\Util\Log\LogCategoryForTests;
 use OTelDistroTests\Util\Log\LoggableStackTrace;
 use OTelDistroTests\Util\Log\LoggableToString;
@@ -37,7 +37,7 @@ class IncludeStackTraceTest extends TestCaseBase
      */
     private static function includeStackTraceHelperFunc(Logger $logger): array
     {
-        ($lgrPxy = $logger->ifTraceLevelEnabled(__LINE__, __FUNCTION__)) && $lgrPxy->includeStackTrace()->log('');
+        $logger->logTrace(__FUNCTION__)?->includeStackTrace()->with(__LINE__, '');
         $expectedSrcCodeLine = __LINE__ - 1;
         return [
             StackTraceUtil::FUNCTION_KEY => __FUNCTION__,
@@ -53,7 +53,7 @@ class IncludeStackTraceTest extends TestCaseBase
      */
     public static function verifyStackFrame(array $expectedSrcCodeData, array $actualFrame): void
     {
-        $ctx = LoggableToString::convert(['$actualFrame' => $actualFrame]);
+        $ctx = LoggableToString::convert(compact('actualFrame'));
         self::assertCount(4, $actualFrame, $ctx);
 
         self::assertArrayHasKey(StackTraceUtil::FILE_KEY, $actualFrame, $ctx);
@@ -86,16 +86,16 @@ class IncludeStackTraceTest extends TestCaseBase
 
         self::assertCount(1, $mockLogSink->consumed);
         $actualLogStatement = $mockLogSink->consumed[0];
-        self::assertSame(LogLevel::trace, $actualLogStatement->statementLevel);
+        self::assertSame(LogLevel::trace, $actualLogStatement->level);
         self::assertSame(LogCategoryForTests::TEST, $actualLogStatement->category);
-        self::assertSame(__FILE__, $actualLogStatement->srcCodeFile);
-        self::assertSame($expectedSrcCodeDataForTopFrame[StackTraceUtil::LINE_KEY], $actualLogStatement->srcCodeLine);
+        self::assertSame(__FILE__, $actualLogStatement->file);
+        self::assertSame($expectedSrcCodeDataForTopFrame[StackTraceUtil::LINE_KEY], $actualLogStatement->line);
         self::assertSame(
             $expectedSrcCodeDataForTopFrame[StackTraceUtil::FUNCTION_KEY],
-            $actualLogStatement->srcCodeFunc
+            $actualLogStatement->func
         );
 
-        $actualCtx = JsonUtil::decode($actualLogStatement->messageWithContext);
+        $actualCtx = JsonUtil::decode($actualLogStatement->contextAsString);
         self::assertIsArray($actualCtx);
         /** @var array<string, mixed> $actualCtx */
         AssertEx::arrayHasKeyWithSameValue(LogBackend::NAMESPACE_KEY, __NAMESPACE__, $actualCtx);

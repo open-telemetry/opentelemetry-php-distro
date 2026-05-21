@@ -12,7 +12,7 @@ use PHPUnit\Framework\Constraint\Exception as ConstraintException;
 use PHPUnit\Framework\Constraint\IsEqual;
 use PHPUnit\Framework\Constraint\IsType;
 use PHPUnit\Framework\Constraint\LessThan;
-use PHPUnit\Framework\ExpectationFailedException;
+use Stringable;
 use Throwable;
 
 final class AssertEx
@@ -130,7 +130,26 @@ final class AssertEx
      */
     public static function notEmptyString(string $actual, string $message = ''): string
     {
-        Assert::assertNotEmpty($actual, $message);
+        if ($actual === '') {
+            Assert::fail($message);
+        }
+        return $actual;
+    }
+
+    /**
+     * @template T
+     *
+     * @param array<T> $actual
+     *
+     * @return array{}
+     *
+     * @phpstan-assert array{} $actual
+     *
+     * @noinspection PhpUnused
+     */
+    public static function isEmptyArray(array $actual, string $message = ''): array
+    {
+        Assert::assertEmpty($actual, $message);
         return $actual;
     }
 
@@ -184,18 +203,6 @@ final class AssertEx
     public static function isNullableString(mixed $actual, string $message = ''): ?string
     {
         return $actual === null ? null : self::isString($actual, $message);
-    }
-
-    /**
-     * @noinspection PhpUnused
-     *
-     * @return non-empty-string
-     */
-    public static function isNonEmptyString(mixed $actual, string $message = ''): string
-    {
-        Assert::assertIsString($actual, $message);
-        Assert::assertNotEmpty($actual, $message);
-        return $actual;
     }
 
     public static function isInt(mixed $actual, string $message = ''): int
@@ -279,6 +286,21 @@ final class AssertEx
     }
 
     /**
+     * @template TObject of object
+     *
+     * @param class-string<TObject> $expectedType
+     *
+     * @return TObject
+     *
+     * @phpstan-assert TObject $actualValue
+     */
+    public static function isInstanceOf(string $expectedType, mixed $actualValue, string $message = ''): object
+    {
+        Assert::assertInstanceOf($expectedType, $actualValue, $message);
+        return $actualValue;
+    }
+
+    /**
      * @template TKey of array-key
      * @template TValue
      *
@@ -310,26 +332,51 @@ final class AssertEx
      * If successful and the $inspect is not null,
      * then it is called and the caught exception is passed as argument.
      *
-     * @param callable(): mixed $execute
+     * @param class-string<Throwable> $expectedThrowableClass
+     * @param callable(): mixed $actualCodeThatShouldThrow
      * @param ?callable(Throwable): void $inspect
      */
-    public static function throws(string $class, callable $execute, string $message = '', ?callable $inspect = null): void
+    public static function throws(string $expectedThrowableClass, callable $actualCodeThatShouldThrow, string $message = '', ?callable $inspect = null): void
     {
         try {
-            $execute();
-        } catch (ExpectationFailedException $ex) {
-            throw $ex;
-        } catch (Throwable $ex) {
-            Assert::assertThat($ex, new ConstraintException($class), $message);
+            $actualCodeThatShouldThrow();
+        } catch (Throwable $thrown) {
+            Assert::assertThat($thrown, new ConstraintException($expectedThrowableClass), $message);
 
-            if ($inspect === null) {
-                return;
+            if ($inspect !== null) {
+                $inspect($thrown);
             }
 
-            $inspect($ex);
+            return;
         }
 
-        Assert::assertThat(null, new ConstraintException($class), $message);
+        Assert::assertThat(null, new ConstraintException($expectedThrowableClass), $message);
+    }
+
+    /**
+     * @param class-string<Throwable> $expectedThrowableClass
+     * @param callable(): mixed $actualCodeThatShouldThrow
+     */
+    public static function throwsWithMessageCode(
+        string $expectedThrowableClass,
+        ?string $expectedThrowableMessage,
+        ?int $expectedThrowableCode,
+        callable $actualCodeThatShouldThrow,
+        string $message = ''
+    ): void {
+        self::throws(
+            $expectedThrowableClass,
+            $actualCodeThatShouldThrow,
+            message: $message,
+            inspect: static function (Throwable $actualThrown) use ($expectedThrowableMessage, $expectedThrowableCode): void {
+                if ($expectedThrowableMessage !== null) {
+                    Assert::assertSame($expectedThrowableMessage, $actualThrown->getMessage());
+                }
+                if ($expectedThrowableCode !== null) {
+                    Assert::assertSame($expectedThrowableCode, $actualThrown->getCode());
+                }
+            },
+        );
     }
 
     /**
@@ -340,6 +387,16 @@ final class AssertEx
     public static function countAtLeast(int $expectedMinCount, mixed $haystack, string $message = ''): void
     {
         Assert::assertGreaterThanOrEqual($expectedMinCount, count($haystack), $message);
+    }
+
+    /**
+     * @param array<array-key, mixed>|Countable $haystack
+     *
+     * @noinspection PhpUnused
+     */
+    public static function countAtMost(int $expectedMaxCount, mixed $haystack, string $message = ''): void
+    {
+        Assert::assertLessThanOrEqual($expectedMaxCount, count($haystack), $message);
     }
 
     public static function stringIsInt(string $actual, string $message = ''): int
@@ -427,8 +484,8 @@ final class AssertEx
     }
 
     /**
-     * @param mixed[] $expected
-     * @param mixed[] $actual
+     * @param list<mixed> $expected
+     * @param list<mixed> $actual
      */
     public static function equalLists(array $expected, array $actual): void
     {
@@ -441,10 +498,23 @@ final class AssertEx
     }
 
     /**
-     * @param array<array-key, mixed> $subSet
-     * @param array<array-key, mixed> $largerSet
+     * @param list<mixed> $expected
+     * @param list<mixed> $actual
+     *
+     * @noinspection PhpUnused
      */
-    public static function listIsSubsetOf(array $subSet, array $largerSet): void
+    public static function equalScalarLists(array $expected, array $actual): void
+    {
+        sort(/* ref */ $expected);
+        sort(/* ref */ $actual);
+        self::equalLists($expected, $actual);
+    }
+
+    /**
+     * @param array<string|Stringable> $subSet
+     * @param array<string|Stringable> $largerSet
+     */
+    public static function arrayValuesIsSubsetOf(array $subSet, array $largerSet): void
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
@@ -476,16 +546,6 @@ final class AssertEx
             Assert::assertArrayHasKey($key, $largerSet);
             self::sameEx($value, $largerSet[$key]);
         }
-    }
-
-    /**
-     * @param array<array-key, mixed>|Countable $haystack
-     *
-     * @noinspection PhpUnused
-     */
-    public static function countAtMost(int $expectedMaxCount, mixed $haystack): void
-    {
-        Assert::assertLessThanOrEqual($expectedMaxCount, count($haystack));
     }
 
     /**

@@ -4,187 +4,98 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\UnitTests\UtilTests;
 
-use Ds\Map;
 use OTelDistroTests\ComponentTests\Util\AppCodeHostParams;
-use OTelDistroTests\Util\AmbientContextForTests;
-use OTelDistroTests\Util\ArrayUtilForTests;
+use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\Config\OptionForProdName;
 use OTelDistroTests\Util\Config\OptionForTestsName;
+use OTelDistroTests\Util\DebugContext;
 use OTelDistroTests\Util\EnvVarUtil;
+use OTelDistroTests\Util\MixedMap;
 use OTelDistroTests\Util\TestCaseBase;
 
 /**
- *
  * @phpstan-import-type EnvVars from EnvVarUtil
- * @phpstan-import-type OptionsForProdMap from AppCodeHostParams
  */
 final class ComponentTestsEnvVarsForAppCodeTest extends TestCaseBase
 {
-    /**
-     * @phpstan-param EnvVars           $inheritedEnvVars
-     * @phpstan-param OptionsForProdMap $prodOptions
-     * @phpstan-param EnvVars           $expectedBuiltEnvVars
-     */
-    private static function buildAndAssertAsExpected(array $inheritedEnvVars, Map $prodOptions, array $expectedBuiltEnvVars): void
-    {
-        $actualBuiltEnvVars = AppCodeHostParams::buildEnvVarsForAppCodeProcessImpl($inheritedEnvVars, $prodOptions);
-        ksort(/* ref */ $actualBuiltEnvVars);
-        ksort(/* ref */ $expectedBuiltEnvVars);
-        self::assertSame($expectedBuiltEnvVars, $actualBuiltEnvVars);
-    }
+    private const ENV_VARS_IN_PHPUNIT_CONTEXT_KEY = 'env_var_names_in_phpunit_context';
+    private const EXPECTED_ENV_VARS_IN_APP_CODE_CONTEXT_KEY = 'expected_env_var_names_in_app_context';
 
     /**
-     * @return iterable<string, array{'inheritedEnvVarNames': string[], 'prodOptionNames': OptionForProdName[]}>
+     * @return iterable<string, array{MixedMap}>
      */
-    public static function dataProviderForTestInheritedEnvVarsAutoPass(): iterable
+    public static function dataProviderForTestFilterEnvVarsFromPhpUnitToAppCodeContext(): iterable
     {
+        $envVarsThatShouldBePassed = [];
+        foreach (['HOME', 'SHELL', 'XDG_SESSION_TYPE'] as $envVarName) {
+            $envVarsThatShouldBePassed[$envVarName] = $envVarName . ' should be passed to app code context because it is not related to OTel Distro';
+        }
+        foreach (OptionForTestsName::cases() as $optName) {
+            $envVarName = $optName->toEnvVarName();
+            $envVarsThatShouldBePassed[$envVarName] = $envVarName . ' should be passed to app code context because it is a config option for OTel Distro tests infrastructure';
+        }
+
+        $envVarsThatShouldNotBePassed = [];
+        foreach (OptionForProdName::cases() as $optName) {
+            $envVarName = $optName->toEnvVarName();
+            $envVarsThatShouldNotBePassed[$envVarName] = $envVarName . ' should NOT be passed to app code context because it is a config option for OTel Distro';
+        }
         /**
-         * @return iterable<string, string[]>
+         * @link https://getcomposer.org/doc/03-cli.md#composer
          */
-        $genInheritedEnvVarsVariants = function (): iterable {
-            yield 'Unrelated to OTel/Distro' => ['HOME', 'SHELL', 'XDG_SESSION_TYPE'];
+        foreach (['COMPOSER', 'COMPOSER_DEV_MODE'] as $envVarName) {
+            $envVarsThatShouldNotBePassed[$envVarName] = $envVarName . ' should NOT be passed to app code context because it MIGHT be a config option for Composer Dependency Manager for PHP';
+        }
 
-            yield 'All options for tests' => array_map(fn($optName) => $optName->name, OptionForTestsName::cases());
+        /**
+         * @phpstan-param EnvVars $envVarsInPHPUnitContext
+         * @phpstan-param EnvVars $expectedEnvVarsInAppCodeContext
+         *
+         * @return array<string, mixed>
+         */
+        $generateDataSet = function (array $envVarsInPHPUnitContext, array $expectedEnvVarsInAppCodeContext): array {
+            return [
+                self::ENV_VARS_IN_PHPUNIT_CONTEXT_KEY => $envVarsInPHPUnitContext,
+                self::EXPECTED_ENV_VARS_IN_APP_CODE_CONTEXT_KEY => $expectedEnvVarsInAppCodeContext,
+            ];
         };
 
-        $allProdOptionNames = OptionForProdName::cases();
-        foreach ($genInheritedEnvVarsVariants() as $inheritedEnvVarNamesDesc => $inheritedEnvVarNames) {
-            foreach (['All' => $allProdOptionNames, 'None' => []] as $prodOptionNamesDesc => $prodOptionNames) {
-                yield ('Inherited env vars: ' . $inheritedEnvVarNamesDesc . ', Options for production: ' . $prodOptionNamesDesc) => compact('inheritedEnvVarNames', 'prodOptionNames');
+        /**
+         * @return iterable<array<string, mixed>>
+         */
+        $generateDataSets = function () use ($generateDataSet, $envVarsThatShouldBePassed, $envVarsThatShouldNotBePassed): iterable {
+            foreach ($envVarsThatShouldBePassed as $envVarName => $envVarValue) {
+                $envVarThatShouldBePassed = [$envVarName => $envVarValue];
+                yield $generateDataSet($envVarThatShouldBePassed, $envVarThatShouldBePassed);
             }
-        }
 
-        // Inherited Log related options for production should be automatically passed through
-        // except for log level related options which should be automatically passed through if and only if none of log level related production options is set
-        foreach (OptionForProdName::getAllLogRelated() as $optName) {
-            $inheritedEnvVarNames = [$optName->toEnvVarName()];
-            $prodOptionNamesAllExceptSome = $allProdOptionNames;
-            if ($optName->isLogLevelRelated()) {
-                foreach (OptionForProdName::getAllLogLevelRelated() as $currentProdOptName) {
-                    self::assertTrue(ArrayUtilForTests::removeFirstByValue(/* in,out */ $prodOptionNamesAllExceptSome, $currentProdOptName));
-                }
-            } else {
-                self::assertTrue(ArrayUtilForTests::removeFirstByValue(/* in,out */ $prodOptionNamesAllExceptSome, $optName));
+            foreach ($envVarsThatShouldNotBePassed as $envVarName => $envVarValue) {
+                $envVarThatShouldNotBePassed = [$envVarName => $envVarValue];
+                yield $generateDataSet($envVarThatShouldNotBePassed, []);
             }
-            foreach (['All except some' => $prodOptionNamesAllExceptSome, 'None' => []] as $prodOptionNamesDesc => $prodOptionNames) {
-                yield ('Inherited env vars: ' . $optName->toEnvVarName() . ', Options for production: ' . $prodOptionNamesDesc) => compact('inheritedEnvVarNames', 'prodOptionNames');
-            }
-        }
+
+            $allEnvVars = $envVarsThatShouldBePassed + $envVarsThatShouldNotBePassed;
+            self::assertCount(count($envVarsThatShouldBePassed) + count($envVarsThatShouldNotBePassed), $allEnvVars);
+            yield $generateDataSet($allEnvVars, $envVarsThatShouldBePassed);
+        };
+
+        return self::adaptDataSetsGeneratorToSmokeToDescToMixedMap($generateDataSets);
     }
 
     /**
-     * @dataProvider dataProviderForTestInheritedEnvVarsAutoPass
-     *
-     * @param string[]            $inheritedEnvVarNames
-     * @param OptionForProdName[] $prodOptionNames
+     * @dataProvider dataProviderForTestFilterEnvVarsFromPhpUnitToAppCodeContext
      */
-    public static function testInheritedEnvVarsAutoPass(array $inheritedEnvVarNames, array $prodOptionNames): void
+    public static function testFilterEnvVarsFromPhpUnitToAppCodeContext(MixedMap $testArgs): void
     {
-        $expectedBuiltEnvVars = [];
-        /** @var OptionsForProdMap $prodOptions */
-        $prodOptions = new Map();
-        foreach ($prodOptionNames as $prodOptName) {
-            $prodOptValue = 'value for production option ' . $prodOptName->name;
-            $prodOptions->put($prodOptName, $prodOptValue);
-            ArrayUtilForTests::addAssertingKeyNew($prodOptName->toEnvVarName(), $prodOptValue, /* in,out */ $expectedBuiltEnvVars);
-        }
+        DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
-        $inheritedEnvVars = [];
-        foreach ($inheritedEnvVarNames as $inheritedEnvVarName) {
-            $inheritedEnvVarValue = 'value for inherited env var ' . $inheritedEnvVarName;
-            ArrayUtilForTests::addAssertingKeyNew($inheritedEnvVarName, $inheritedEnvVarValue, /* in,out */ $inheritedEnvVars);
-            ArrayUtilForTests::addAssertingKeyNew($inheritedEnvVarName, $inheritedEnvVarValue, /* in,out */ $expectedBuiltEnvVars);
-        }
+        $envVarsInPHPUnitContext = AssertEx::isArray($testArgs->get(self::ENV_VARS_IN_PHPUNIT_CONTEXT_KEY));
+        /** @var EnvVars $envVarsInPHPUnitContext */
+        $expectedEnvVarsInAppCodeContext = AssertEx::isArray($testArgs->get(self::EXPECTED_ENV_VARS_IN_APP_CODE_CONTEXT_KEY));
+        /** @var EnvVars $expectedEnvVarsInAppCodeContext */
 
-        self::buildAndAssertAsExpected($inheritedEnvVars, $prodOptions, $expectedBuiltEnvVars);
-    }
+        $actualEnvVarsInAppCodeContext = AppCodeHostParams::filterEnvVarsFromPhpUnitToAppCodeContext($envVarsInPHPUnitContext);
 
-    /**
-     * @return iterable<string, array{OptionForProdName}>
-     */
-    public static function dataProviderForTestLogLevelRelatedProdOverridesInheritedEnvVars(): iterable
-    {
-        foreach (OptionForProdName::getAllLogLevelRelated() as $prodOptName) {
-            yield $prodOptName->name => [$prodOptName];
-        }
-    }
-
-    /**
-     * @dataProvider dataProviderForTestLogLevelRelatedProdOverridesInheritedEnvVars
-     */
-    public static function testLogLevelRelatedProdOptionOverridesInheritedEnvVars(OptionForProdName $prodOptName): void
-    {
-        $inheritedEnvVars = [];
-        foreach (OptionForProdName::getAllLogLevelRelated() as $currentLogLevelRelatedProdOptName) {
-            $inheritedEnvVarValue = 'value for inherited env var ' . $currentLogLevelRelatedProdOptName->toEnvVarName();
-            ArrayUtilForTests::addAssertingKeyNew($currentLogLevelRelatedProdOptName->toEnvVarName(), $inheritedEnvVarValue, /* in,out */ $inheritedEnvVars);
-        }
-
-        $prodOptValue = 'value for production option ' . $prodOptName->name;
-        /** @var OptionsForProdMap $prodOptions */
-        $prodOptions = new Map();
-        $prodOptions->put($prodOptName, $prodOptValue);
-        $expectedBuiltEnvVars = [$prodOptName->toEnvVarName() => $prodOptValue];
-
-        self::buildAndAssertAsExpected($inheritedEnvVars, $prodOptions, $expectedBuiltEnvVars);
-    }
-
-    /**
-     * @return iterable<string, array{OptionForProdName[]}>
-     */
-    public static function dataProviderForTestInheritedEnvVarForProdOptionAllowedViaPassThrough(): iterable
-    {
-        foreach (OptionForProdName::cases() as $prodOptName) {
-            if (!$prodOptName->isLogRelated()) {
-                yield $prodOptName->name => [[$prodOptName]];
-                foreach (OptionForProdName::cases() as $secondProdOptName) {
-                    if (!$secondProdOptName->isLogRelated() && $secondProdOptName !== $prodOptName) {
-                        yield "[$prodOptName->name, $secondProdOptName->name]" => [[$prodOptName, $secondProdOptName]];
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * @dataProvider dataProviderForTestInheritedEnvVarForProdOptionAllowedViaPassThrough
-     *
-     * @param OptionForProdName[] $prodOptNames
-     */
-    public static function testInheritedEnvVarForProdOptionAllowedViaPassThrough(array $prodOptNames): void
-    {
-        /** @var OptionsForProdMap $emptyProdOptions */
-        $emptyProdOptions = new Map();
-
-        $inheritedEnvVars = [];
-        foreach ($prodOptNames as $prodOptName) {
-            ArrayUtilForTests::addAssertingKeyNew($prodOptName->toEnvVarName(), 'value for inherited env var ' . $prodOptName->toEnvVarName(), /* in,out */ $inheritedEnvVars);
-        }
-
-        // Without pass-though option inherited env var for production option (unless it's log related) should not be passed to app code
-        self::buildAndAssertAsExpected($inheritedEnvVars, $emptyProdOptions, expectedBuiltEnvVars: []);
-
-        $envVarNamesToPassThrough = [];
-        $expectedBuiltEnvVars = [];
-        foreach ($prodOptNames as $prodOptName) {
-            $envVarNamesToPassThrough[] = $prodOptName->toEnvVarName();
-            $passThroughOptEnvVarName = OptionForTestsName::env_vars_to_pass_through->toEnvVarName();
-            $passThroughOptValue = join(',', $envVarNamesToPassThrough);
-            $inheritedEnvVars[$passThroughOptEnvVarName] = $passThroughOptValue;
-            $expectedBuiltEnvVars[$passThroughOptEnvVarName] = $passThroughOptValue;
-            ArrayUtilForTests::addAssertingKeyNew($prodOptName->toEnvVarName(), $inheritedEnvVars[$prodOptName->toEnvVarName()], /* in,out */ $expectedBuiltEnvVars);
-
-            $passThroughOptEnvVarValueToRestore = EnvVarUtil::get($passThroughOptEnvVarName);
-            try {
-                // Set env var the pass-through option for this process and recompute AmbientContextForTests::testConfig
-                // because tested code depends on AmbientContextForTests::testConfig
-                EnvVarUtil::set($passThroughOptEnvVarName, $passThroughOptValue);
-                AmbientContextForTests::reconfigure();
-                self::buildAndAssertAsExpected($inheritedEnvVars, $emptyProdOptions, $expectedBuiltEnvVars);
-            } finally {
-                EnvVarUtil::setOrUnsetIfValueNull($passThroughOptEnvVarName, $passThroughOptEnvVarValueToRestore);
-                AmbientContextForTests::reconfigure();
-            }
-        }
+        AssertEx::equalMaps($expectedEnvVarsInAppCodeContext, $actualEnvVarsInAppCodeContext);
     }
 }

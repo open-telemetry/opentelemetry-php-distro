@@ -58,6 +58,11 @@ class MixedMap implements LoggableInterface, ArrayAccess, IteratorAggregate
         return $from[$key];
     }
 
+    public function has(string $key): bool
+    {
+        return array_key_exists($key, $this->map);
+    }
+
     public function get(string $key): mixed
     {
         return self::getFrom($key, $this->map);
@@ -218,6 +223,14 @@ class MixedMap implements LoggableInterface, ArrayAccess, IteratorAggregate
     public function getArray(string $key): array
     {
         return AssertEx::notNull($this->getNullableArray($key));
+    }
+
+    /**
+     * @return ?array<array-key, mixed>
+     */
+    public function tryGetArray(string $key): ?array
+    {
+        return $this->has($key) ? $this->getArray($key) : null;
     }
 
     /**

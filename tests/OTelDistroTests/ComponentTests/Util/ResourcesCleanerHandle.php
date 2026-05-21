@@ -11,7 +11,7 @@ use PHPUnit\Framework\Assert;
 
 final class ResourcesCleanerHandle extends HttpServerHandle
 {
-    private ResourcesClient $resourcesClient;
+    private ResourcesCleanerClient $resourcesCleanerClient;
 
     public function __construct(HttpServerHandle $httpSpawnedProcessHandle)
     {
@@ -22,12 +22,12 @@ final class ResourcesCleanerHandle extends HttpServerHandle
             $httpSpawnedProcessHandle->ports
         );
 
-        $this->resourcesClient = new ResourcesClient($this->spawnedProcessInternalId, $this->getMainPort());
+        $this->resourcesCleanerClient = new ResourcesCleanerClient($this->spawnedProcessInternalId, $this->getMainPort());
     }
 
-    public function getClient(): ResourcesClient
+    public function getClient(): ResourcesCleanerClient
     {
-        return $this->resourcesClient;
+        return $this->resourcesCleanerClient;
     }
 
     public function cleanTestScoped(): void

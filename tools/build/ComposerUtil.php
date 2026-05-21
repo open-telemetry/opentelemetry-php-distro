@@ -6,8 +6,8 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\DistroTools\Build;
 
+use OpenTelemetry\Distro\Log\LoggingClassTrait;
 use OpenTelemetry\Distro\Log\LogLevel;
-use OpenTelemetry\Distro\PhpPartFacade;
 
 /**
  * @phpstan-import-type EnvVars from BuildToolsUtil
@@ -15,7 +15,7 @@ use OpenTelemetry\Distro\PhpPartFacade;
 final class ComposerUtil
 {
     use BuildToolsAssertTrait;
-    use BuildToolsLoggingClassTrait;
+    use LoggingClassTrait;
 
     public const ALLOW_DIRECT_COMPOSER_COMMAND_ENV_VAR_NAME = 'OTEL_PHP_TOOLS_ALLOW_DIRECT_COMPOSER_COMMAND';
 
@@ -37,7 +37,7 @@ final class ComposerUtil
 
     public static function shouldAllowDirectCommand(): bool
     {
-        return PhpPartFacade::getBoolEnvVar(self::ALLOW_DIRECT_COMPOSER_COMMAND_ENV_VAR_NAME, default: false);
+        return BuildToolsUtil::getBoolEnvVar(self::ALLOW_DIRECT_COMPOSER_COMMAND_ENV_VAR_NAME) ?? false;
     }
 
     /**
@@ -45,9 +45,9 @@ final class ComposerUtil
      */
     public static function execComposerInstallShellCommand(bool $withDev, string $additionalArgs = '', array $envVars = []): void
     {
-        $logLevel = LogLevel::info;
-        if (BuildToolsLog::isLevelEnabled($logLevel)) {
-            self::logWithLevel($logLevel, __LINE__, __METHOD__, 'Current directory: ' . BuildToolsUtil::getCurrentDirectory());
+        $logLevel = LogLevel::debug;
+        if (self::isLogEnabledForLevel($logLevel)) {
+            self::logWithLevel(__FUNCTION__, $logLevel)?->with(__LINE__, 'Current directory: ' . BuildToolsUtil::getCurrentDirectory());
             BuildToolsUtil::listDirectoryContents(BuildToolsUtil::getCurrentDirectory());
             BuildToolsUtil::listFileContents(BuildToolsUtil::partsToPath(BuildToolsUtil::getCurrentDirectory(), ComposerUtil::COMPOSER_JSON_FILE_NAME));
         }
@@ -108,10 +108,18 @@ final class ComposerUtil
     }
 
     /**
-     * Must be defined in class using BuildToolsLoggingClassTrait
+     * Must be defined in class using LoggingClassTrait
      */
     private static function getCurrentSourceCodeFile(): string
     {
         return __FILE__;
+    }
+
+    /**
+     * Must be defined in class using LoggingClassTrait
+     */
+    private static function getCurrentOptionalLogProdFeatureIntOrCategoryString(): null|string // @phpstan-ignore return.unusedType
+    {
+        return null;
     }
 }

@@ -133,4 +133,93 @@ class TestCaseBase extends TestCase
             }
         }
     }
+
+    public static function isSmoke(): bool
+    {
+        return AmbientContextForTests::testConfig()->isSmoke();
+    }
+
+    /**
+     * @template T
+     *
+     * @param iterable<T> $variants
+     *
+     * @return iterable<T>
+     */
+    public static function adaptToSmoke(iterable $variants): iterable
+    {
+        if (!self::isSmoke()) {
+            return $variants;
+        }
+        foreach ($variants as $key => $value) {
+            if (ArrayUtilForTests::isOfArrayKeyType($key)) {
+                return [$key => $value];
+            } else {
+                return [$value];
+            }
+        }
+        return [];
+    }
+
+    /**
+     * @template TKey of array-key
+     * @template TValue
+     *
+     * @param iterable<TKey, TValue> $variants
+     *
+     * @return iterable<TKey, TValue>
+     */
+    public function adaptKeyValueToSmoke(iterable $variants): iterable
+    {
+        if (!self::isSmoke()) {
+            return $variants;
+        }
+        foreach ($variants as $key => $value) {
+            return [$key => $value];
+        }
+        return [];
+    }
+
+    /**
+     * @return callable(iterable<mixed>): iterable<mixed>
+     */
+    public static function adaptToSmokeAsCallable(): callable
+    {
+        /**
+         * @template T
+         *
+         * @param iterable<T> $dataSets
+         *
+         * @return iterable<T>
+         */
+        return function (iterable $dataSets): iterable {
+            return self::adaptToSmoke($dataSets);
+        };
+    }
+
+    /**
+     * @param callable(): iterable<array<string, mixed>> $dataSetsGenerator
+     *
+     * @return iterable<string, array{MixedMap}>
+     */
+    public static function adaptDataSetsGeneratorToSmokeToDescToMixedMap(callable $dataSetsGenerator): iterable
+    {
+        return DataProviderForTestBuilder::convertEachDataSetToMixedMapAndAddDesc(fn() => self::adaptToSmoke($dataSetsGenerator()));
+    }
+
+    /**
+     * @return iterable<string, array{MixedMap}>
+     */
+    public static function adaptDataProviderForTestBuilderToSmokeToDescToMixedMap(DataProviderForTestBuilder $dataProviderForTestBuilder): iterable
+    {
+        return self::adaptDataSetsGeneratorToSmokeToDescToMixedMap(fn() => $dataProviderForTestBuilder->buildWithoutDataSetName()); // @phpstan-ignore argument.type
+    }
+
+    /**
+     * @return iterable<array{bool}>
+     */
+    public static function dataProviderOneBoolArgAdaptedToSmoke(): iterable
+    {
+        return self::adaptToSmoke(self::dataProviderOneBoolArg());
+    }
 }

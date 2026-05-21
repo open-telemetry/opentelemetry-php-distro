@@ -4,28 +4,27 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\Util\Log;
 
+use OpenTelemetry\Distro\Log\LogBackend;
 use OpenTelemetry\Distro\Log\LogLevel;
 
 /**
- * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
- *
- * @internal
+ * @phpstan-import-type Context from LogBackend
  */
 interface SinkInterface
 {
     /**
-     * @param array<array-key, mixed> $context
-     * @param non-negative-int        $numberOfStackFramesToSkip
+     * @phpstan-param Context $context
+     * @param non-negative-int $numberOfStackFramesToSkip
      */
     public function consume(
-        LogLevel $statementLevel,
+        LogLevel $level,
+        string $category,
+        string $file,
+        int $line,
+        string $func,
         string $message,
         array $context,
-        string $category,
-        string $srcCodeFile,
-        int $srcCodeLine,
-        string $srcCodeFunc,
         ?bool $includeStacktrace,
-        int $numberOfStackFramesToSkip
+        int $numberOfStackFramesToSkip,
     ): void;
 }

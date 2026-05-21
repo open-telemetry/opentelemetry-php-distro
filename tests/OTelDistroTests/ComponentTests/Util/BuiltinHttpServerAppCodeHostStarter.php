@@ -16,9 +16,9 @@ final class BuiltinHttpServerAppCodeHostStarter extends HttpServerStarter
 
     private function __construct(
         private readonly HttpAppCodeHostParams $appCodeHostParams,
-        private readonly ResourcesCleanerHandle $resourcesCleaner
+        ResourcesCleanerHandle $resourcesCleaner,
     ) {
-        parent::__construct($appCodeHostParams->dbgProcessNamePrefix);
+        parent::__construct($appCodeHostParams->dbgProcessNamePrefix, $resourcesCleaner);
     }
 
     /**
@@ -26,7 +26,7 @@ final class BuiltinHttpServerAppCodeHostStarter extends HttpServerStarter
      */
     public static function startBuiltinHttpServerAppCodeHost(HttpAppCodeHostParams $appCodeHostParams, ResourcesCleanerHandle $resourcesCleaner, array $portsInUse): HttpServerHandle
     {
-        return (new self($appCodeHostParams, $resourcesCleaner))->startHttpServer($portsInUse);
+        return (new self($appCodeHostParams, $resourcesCleaner))->startHttpServer(/* isTestScoped */ true, $portsInUse);
     }
 
     /** @inheritDoc */

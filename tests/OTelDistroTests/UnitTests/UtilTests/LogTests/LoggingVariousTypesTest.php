@@ -11,7 +11,7 @@ use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\DataProviderForTestBuilder;
 use OTelDistroTests\Util\FloatLimits;
 use OTelDistroTests\Util\JsonUtil;
-use OTelDistroTests\Util\Log\Backend as LogBackend;
+use OTelDistroTests\Util\Log\LogBackendForTests as LogBackend;
 use OTelDistroTests\Util\Log\LogConsts;
 use OTelDistroTests\Util\Log\LoggableToEncodedJson;
 use OTelDistroTests\Util\Log\LoggableToJsonEncodable;

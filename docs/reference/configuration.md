@@ -124,3 +124,67 @@ opentelemetry_distro.enabled=true
 - Background transfer works with OTLP HTTP/protobuf mode.
 - `OTEL_PHP_AUTOLOAD_ENABLED` is enforced as enabled by the distro runtime.
 - The distro package includes multiple dependencies such as OpenTelemetry SDK, various auto-instrumentation, their transitive dependencies, etc. It's possible that the monitored application includes dependencies that might clash with the ones in the distro package. This in turn might cause the application to malfunction. In order to prevent that the distro uses **scoped** dependencies by default. The scoping of dependencies' code achieved by adding a unique prefix to their namespaces. Since PHP runtime has runtime reflection changing namespaces theoretically might not be compatible with some corner cases code. In order to allow falling back to the original (i.e., not scoped) dependencies configuration option `scoped_deps_enabled` (`OTEL_PHP_SCOPED_DEPS_ENABLED` environment variable) can be set to `false`.
+
+## File-based configuration (declarative)
+
+As an alternative to environment variables, you can configure the SDK using a YAML configuration file by setting the `OTEL_CONFIG_FILE` environment variable:
+
+```bash
+export OTEL_CONFIG_FILE=/path/to/otel-config.yaml
+```
+
+When `OTEL_CONFIG_FILE` is set:
+
+- The SDK reads all configuration from the YAML file instead of individual `OTEL_*` environment variables
+- Environment variable substitution (`${MY_VAR:-default}`) is supported within the YAML file
+- Central configuration (OpAMP) is automatically disabled — file-based and remote configuration are mutually exclusive
+- Distro-specific options (`OTEL_PHP_*`) continue to work as they are native extension options, independent of the SDK
+
+### Distro resource detector
+
+The distro provides a `distro` resource detector that adds `telemetry.distro.name` and `telemetry.distro.version` resource attributes. To activate it in file-based configuration, add it to the `resource.detection/development.detectors` section:
+
+```yaml
+file_format: "1.0-rc.2"
+
+resource:
+  attributes:
+    - name: service.name
+      value: my-service
+  detection/development:
+    detectors:
+      - distro: {}
+
+propagator:
+  composite:
+    - tracecontext:
+    - baggage:
+
+tracer_provider:
+  processors:
+    - batch:
+        exporter:
+          otlp_http:
+            endpoint: http://localhost:4318/v1/traces
+
+meter_provider:
+  readers:
+    - periodic:
+        exporter:
+          otlp_http:
+            endpoint: http://localhost:4318/v1/metrics
+
+logger_provider:
+  processors:
+    - batch:
+        exporter:
+          otlp_http:
+            endpoint: http://localhost:4318/v1/logs
+```
+
+For the full YAML schema, see the [OpenTelemetry Configuration Schema](https://github.com/open-telemetry/opentelemetry-configuration/blob/main/schema-docs.md).
+
+### Limitations
+
+- Central configuration (OpAMP) is not available when file-based configuration is active.
+- Resource detectors registered via `Registry::registerResourceDetector()` (e.g., cloud provider detectors from `opentelemetry-php-contrib`) are not automatically active. They must provide a `ComponentProvider` and be explicitly listed in the YAML `resource.detection/development.detectors` section.

@@ -53,7 +53,7 @@ final class OTelDistroProjectProperties
         /** @var ?list<string> $testGroupsShortNames */
         $testGroupsShortNames = null;
 
-        foreach (TextUtilForTests::iterateLines($fileContents, keepEndOfLine: false) as $line) {
+        foreach (TextUtilForTests::iterateLines($fileContents) as $line) {
             if (trim($line) === '') {
                 continue;
             }

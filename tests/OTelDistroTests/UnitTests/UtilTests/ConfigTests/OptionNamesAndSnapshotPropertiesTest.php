@@ -16,6 +16,7 @@ use OTelDistroTests\Util\Config\OptionsForProdMetadata;
 use OTelDistroTests\Util\Config\OptionsForTestsMetadata;
 use OTelDistroTests\Util\DebugContext;
 use OTelDistroTests\Util\TestCaseBase;
+use OTelDistroTests\Util\TextUtilForTests;
 use UnitEnum;
 
 class OptionNamesAndSnapshotPropertiesTest extends TestCaseBase
@@ -64,7 +65,7 @@ class OptionNamesAndSnapshotPropertiesTest extends TestCaseBase
         $remainingSnapPropNames = $propertyNamesForOptions;
         foreach ($optNameCases as $optNameCase) {
             $dbgCtx->add(compact('optNameCase', 'remainingSnapPropNames'));
-            self::assertTrue(ArrayUtilForTests::removeFirstByValue(/* in,out */ $remainingSnapPropNames, TextUtil::snakeToCamelCase($optNameCase->name)));
+            self::assertTrue(ArrayUtilForTests::removeFirstByValue(/* in,out */ $remainingSnapPropNames, TextUtilForTests::snakeToCamelCase($optNameCase->name)));
         }
 
         self::assertEmpty($remainingSnapPropNames);
@@ -82,23 +83,6 @@ class OptionNamesAndSnapshotPropertiesTest extends TestCaseBase
                 $envVarName = $optName->toEnvVarName();
                 $dbgCtx->add(compact('envVarName'));
                 self::assertTrue(TextUtil::isSuffixOf(strtoupper($optName->name), $envVarName));
-            }
-        }
-    }
-
-    public function testLogRelated(): void
-    {
-        DebugContext::getCurrentScope(/* out */ $dbgCtx);
-
-        foreach (OptionForProdName::getAllLogLevelRelated() as $optName) {
-            $dbgCtx->add(compact('optName'));
-            self::assertTrue($optName->isLogLevelRelated());
-        }
-
-        foreach (OptionForProdName::cases() as $optName) {
-            $dbgCtx->add(compact('optName'));
-            if (TextUtil::isPrefixOf('log_level_', $optName->name)) {
-                self::assertTrue($optName->isLogLevelRelated());
             }
         }
     }
