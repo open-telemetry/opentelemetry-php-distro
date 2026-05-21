@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\UnitTests\UtilTests\ConfigTests;
 
-use OpenTelemetry\Distro\Util\TextUtil;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\Config\BoolOptionParser;
 use OTelDistroTests\Util\Config\CustomOptionParser;
@@ -184,7 +183,7 @@ class VariousOptionsParsingTest extends TestCaseBase
         foreach ($invalidRawValues as $invalidRawValue) {
             $invalidRawValue = self::genOptionalWhitespace() . $invalidRawValue . self::genOptionalWhitespace();
             $dbgCtx->add([...compact('invalidRawValue'), 'strlen($invalidRawValue)' => strlen($invalidRawValue)]);
-            if (!TextUtil::isEmptyString($invalidRawValue)) {
+            if ($invalidRawValue !== '') {
                 $dbgCtx->add(['ord($invalidRawValue[0])' => ord($invalidRawValue[0])]);
             }
             AssertEx::throws(

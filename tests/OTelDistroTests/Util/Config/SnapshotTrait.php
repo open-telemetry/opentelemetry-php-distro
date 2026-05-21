@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace OTelDistroTests\Util\Config;
 
 use OpenTelemetry\Distro\Util\ArrayUtil;
-use OpenTelemetry\Distro\Util\TextUtil;
 use OTelDistroTests\Util\ArrayUtilForTests;
 use OTelDistroTests\Util\Log\LoggableTrait;
+use OTelDistroTests\Util\TextUtilForTests;
 use PHPUnit\Framework\Assert;
 use UnitEnum;
 
@@ -30,7 +30,7 @@ trait SnapshotTrait
 
         $actualClass = get_called_class();
         foreach ($optNameToParsedValue as $optName => $parsedValue) {
-            $propertyName = TextUtil::snakeToCamelCase($optName);
+            $propertyName = TextUtilForTests::snakeToCamelCase($optName);
             if (!property_exists($actualClass, $propertyName)) {
                 throw new ConfigException("Property `$propertyName' doesn't exist in class " . $actualClass);
             }

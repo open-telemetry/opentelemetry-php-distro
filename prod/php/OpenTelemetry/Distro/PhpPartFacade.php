@@ -374,7 +374,7 @@ final class PhpPartFacade
             return;
         }
         $logDebug = self::logDebug(__FUNCTION__);
-        if (TextUtil::isEmptyString($userBootstrapPhpFile)) {
+        if ($userBootstrapPhpFile === '') {
             $logDebug?->with(__LINE__, self::USER_BOOTSTRAP_PHP_FILE_OPT_NAME . ' configuration option is not set');
             return;
         }

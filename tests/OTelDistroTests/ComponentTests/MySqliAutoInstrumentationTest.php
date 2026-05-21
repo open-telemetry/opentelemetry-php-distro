@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OTelDistroTests\ComponentTests;
 
 use OpenTelemetry\Distro\Util\TextUtil;
+use OpenTelemetry\SemConv\Attributes\DbAttributes;
 use OTelDistroTests\ComponentTests\Util\AgentBackendComms;
 use OTelDistroTests\ComponentTests\Util\AppCodeContextUtil;
 use OTelDistroTests\ComponentTests\Util\ComponentTestCaseBase;
@@ -24,7 +25,6 @@ use OTelDistroTests\Util\DebugContextScopeRef;
 use OTelDistroTests\Util\IterableUtil;
 use OTelDistroTests\Util\Log\LoggableToString;
 use OTelDistroTests\Util\MixedMap;
-use OpenTelemetry\SemConv\Attributes\DbAttributes;
 
 /**
  * @group smoke
@@ -129,7 +129,7 @@ final class MySqliAutoInstrumentationTest extends ComponentTestCaseBase
             case self::QUERY_KIND_MULTI_QUERY:
                 $multiQuery = '';
                 foreach ($queries as $query) {
-                    if (!TextUtil::isEmptyString($multiQuery)) {
+                    if ($multiQuery !== '') {
                         $multiQuery .= ';';
                     }
                     $multiQuery .= $query;

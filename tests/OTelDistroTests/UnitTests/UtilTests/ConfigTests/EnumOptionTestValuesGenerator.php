@@ -8,6 +8,7 @@ use OpenTelemetry\Distro\Util\TextUtil;
 use OTelDistroTests\Util\Config\EnumOptionParser;
 use OTelDistroTests\Util\RandomUtil;
 use OTelDistroTests\Util\RangeUtil;
+use OTelDistroTests\Util\TextUtilForTests;
 use Override;
 
 /**
@@ -52,7 +53,7 @@ final class EnumOptionTestValuesGenerator implements OptionTestValuesGeneratorIn
         /** @var int[] $letterIndexes */
         $letterIndexes = [];
         foreach (RangeUtil::generateUpTo(strlen($srcStr)) as $charIndex) {
-            if (TextUtil::isLetter(ord($srcStr[$charIndex]))) {
+            if (TextUtilForTests::isLetter(ord($srcStr[$charIndex]))) {
                 $letterIndexes[] = $charIndex;
             }
         }
@@ -64,7 +65,7 @@ final class EnumOptionTestValuesGenerator implements OptionTestValuesGeneratorIn
         $remainderStartIndex = 0;
         foreach ($letterToFlipIndexes as $letterToFlipIndex) {
             $result .= substr($srcStr, $remainderStartIndex, $letterToFlipIndex - $remainderStartIndex);
-            $result .= chr(TextUtil::flipLetterCase(ord($srcStr[$letterToFlipIndex])));
+            $result .= chr(TextUtilForTests::flipLetterCase(ord($srcStr[$letterToFlipIndex])));
             $remainderStartIndex = $letterToFlipIndex + 1;
         }
         $result .= substr($srcStr, $remainderStartIndex);

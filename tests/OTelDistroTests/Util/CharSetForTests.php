@@ -13,6 +13,8 @@ use Traversable;
 /**
  * @implements IteratorAggregate<string>
  *
+ * @phpstan-import-type UnsignedByte from TextUtilForTests
+ *
  * @noinspection PhpUnused
  */
 final class CharSetForTests implements IteratorAggregate
@@ -71,6 +73,7 @@ final class CharSetForTests implements IteratorAggregate
         $lastCodePoint = ord($last);
         Assert::assertGreaterThanOrEqual($firstCodePoint, $lastCodePoint);
         foreach (RangeUtil::generateFromToIncluding($firstCodePoint, $lastCodePoint) as $codepoint) {
+            /** @var UnsignedByte $codepoint */
             $this->addChar(chr($codepoint));
         }
     }

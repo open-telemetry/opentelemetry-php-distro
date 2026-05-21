@@ -16,6 +16,7 @@ use OTelDistroTests\Util\Config\OptionsForProdMetadata;
 use OTelDistroTests\Util\Config\OptionsForTestsMetadata;
 use OTelDistroTests\Util\DebugContext;
 use OTelDistroTests\Util\TestCaseBase;
+use OTelDistroTests\Util\TextUtilForTests;
 use UnitEnum;
 
 class OptionNamesAndSnapshotPropertiesTest extends TestCaseBase
@@ -64,7 +65,7 @@ class OptionNamesAndSnapshotPropertiesTest extends TestCaseBase
         $remainingSnapPropNames = $propertyNamesForOptions;
         foreach ($optNameCases as $optNameCase) {
             $dbgCtx->add(compact('optNameCase', 'remainingSnapPropNames'));
-            self::assertTrue(ArrayUtilForTests::removeFirstByValue(/* in,out */ $remainingSnapPropNames, TextUtil::snakeToCamelCase($optNameCase->name)));
+            self::assertTrue(ArrayUtilForTests::removeFirstByValue(/* in,out */ $remainingSnapPropNames, TextUtilForTests::snakeToCamelCase($optNameCase->name)));
         }
 
         self::assertEmpty($remainingSnapPropNames);

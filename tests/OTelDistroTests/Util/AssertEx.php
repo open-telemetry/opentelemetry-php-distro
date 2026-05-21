@@ -13,6 +13,7 @@ use PHPUnit\Framework\Constraint\IsEqual;
 use PHPUnit\Framework\Constraint\IsType;
 use PHPUnit\Framework\Constraint\LessThan;
 use PHPUnit\Framework\ExpectationFailedException;
+use Stringable;
 use Throwable;
 
 final class AssertEx
@@ -469,10 +470,10 @@ final class AssertEx
     }
 
     /**
-     * @param array<array-key, mixed> $subSet
-     * @param array<array-key, mixed> $largerSet
+     * @param array<string|Stringable> $subSet
+     * @param array<string|Stringable> $largerSet
      */
-    public static function listIsSubsetOf(array $subSet, array $largerSet): void
+    public static function arrayValuesIsSubsetOf(array $subSet, array $largerSet): void
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 

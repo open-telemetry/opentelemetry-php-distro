@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace OTelDistroTests\Util;
 
 use OpenTelemetry\Distro\Util\StaticClassTrait;
-use OpenTelemetry\Distro\Util\TextUtil;
 
 /**
  * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
@@ -147,7 +146,7 @@ final class TimeUtil
             }
 
             $remainderAsString = ($remainder === floor($remainder)) ? strval(intval($remainder)) : strval($remainder);
-            return $appendTo . (TextUtil::isEmptyString($appendTo) ? '' : ' ') . $remainderAsString . $units;
+            return $appendTo . ($appendTo === '' ? '' : ' ') . $remainderAsString . $units;
         };
 
         $result = '';

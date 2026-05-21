@@ -7,7 +7,6 @@ declare(strict_types=1);
 namespace OpenTelemetry\Distro\Traces;
 
 use OpenTelemetry\Distro\Util\ArrayUtil;
-use OpenTelemetry\Distro\Util\TextUtil;
 use Http\Discovery\Exception\NotFoundException;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Nyholm\Psr7Server\ServerRequestCreator;
@@ -181,7 +180,7 @@ class RootSpan
         if (php_sapi_name() === 'cli') {
             if (is_string($scriptName = self::getOptionalServerVarElement('SCRIPT_NAME'))) {
                 $processedScriptName = self::processPathMatchers($scriptName);
-                return TextUtil::isEmptyString($processedScriptName) ? self::DEFAULT_SPAN_NAME_FOR_SCRIPT : $processedScriptName;
+                return $processedScriptName === '' ? self::DEFAULT_SPAN_NAME_FOR_SCRIPT : $processedScriptName;
             } else {
                 return self::DEFAULT_SPAN_NAME_FOR_SCRIPT;
             }
