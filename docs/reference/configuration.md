@@ -117,3 +117,67 @@ opentelemetry_distro.enabled=true
 
 - Background transfer works with OTLP HTTP/protobuf mode.
 - `OTEL_PHP_AUTOLOAD_ENABLED` is enforced as enabled by the distro runtime.
+
+## File-based configuration (declarative)
+
+As an alternative to environment variables, you can configure the SDK using a YAML configuration file by setting the `OTEL_CONFIG_FILE` environment variable:
+
+```bash
+export OTEL_CONFIG_FILE=/path/to/otel-config.yaml
+```
+
+When `OTEL_CONFIG_FILE` is set:
+
+- The SDK reads all configuration from the YAML file instead of individual `OTEL_*` environment variables
+- Environment variable substitution (`${MY_VAR:-default}`) is supported within the YAML file
+- Central configuration (OpAMP) is automatically disabled — file-based and remote configuration are mutually exclusive
+- Distro-specific options (`OTEL_PHP_*`) continue to work as they are native extension options, independent of the SDK
+
+### Distro resource detector
+
+The distro provides a `distro` resource detector that adds `telemetry.distro.name` and `telemetry.distro.version` resource attributes. To activate it in file-based configuration, add it to the `resource.detection/development.detectors` section:
+
+```yaml
+file_format: "1.0-rc.2"
+
+resource:
+  attributes:
+    - name: service.name
+      value: my-service
+  detection/development:
+    detectors:
+      - distro: {}
+
+propagator:
+  composite:
+    - tracecontext:
+    - baggage:
+
+tracer_provider:
+  processors:
+    - batch:
+        exporter:
+          otlp_http:
+            endpoint: http://localhost:4318/v1/traces
+
+meter_provider:
+  readers:
+    - periodic:
+        exporter:
+          otlp_http:
+            endpoint: http://localhost:4318/v1/metrics
+
+logger_provider:
+  processors:
+    - batch:
+        exporter:
+          otlp_http:
+            endpoint: http://localhost:4318/v1/logs
+```
+
+For the full YAML schema, see the [OpenTelemetry Configuration Schema](https://github.com/open-telemetry/opentelemetry-configuration/blob/main/schema-docs.md).
+
+### Limitations
+
+- Central configuration (OpAMP) is not available when file-based configuration is active.
+- Resource detectors registered via `Registry::registerResourceDetector()` (e.g., cloud provider detectors from `opentelemetry-php-contrib`) are not automatically active. They must provide a `ComponentProvider` and be explicitly listed in the YAML `resource.detection/development.detectors` section.

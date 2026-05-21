@@ -72,10 +72,10 @@ final class RemoteConfigHandler
     {
         if (OTelSdkConfiguration::has(OTelSdkConfigVariables::OTEL_CONFIG_FILE)) {
             $cfgFileOptVal = OTelSdkConfiguration::getMixed(OTelSdkConfigVariables::OTEL_CONFIG_FILE);
-            self::logError(
+            self::logDebug(
                 __LINE__,
                 __FUNCTION__,
-                'Local config has ' . OTelSdkConfigVariables::OTEL_CONFIG_FILE . ' option set - remote config feature is not compatible with this option',
+                'Local config has ' . OTelSdkConfigVariables::OTEL_CONFIG_FILE . ' option set - remote config is not compatible with declarative configuration',
                 [OTelSdkConfigVariables::OTEL_CONFIG_FILE . ' option value' => $cfgFileOptVal],
             );
             return false;

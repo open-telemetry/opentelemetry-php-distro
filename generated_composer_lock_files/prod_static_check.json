@@ -21,7 +21,9 @@
         "open-telemetry/opentelemetry-auto-postgresql": "dev-main",
         "open-telemetry/opentelemetry-auto-slim": "1.4.0",
         "open-telemetry/sdk": "1.14.0",
+        "open-telemetry/sdk-configuration": "0.8.0",
         "open-telemetry/sem-conv": "1.38.0",
+        "symfony/yaml": "^6.4 || ^7.0",
         "php-http/guzzle7-adapter": "^1.0",
         "nyholm/psr7-server": "^1.1"
     },
