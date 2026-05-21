@@ -87,23 +87,6 @@ class OptionNamesAndSnapshotPropertiesTest extends TestCaseBase
         }
     }
 
-    public function testLogRelated(): void
-    {
-        DebugContext::getCurrentScope(/* out */ $dbgCtx);
-
-        foreach (OptionForProdName::getAllLogLevelRelated() as $optName) {
-            $dbgCtx->add(compact('optName'));
-            self::assertTrue($optName->isLogLevelRelated());
-        }
-
-        foreach (OptionForProdName::cases() as $optName) {
-            $dbgCtx->add(compact('optName'));
-            if (TextUtil::isPrefixOf('log_level_', $optName->name)) {
-                self::assertTrue($optName->isLogLevelRelated());
-            }
-        }
-    }
-
     public function testProdOptionNameToEnvVar(): void
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);

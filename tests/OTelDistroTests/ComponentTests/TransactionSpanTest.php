@@ -186,6 +186,6 @@ final class TransactionSpanTest extends ComponentTestCaseBase
      */
     public function testTransactionSpan(MixedMap $testArgs): void
     {
-        self::runAndEscalateLogLevelOnFailure(self::buildDbgDescForTestWithArgs(__CLASS__, __FUNCTION__, $testArgs), fn() => $this->implTestTransactionSpan($testArgs));
+        $this->runAndEscalateLogLevelOnFailure(self::buildDbgDescForTestWithArgs(__CLASS__, __FUNCTION__, $testArgs), fn() => $this->implTestTransactionSpan($testArgs));
     }
 }

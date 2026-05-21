@@ -141,6 +141,23 @@ final class AssertEx
      *
      * @param array<T> $actual
      *
+     * @return array{}
+     *
+     * @phpstan-assert array{} $actual
+     *
+     * @noinspection PhpUnused
+     */
+    public static function isEmptyArray(array $actual, string $message = ''): array
+    {
+        Assert::assertEmpty($actual, $message);
+        return $actual;
+    }
+
+    /**
+     * @template T
+     *
+     * @param array<T> $actual
+     *
      * @return non-empty-array<T>
      *
      * @phpstan-assert non-empty-array<T> $actual

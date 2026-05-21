@@ -15,6 +15,8 @@ use PHPUnit\Framework\Assert;
  */
 final class TestMatrixRowOptionalPart
 {
+    public const KEY_VALUE_SEPARATOR = '=';
+
     /**
      * @param OptionsForProdMap $prodOptions
      */
@@ -27,11 +29,11 @@ final class TestMatrixRowOptionalPart
     public static function parse(string $stringToParse): self
     {
         // For example:
-        //              OTEL_PHP_LOG_LEVEL_SYSLOG=TRACE,OTEL_PHP_SCOPED_DEPS_ENABLED=false
+        //              OTEL_PHP_LOG_LEVEL_STDERR=debug,OTEL_PHP_LOG_LEVEL_SYSLOG=trace
 
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
-        $keyValParts = explode(',', $stringToParse);
+        $keyValParts = explode(TestMatrixRow::ROW_ELEMENTS_SEPARATOR, $stringToParse);
         $dbgCtx->add(compact('keyValParts'));
 
         /** @var OptionsForProdMap $prodOptions */
@@ -39,7 +41,7 @@ final class TestMatrixRowOptionalPart
         $dbgCtx->pushSubScope();
         foreach ($keyValParts as $keyValPart) {
             $dbgCtx->resetTopSubScope(compact('keyValPart'));
-            $keyValueArr = explode('=', $keyValPart, limit: 2);
+            $keyValueArr = explode(self::KEY_VALUE_SEPARATOR, $keyValPart, limit: 2);
             $dbgCtx->add(compact('keyValueArr'));
             Assert::assertCount(2, AssertEx::isArray($keyValueArr));
             $envVarName = $keyValueArr[0];

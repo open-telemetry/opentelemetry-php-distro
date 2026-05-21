@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\UnitTests\UtilTests;
 
-use OpenTelemetry\Distro\Util\ArrayUtil;
-use OTelDistroTests\ComponentTests\Util\TestMatrixRowOptionalPart;
-use OTelDistroTests\ComponentTests\Util\TestMatrixRowUtil;
+use OTelDistroTests\ComponentTests\Util\TestMatrixRow;
 use OTelDistroTests\Util\ArrayUtilForTests;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\Config\OptionForTestsName;
@@ -15,10 +13,8 @@ use OTelDistroTests\Util\OTelDistroProjectProperties;
 use OTelDistroTests\Util\FileUtil;
 use OTelDistroTests\Util\IterableUtil;
 use OTelDistroTests\Util\OsUtil;
-use OTelDistroTests\Util\PhpVersionInfo;
 use OTelDistroTests\Util\RepoRootDir;
 use OTelDistroTests\Util\TestCaseBase;
-use PHPUnit\Framework\Assert;
 
 final class ComponentTestsMatrixUnitTest extends TestCaseBase
 {
@@ -26,16 +22,6 @@ final class ComponentTestsMatrixUnitTest extends TestCaseBase
 
     private const UNPACKED_PHP_VERSION_ENV_VAR_NAME = OptionForTestsName::ENV_VAR_NAME_PREFIX . 'PHP_VERSION';
     private const UNPACKED_PACKAGE_TYPE_ENV_VAR_NAME = OptionForTestsName::ENV_VAR_NAME_PREFIX . 'PACKAGE_TYPE';
-
-    private const APP_CODE_HOST_SHORT_TO_LONG_NAME = [
-        'cli' => 'CLI_script',
-        'http' => 'Builtin_HTTP_server',
-    ];
-
-    private const TESTS_GROUP_SHORT_TO_LONG_NAME = [
-        'no_ext_svc' => 'does_not_require_external_services',
-        'with_ext_svc' => 'requires_external_services',
-    ];
 
     /**
      * @return string[]
@@ -147,68 +133,22 @@ final class ComponentTestsMatrixUnitTest extends TestCaseBase
         self::assertSame($expectedMatrixRows, $actualMatrixRows);
     }
 
-    private static function convertAppHostKindShortToLongName(string $shortName): string
-    {
-        if (ArrayUtil::getValueIfKeyExists($shortName, self::APP_CODE_HOST_SHORT_TO_LONG_NAME, /* out */ $longName)) {
-            return $longName;
-        }
-
-        Assert::fail("Unknown test app code host kind short name: $shortName");
-    }
-
-    private static function convertTestGroupShortToLongName(string $shortName): string
-    {
-        if (ArrayUtil::getValueIfKeyExists($shortName, self::TESTS_GROUP_SHORT_TO_LONG_NAME, /* out */ $longName)) {
-            return $longName;
-        }
-
-        Assert::fail("Unknown test group short name: $shortName");
-    }
-
     /**
-     * @param string $matrixRow
-     *
      * @return array<string, mixed>
      */
-    private static function unpackRowToEnvVars(string $matrixRow): array
+    private static function unpackRowToEnvVars(string $matrixRowRaw): array
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
         $result = [];
-        ArrayUtilForTests::addAssertingKeyNew(OptionForTestsName::matrix_row->toEnvVarName(), $matrixRow, /* ref */ $result);
+        ArrayUtilForTests::addAssertingKeyNew(OptionForTestsName::matrix_row->toEnvVarName(), $matrixRowRaw, /* ref */ $result);
 
-        TestMatrixRowUtil::split($matrixRow, /* out */ $mandatoryParts, /* out */ $optionalPart);
-        $dbgCtx->add(compact('mandatoryParts', 'optionalPart'));
+        $matrixRowParsed = TestMatrixRow::parse($matrixRowRaw);
 
-        $partIndex = 0;
-        $dbgCtx->add(['partIndex' => &$partIndex]); // Track $partIndex by reference because it is changing through the flow of the function
-        $phpVersion = $mandatoryParts[$partIndex];
-        Assert::assertTrue(OTelDistroProjectProperties::singletonInstance()->isSupportedPhpVersion(PhpVersionInfo::fromMajorDotMinor($phpVersion)));
-        ArrayUtilForTests::addAssertingKeyNew(self::UNPACKED_PHP_VERSION_ENV_VAR_NAME, $phpVersion, /* ref */ $result);
-
-        ++$partIndex;
-        $packageType = $mandatoryParts[$partIndex];
-        Assert::assertContains($packageType, OTelDistroProjectProperties::singletonInstance()->supportedPackageTypes);
-        ArrayUtilForTests::addAssertingKeyNew(self::UNPACKED_PACKAGE_TYPE_ENV_VAR_NAME, $packageType, /* ref */ $result);
-
-        ++$partIndex;
-        $testAppHostKindShortName = $mandatoryParts[$partIndex];
-        Assert::assertContains($testAppHostKindShortName, OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames);
-        $testAppHostKind = self::convertAppHostKindShortToLongName($testAppHostKindShortName);
-        ArrayUtilForTests::addAssertingKeyNew(OptionForTestsName::app_code_host_kind->toEnvVarName(), $testAppHostKind, /* ref */ $result);
-
-        ++$partIndex;
-        $testGroupShortName = $mandatoryParts[$partIndex];
-        Assert::assertContains($testGroupShortName, OTelDistroProjectProperties::singletonInstance()->testGroupsShortNames);
-        $testGroup = self::convertTestGroupShortToLongName($testGroupShortName);
-        ArrayUtilForTests::addAssertingKeyNew(OptionForTestsName::group->toEnvVarName(), $testGroup, /* ref */ $result);
-
-        self::assertCount($partIndex + 1, $mandatoryParts);
-
-        if ($optionalPart !== null) {
-            ArrayUtilForTests::addAssertingKeyNew(OptionForTestsName::matrix_row_optional_part->toEnvVarName(), $optionalPart, /* ref */ $result);
-            TestMatrixRowOptionalPart::parse($optionalPart);
-        }
+        ArrayUtilForTests::addAssertingKeyNew(self::UNPACKED_PHP_VERSION_ENV_VAR_NAME, $matrixRowParsed->phpVersion, /* ref */ $result);
+        ArrayUtilForTests::addAssertingKeyNew(self::UNPACKED_PACKAGE_TYPE_ENV_VAR_NAME, $matrixRowParsed->packageType, /* ref */ $result);
+        ArrayUtilForTests::addAssertingKeyNew(OptionForTestsName::app_code_host_kind->toEnvVarName(), $matrixRowParsed->appCodeHostKindShortName, /* ref */ $result);
+        ArrayUtilForTests::addAssertingKeyNew(OptionForTestsName::group->toEnvVarName(), $matrixRowParsed->testGroupName, /* ref */ $result);
 
         return $result;
     }

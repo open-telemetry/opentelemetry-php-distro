@@ -41,9 +41,6 @@ enum OptionForProdName
     private const OTEL_ENV_VAR_NAME_PREFIX = 'OTEL_';
     private const OTEL_PHP_ENV_VAR_NAME_PREFIX = 'OTEL_PHP_';
 
-    private const LOG_LEVEL_RELATED = [self::log_level_file, self::log_level_stderr, self::log_level_syslog];
-    private const LOG_RELATED = [...self::LOG_LEVEL_RELATED, self::log_file];
-
     /**
      * @return array<non-empty-string, non-empty-string>
      */
@@ -100,32 +97,6 @@ enum OptionForProdName
     public function toEnvVarName(): string
     {
         return EnvVarsRawSnapshotSource::optionNameToEnvVarName($this->getEnvVarNamePrefix(), $this->name);
-    }
-
-    public function isLogLevelRelated(): bool
-    {
-        return in_array($this, self::LOG_LEVEL_RELATED, strict: true);
-    }
-
-    public function isLogRelated(): bool
-    {
-        return in_array($this, self::LOG_RELATED, strict: true);
-    }
-
-    /**
-     * @return iterable<self>
-     */
-    public static function getAllLogRelated(): iterable
-    {
-        return self::LOG_RELATED;
-    }
-
-    /**
-     * @return iterable<self>
-     */
-    public static function getAllLogLevelRelated(): iterable
-    {
-        return self::LOG_LEVEL_RELATED;
     }
 
     public static function tryToFindByEnvVarName(string $envVarName): ?self

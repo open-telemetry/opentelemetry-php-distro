@@ -23,8 +23,6 @@ enum OptionForTestsName
     case data_per_process;
     case data_per_request;
 
-    case env_vars_to_pass_through;
-
     case escalated_reruns_prod_code_log_level_option_name;
     case escalated_reruns_max_count;
 
@@ -34,7 +32,6 @@ enum OptionForTestsName
     case logs_directory;
 
     case matrix_row;
-    case matrix_row_optional_part;
 
     case mysql_host;
     case mysql_port;

@@ -8,7 +8,7 @@ use OpenTelemetry\Distro\Log\LogLevel;
 use OTelDistroTests\ComponentTests\Util\PhpSerializationUtil;
 use OTelDistroTests\ComponentTests\Util\TestInfraDataPerProcess;
 use OTelDistroTests\ComponentTests\Util\TestInfraDataPerRequest;
-use OTelDistroTests\ComponentTests\Util\TestMatrixRowOptionalPart;
+use OTelDistroTests\ComponentTests\Util\TestMatrixRow;
 
 /**
  * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
@@ -31,8 +31,8 @@ final class OptionsForTestsMetadata
             return PhpSerializationUtil::unserializeFromStringAssertType($rawValue, TestInfraDataPerRequest::class);
         };
 
-        $parseTestMatrixRowOptionalPart = function (string $rawValue): TestMatrixRowOptionalPart {
-            return TestMatrixRowOptionalPart::parse($rawValue);
+        $parseTestMatrixRow = function (string $rawValue): TestMatrixRow {
+            return TestMatrixRow::parse($rawValue);
         };
 
         /** @var array{OptionForTestsName, OptionMetadata<mixed>}[] $optNameMetaPairs */
@@ -45,8 +45,6 @@ final class OptionsForTestsMetadata
             [OptionForTestsName::data_per_process, new NullableCustomOptionMetadata($parseTestInfraDataPerProcess)],
             [OptionForTestsName::data_per_request, new NullableCustomOptionMetadata($parseTestInfraDataPerRequest)],
 
-            [OptionForTestsName::env_vars_to_pass_through, new NullableWildcardListOptionMetadata()],
-
             [OptionForTestsName::escalated_reruns_max_count, new IntOptionMetadata(minValidValue: 0, maxValidValue: null, defaultValue: 10)],
             [OptionForTestsName::escalated_reruns_prod_code_log_level_option_name, new NullableStringOptionMetadata()],
 
@@ -55,8 +53,7 @@ final class OptionsForTestsMetadata
             [OptionForTestsName::log_level, new LogLevelOptionMetadata(LogLevel::info)],
             [OptionForTestsName::logs_directory, new NullableStringOptionMetadata()],
 
-            [OptionForTestsName::matrix_row, new NullableStringOptionMetadata()],
-            [OptionForTestsName::matrix_row_optional_part, new NullableCustomOptionMetadata($parseTestMatrixRowOptionalPart)],
+            [OptionForTestsName::matrix_row, new NullableCustomOptionMetadata($parseTestMatrixRow)],
 
             [OptionForTestsName::mysql_host, new NullableStringOptionMetadata()],
             [OptionForTestsName::mysql_port, new NullableIntOptionMetadata(1, 65535)],

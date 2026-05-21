@@ -48,31 +48,23 @@ function convert_test_group_short_to_long_name () {
 }
 
 function _export_var_to_env () {
-    local -r prefix="$1"
-    local -r key="$2"
-    local -r value="$3"
-    local -r verbose=$4
-    local var_name
-    var_name="${prefix}_$(echo "$key" | tr '[:lower:]' '[:upper:]')"
+    local -r var_name="${1:?}"
+    local -r var_value="${2:}"
+    local -r verbose=$3
     if [ "${verbose}" == "true" ] ; then
-        echo "Exporting env var: ${var_name}=${value}"
+        echo "Exporting env var: ${var_name}=${var_value}"
     fi
-    export "$var_name"="$value"
+    export "${var_name}"="${var_value}"
 }
 
-#usage: unpack_matrix_row <matrix_row_as_string> [<variable_prefix>] [<verbose>]
+#usage: unpack_matrix_row <matrix_row_as_string> [<verbose>]
 function unpack_matrix_row {
-    local matrix_row_as_string="$1"
-    local variable_prefix="$2"
-    local verbose=$3
+    local matrix_row_as_string="${1:?}"
+    local verbose=$2
 
     if [ -z "${matrix_row_as_string}" ] ; then
         echo "<matrix_row_as_string> argument is missing"
         exit 1
-    fi
-
-    if [ -z "${variable_prefix}" ] ; then
-        variable_prefix="OTEL_PHP_TESTS"
     fi
 
     if [ -z "${verbose}" ] ; then
@@ -95,7 +87,7 @@ function unpack_matrix_row {
     # SC2046: Quote this to prevent word splitting.
     # shellcheck disable=SC2046
     _assert_value_is_in_array "${php_version_no_dot}" $(get_array $_PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS)
-    _export_var_to_env "${variable_prefix}" "PHP_VERSION" "${php_version_dot_separated}" "${verbose}"
+    _export_var_to_env 'OTEL_PHP_TESTS_PHP_VERSION' "${php_version_dot_separated}" "${verbose}"
 
     local package_type=${matrix_row_parts[1]}
     # SC2086: Double quote to prevent globbing and word splitting.
@@ -103,7 +95,7 @@ function unpack_matrix_row {
     # SC2046: Quote this to prevent word splitting.
     # shellcheck disable=SC2046
     _assert_value_is_in_array "${package_type}"  $(get_array $_PROJECT_PROPERTIES_SUPPORTED_PACKAGE_TYPES)
-    _export_var_to_env "${variable_prefix}" "PACKAGE_TYPE" "${package_type}" "${verbose}"
+    _export_var_to_env 'OTEL_PHP_TESTS_PACKAGE_TYPE' "${package_type}" "${verbose}"
 
     local test_app_code_host_kind_short_name=${matrix_row_parts[2]}
     # SC2086: Double quote to prevent globbing and word splitting.
@@ -113,7 +105,7 @@ function unpack_matrix_row {
     _assert_value_is_in_array "${test_app_code_host_kind_short_name}" $(get_array $_PROJECT_PROPERTIES_TEST_APP_CODE_HOST_KINDS_SHORT_NAMES)
     local test_app_code_host_kind
     test_app_code_host_kind=$(convert_test_app_host_kind_short_to_long_name "${test_app_code_host_kind_short_name}")
-    _export_var_to_env "${variable_prefix}" "APP_CODE_HOST_KIND" "${test_app_code_host_kind}" "${verbose}"
+    _export_var_to_env 'OTEL_PHP_TESTS_APP_CODE_HOST_KIND' "${test_app_code_host_kind}" "${verbose}"
 
     local test_group_short_name=${matrix_row_parts[3]}
     # SC2086: Double quote to prevent globbing and word splitting.
@@ -123,12 +115,12 @@ function unpack_matrix_row {
     _assert_value_is_in_array "${test_group_short_name}" $(get_array $_PROJECT_PROPERTIES_TEST_GROUPS_SHORT_NAMES)
     local test_group
     test_group=$(convert_test_group_short_to_long_name "${test_group_short_name}")
-    _export_var_to_env "${variable_prefix}" "GROUP" "${test_group}" "${verbose}"
+    _export_var_to_env 'OTEL_PHP_TESTS_GROUP' "${test_group}" "${verbose}"
 
-    _export_var_to_env "${variable_prefix}" MATRIX_ROW "${matrix_row_as_string}" "${verbose}"
+    _export_var_to_env 'OTEL_PHP_TESTS_MATRIX_ROW' "${matrix_row_as_string}" "${verbose}"
 
     local -r matrix_row_optional_tail="${matrix_row_parts[*]:4}"
     if [[ -n "${matrix_row_optional_tail}" ]]; then
-        _export_var_to_env "${variable_prefix}" MATRIX_ROW_OPTIONAL_PART "${matrix_row_parts[*]:4}" "${verbose}"
+        _export_var_to_env 'OTEL_PHP_TESTS_MATRIX_ROW_OPTIONAL_PART' "${matrix_row_parts[*]:4}" "${verbose}"
     fi
 }

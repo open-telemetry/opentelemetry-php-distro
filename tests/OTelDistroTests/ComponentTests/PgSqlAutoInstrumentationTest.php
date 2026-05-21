@@ -248,7 +248,7 @@ final class PgSqlAutoInstrumentationTest extends ComponentTestCaseBase
         $testArgsEx[DbAutoInstrumentationUtilForTests::PASSWORD_KEY] = AmbientContextForTests::testConfig()->postgresqlPassword;
         $testArgsEx[DbAutoInstrumentationUtilForTests::DB_NAME_KEY] = AmbientContextForTests::testConfig()->postgresqlDb;
 
-        self::implTestForAppCodeSetsHowFinished(
+        $this->implTestForAppCodeSetsHowFinished(
             testArgs: $testArgsEx,
             subAppCode: [__CLASS__, 'appCodeForTestAutoInstrumentation'],
             expectedMinSpanCount: 1 + count($expectedDbSpans), // +1 for automatic local root span
@@ -273,7 +273,7 @@ final class PgSqlAutoInstrumentationTest extends ComponentTestCaseBase
             self::assertPrerequisites();
             self::$verifiedPrerequisites = true;
         }
-        self::runAndEscalateLogLevelOnFailure(
+        $this->runAndEscalateLogLevelOnFailure(
             self::buildDbgDescForTestWithArgs(__CLASS__, __FUNCTION__, $testArgs),
             function () use ($testArgs): void {
                 $this->implTestAutoInstrumentation($testArgs);

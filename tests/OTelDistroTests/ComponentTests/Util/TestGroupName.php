@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\ComponentTests\Util;
 
-/**
- * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
- *
- * @internal
- */
+use OTelDistroTests\Util\EnumUtilForTestsTrait;
+
 enum TestGroupName
 {
+    use EnumUtilForTestsTrait;
+
     case smoke;
     case does_not_require_external_services;
     case requires_external_services;

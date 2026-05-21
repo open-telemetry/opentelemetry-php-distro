@@ -269,7 +269,7 @@ final class CurlAutoInstrumentationTest extends ComponentTestCaseBase
      */
     public function testLocalClientServer(MixedMap $testArgs): void
     {
-        self::runAndEscalateLogLevelOnFailure(
+        $this->runAndEscalateLogLevelOnFailure(
             self::buildDbgDescForTestWithArgs(__CLASS__, __FUNCTION__, $testArgs),
             function () use ($testArgs): void {
                 $this->implTestLocalClientServer($testArgs);

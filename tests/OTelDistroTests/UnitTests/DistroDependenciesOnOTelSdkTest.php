@@ -16,7 +16,7 @@ final class DistroDependenciesOnOTelSdkTest extends TestCaseBase
     /**
      * @param class-string<object> $classFqName
      *
-     * @noinspection PhpDocMissingThrowsInspection
+     * @noinspection PhpDocMissingThrowsInspection, PhpSameParameterValueInspection
      */
     private static function getPrivateConstValue(string $classFqName, string $constName): mixed
     {
@@ -25,7 +25,7 @@ final class DistroDependenciesOnOTelSdkTest extends TestCaseBase
         return $reflClass->getConstant($constName);
     }
 
-    public function testLogLevelRelatedNames(): void
+    public function testConfigOptionNamesAreInSync(): void
     {
         self::assertSame(self::getPrivateConstValue(OTelInternalLogging::class, 'OTEL_LOG_LEVEL'), OTelSdkConfigVariables::OTEL_LOG_LEVEL);
     }

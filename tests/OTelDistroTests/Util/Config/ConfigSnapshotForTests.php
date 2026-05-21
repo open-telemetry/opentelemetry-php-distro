@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace OTelDistroTests\Util\Config;
 
 use OpenTelemetry\Distro\Log\LogLevel;
-use OpenTelemetry\Distro\Util\WildcardListMatcher;
 use OTelDistroTests\ComponentTests\Util\AppCodeHostKind;
 use OTelDistroTests\ComponentTests\Util\EnvVarUtilForTests;
 use OTelDistroTests\ComponentTests\Util\TestGroupName;
 use OTelDistroTests\ComponentTests\Util\TestInfraDataPerProcess;
 use OTelDistroTests\ComponentTests\Util\TestInfraDataPerRequest;
-use OTelDistroTests\ComponentTests\Util\TestMatrixRowOptionalPart;
-use OTelDistroTests\ComponentTests\Util\TestMatrixRowUtil;
+use OTelDistroTests\ComponentTests\Util\TestMatrixRow;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\ExceptionUtil;
 use OTelDistroTests\Util\Log\LoggableInterface;
@@ -32,8 +30,6 @@ final class ConfigSnapshotForTests implements LoggableInterface
     private readonly ?TestInfraDataPerProcess $dataPerProcess; // @phpstan-ignore property.uninitializedReadonly
     private readonly ?TestInfraDataPerRequest $dataPerRequest; // @phpstan-ignore property.uninitializedReadonly
 
-    private readonly ?WildcardListMatcher $envVarsToPassThrough; // @phpstan-ignore property.uninitializedReadonly
-
     public readonly int $escalatedRerunsMaxCount; // @phpstan-ignore property.uninitializedReadonly
     private readonly ?string $escalatedRerunsProdCodeLogLevelOptionName; // @phpstan-ignore property.uninitializedReadonly
 
@@ -42,8 +38,7 @@ final class ConfigSnapshotForTests implements LoggableInterface
     public readonly LogLevel $logLevel; // @phpstan-ignore property.uninitializedReadonly
     public readonly ?string $logsDirectory; // @phpstan-ignore property.uninitializedReadonly
 
-    public readonly ?string $matrixRow; // @phpstan-ignore property.uninitializedReadonly
-    public readonly ?TestMatrixRowOptionalPart $matrixRowOptionalPart; // @phpstan-ignore property.uninitializedReadonly
+    private readonly ?TestMatrixRow $matrixRow; // @phpstan-ignore property.uninitializedReadonly
 
     public readonly ?string $mysqlHost; // @phpstan-ignore property.uninitializedReadonly
     public readonly ?int $mysqlPort; // @phpstan-ignore property.uninitializedReadonly
@@ -86,18 +81,14 @@ final class ConfigSnapshotForTests implements LoggableInterface
         return AssertEx::notNull($this->dataPerRequest);
     }
 
-    public function isEnvVarToPassThrough(string $envVarName): bool
-    {
-        if ($this->envVarsToPassThrough === null) {
-            return false;
-        }
-
-        return $this->envVarsToPassThrough->match($envVarName) !== null;
-    }
-
     public function isSmoke(): bool
     {
         return $this->group === TestGroupName::smoke;
+    }
+
+    public function matrixRow(): TestMatrixRow
+    {
+        return AssertEx::notNull($this->matrixRow);
     }
 
     public function doesRequireExternalServices(): bool
@@ -126,18 +117,6 @@ final class ConfigSnapshotForTests implements LoggableInterface
             $allEnvVars = EnvVarUtilForTests::getAll();
             ksort(/* ref */ $allEnvVars);
             throw new ConfigException(ExceptionUtil::buildMessage('Mandatory option is not set (snapshot property value is null)', compact('optName', 'envVarName', 'allEnvVars')));
-        }
-    }
-
-    private function verifyOptionIsNull(OptionForTestsName $optName): void
-    {
-        $propertyName = TextUtilForTests::snakeToCamelCase($optName->name);
-        $propertyValue = $this->$propertyName;
-        if ($propertyValue !== null) {
-            $envVarName = $optName->toEnvVarName();
-            $allEnvVars = EnvVarUtilForTests::getAll();
-            ksort(/* ref */ $allEnvVars);
-            throw new ConfigException(ExceptionUtil::buildMessage('Option, that SHOULD NOT be set, IS set (snapshot property value is not null)', compact('optName', 'envVarName', 'allEnvVars')));
         }
     }
 
@@ -196,14 +175,9 @@ final class ConfigSnapshotForTests implements LoggableInterface
     {
         $this->verifyOptionIsNotNull(OptionForTestsName::app_code_host_kind);
 
-        $this->verifyOptionIsNotNull(OptionForTestsName::matrix_row);
-        TestMatrixRowUtil::split(AssertEx::notNull($this->matrixRow), /* out */ $mandatoryParts, /* out */ $optionalPart);
-        if ($optionalPart === null) {
-            $this->verifyOptionIsNull(OptionForTestsName::matrix_row);
-        } else {
-            Assert::assertSame($optionalPart, AssertEx::notNull($this->matrixRowOptionalPart)->originalString);
-            $this->verifyOptionIsNotNull(OptionForTestsName::matrix_row);
-        }
+        Assert::assertNotNull($this->matrixRow);
+        Assert::assertSame($this->matrixRow->appCodeHostKind, $this->appCodeHostKind);
+        Assert::assertSame($this->matrixRow->testGroupName, $this->group);
     }
 
     public function verifyForSpawnedProcess(): void

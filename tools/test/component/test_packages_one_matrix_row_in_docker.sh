@@ -156,11 +156,9 @@ function main() {
     OTEL_PHP_TESTS_DOCKER_RUNNING_USER_GROUP_ID="$(id -g)"
 
     source tools/test/component/unpack_matrix_row.sh
-    unpack_matrix_row "${matrix_row}" "OTEL_PHP_TESTS" "true"
+    local -r unpack_matrix_row_verbose='true'
+    unpack_matrix_row "${matrix_row}" "${unpack_matrix_row_verbose}"
 
-    export OTEL_PHP_TESTS_MATRIX_ROW="${matrix_row}"
-
-    # unpack_matrix_row "${matrix_row:?}" "OTEL_PHP_TESTS" "true"
     echo "Environment variables after unpacking the matrix row:"
     env | grep OTEL_PHP_TESTS_ | sort
 

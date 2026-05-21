@@ -116,11 +116,22 @@ final class AssertExTest extends TestCaseBase
 
         // Compare to PHPUnit's Assert::assertNotEmpty
 
-        Assert::assertEmpty('0');
-        AssertEx::throws(PHPUnitExceptionInterface::class, fn() => Assert::assertNotEmpty('0'));
-        Assert::assertNotEmpty('0.0');
-        Assert::assertEmpty(null);
+        // Corrent cases:
+        Assert::assertEmpty(''); // @phpstan-ignore staticMethod.alreadyNarrowedType
+        AssertEx::throws(PHPUnitExceptionInterface::class, fn() => Assert::assertNotEmpty('')); // @phpstan-ignore staticMethod.impossibleType
+        Assert::assertNotEmpty('abc'); // @phpstan-ignore staticMethod.alreadyNarrowedType
+        Assert::assertNotEmpty(' '); // @phpstan-ignore staticMethod.alreadyNarrowedType
+        Assert::assertNotEmpty('0.0'); // @phpstan-ignore staticMethod.alreadyNarrowedType
+        Assert::assertNotEmpty('1'); // @phpstan-ignore staticMethod.alreadyNarrowedType
+
+        // Incorrent cases:
+        Assert::assertEmpty('0'); // @phpstan-ignore staticMethod.alreadyNarrowedType
+        AssertEx::throws(PHPUnitExceptionInterface::class, fn() => Assert::assertNotEmpty('0')); // @phpstan-ignore staticMethod.impossibleType
+
+        // Cases on non-string values
+
+        Assert::assertEmpty(null); // @phpstan-ignore staticMethod.alreadyNarrowedType
         /** @noinspection PhpUnitAssertCanBeReplacedWithEmptyInspection */
-        Assert::assertTrue(empty($notDefinedVariable));
+        Assert::assertTrue(empty($undefinedVariable)); // @phpstan-ignore staticMethod.alreadyNarrowedType, empty.variable
     }
 }
