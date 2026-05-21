@@ -21,7 +21,7 @@ final class LoggerData implements LoggableInterface
     /** @var array<string, mixed> */
     public array $context;
 
-    public Backend $backend;
+    public LogBackendForTests $backend;
 
     /**
      * @param class-string         $fqClassName
@@ -33,7 +33,7 @@ final class LoggerData implements LoggableInterface
         string $fqClassName,
         string $srcCodeFile,
         array $context,
-        Backend $backend,
+        LogBackendForTests $backend,
         ?LoggerData $inheritedData
     ) {
         $this->category = $category;
@@ -57,7 +57,7 @@ final class LoggerData implements LoggableInterface
         string $fqClassName,
         string $srcCodeFile,
         array $context,
-        Backend $backend
+        LogBackendForTests $backend
     ): self {
         return new self(
             $category,

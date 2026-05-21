@@ -12,7 +12,7 @@ use OTelDistroTests\Util\Config\EnvVarsRawSnapshotSource;
 use OTelDistroTests\Util\Config\OptionForTestsName;
 use OTelDistroTests\Util\Config\OptionsForTestsMetadata;
 use OTelDistroTests\Util\Config\RawSnapshotSourceInterface;
-use OTelDistroTests\Util\Log\Backend as LogBackend;
+use OTelDistroTests\Util\Log\LogBackendForTests as LogBackend;
 use OTelDistroTests\Util\Log\LoggerFactory;
 use OTelDistroTests\Util\Log\SinkForTests;
 use PHPUnit\Framework\Assert;
@@ -21,6 +21,7 @@ final class AmbientContextForTests
 {
     private static ?self $singletonInstance = null;
     private static ?string $dbgProcessName = null;
+    private readonly SinkForTests $logSink;
     private readonly LogBackend $logBackend;
     private static ?LoggerFactory $loggerFactory = null;
     private readonly Clock $clock;
@@ -30,7 +31,8 @@ final class AmbientContextForTests
     {
         self::$dbgProcessName = $dbgProcessName;
         $maxEnabledLogLevelBeforeRealConfig = LogLevel::error;
-        $this->logBackend = new LogBackend($maxEnabledLogLevelBeforeRealConfig, new SinkForTests($dbgProcessName));
+        $this->logSink = new SinkForTests($dbgProcessName);
+        $this->logBackend = new LogBackend($maxEnabledLogLevelBeforeRealConfig, $this->logSink);
         self::$loggerFactory = new LoggerFactory($this->logBackend);
         $this->clock = new Clock(self::$loggerFactory);
         // Now that we have a logger, we can read real config and see the potential issues with it logged
@@ -136,5 +138,10 @@ final class AmbientContextForTests
     public static function clock(): Clock
     {
         return self::getSingletonInstance()->clock;
+    }
+
+    public static function logSink(): SinkForTests
+    {
+        return self::getSingletonInstance()->logSink;
     }
 }

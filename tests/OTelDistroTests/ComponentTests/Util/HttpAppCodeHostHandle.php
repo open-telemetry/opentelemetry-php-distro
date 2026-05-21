@@ -27,8 +27,7 @@ class HttpAppCodeHostHandle extends AppCodeHostHandle
     #[Override]
     public function execAppCode(AppCodeTarget $appCodeTarget, ?Closure $setParamsFunc = null): ?int
     {
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Sending HTTP request to app code ...', compact('appCodeTarget'));
+        $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Sending HTTP request to app code ...', compact('appCodeTarget'));
         $this->sendHttpRequestToAppCode($appCodeTarget, $setParamsFunc);
         return null;
     }

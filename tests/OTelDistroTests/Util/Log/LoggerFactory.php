@@ -13,16 +13,16 @@ use OpenTelemetry\Distro\Log\LogLevel;
  */
 final class LoggerFactory
 {
-    private Backend $backend;
+    private LogBackendForTests $backend;
 
     /** @var array<string, mixed> */
     public array $context;
 
     /**
-     * @param Backend              $backend
+     * @param LogBackendForTests              $backend
      * @param array<string, mixed> $context
      */
-    public function __construct(Backend $backend, array $context = [])
+    public function __construct(LogBackendForTests $backend, array $context = [])
     {
         $this->backend = $backend;
         $this->context = $context;
@@ -40,7 +40,7 @@ final class LoggerFactory
         return Logger::makeRoot($category, $namespace, $fqClassName, $srcCodeFile, $this->context, $this->backend);
     }
 
-    public function getBackend(): Backend
+    public function getBackend(): LogBackendForTests
     {
         return $this->backend;
     }

@@ -164,7 +164,7 @@ final class PgSqlAutoInstrumentationTest extends ComponentTestCaseBase
         $rowCount = pg_num_rows($queryResult);
         self::assertSame(count(self::MESSAGES), $rowCount);
         while (($row = pg_fetch_assoc($queryResult)) !== false) {
-            $dbgCtx = LoggableToString::convert(['$row' => $row]);
+            $dbgCtx = LoggableToString::convert(compact('row'));
             $msgText = $row['text'];
             self::assertIsString($msgText);
             self::assertArrayHasKey($msgText, self::MESSAGES, $dbgCtx);
@@ -190,8 +190,7 @@ final class PgSqlAutoInstrumentationTest extends ComponentTestCaseBase
         self::assertNotEmpty(self::MESSAGES); // @phpstan-ignore staticMethod.alreadyNarrowedType
 
         $logger = self::getLoggerStatic(__NAMESPACE__, __CLASS__, __FILE__);
-        ($loggerProxy = $logger->ifTraceLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Entered', ['$testArgs' => $testArgs]);
+        $logger->logTrace(__FUNCTION__)?->with(__LINE__, 'Entered', compact('testArgs'));
 
         $wrapInTx = $testArgs->getBool(DbAutoInstrumentationUtilForTests::WRAP_IN_TX_KEY);
         $rollback = $testArgs->getBool(DbAutoInstrumentationUtilForTests::SHOULD_ROLLBACK_KEY);

@@ -42,6 +42,7 @@ class VariousOptionsParsingTest extends TestCaseBase
         $optionParser = $optMeta->parser();
 
         if ($optionParser instanceof BoolOptionParser) {
+            /** @noinspection PhpParamsInspection */
             return new EnumOptionTestValuesGenerator($optionParser, additionalValidValues: [new OptionTestValidValue('', false)]); /** @phpstan-ignore return.type */
         }
         if ($optionParser instanceof DurationOptionParser) {
@@ -235,12 +236,12 @@ class VariousOptionsParsingTest extends TestCaseBase
                 return $value;
             }
 
-            return ['$value' => $value, 'number_format($value)' => number_format($value)];
+            return compact('value') + ['number_format($value)' => number_format($value)];
         };
 
         /** @var OptionTestValidValue<mixed> $validValueData */
         foreach ($validValues as $validValueData) {
-            $dbgCtx->add(['validValueData' => $validValueData, '$validValueData->parsedValue' => $valueWithDetails($validValueData->parsedValue)]);
+            $dbgCtx->add(compact('validValueData') + ['$validValueData->parsedValue' => $valueWithDetails($validValueData->parsedValue)]);
             $validValueData->rawValue = self::genOptionalWhitespace() . $validValueData->rawValue . self::genOptionalWhitespace();
             $actualParsedValue = Parser::parseOptionRawValue($validValueData->rawValue, $optParser);
             $dbgCtx->add(['actualParsedValue' => $valueWithDetails($actualParsedValue)]);

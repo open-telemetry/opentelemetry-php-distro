@@ -8,7 +8,6 @@ use Closure;
 use OpenTelemetry\Distro\Log\LogLevel;
 use OTelDistroTests\Util\AmbientContextForTests;
 use OTelDistroTests\Util\AssertEx;
-use OTelDistroTests\Util\EnvVarUtil;
 use OTelDistroTests\Util\Log\LogCategoryForTests;
 use OTelDistroTests\Util\Log\LoggableInterface;
 use OTelDistroTests\Util\Log\LoggableToString;
@@ -18,9 +17,6 @@ use OTelDistroTests\Util\Log\LoggingSubsystem;
 use PHPUnit\Framework\TestCase;
 use Throwable;
 
-/**
- * @phpstan-import-type EnvVars from EnvVarUtil
- */
 abstract class SpawnedProcessBase implements LoggableInterface
 {
     use LoggableTrait;
@@ -34,8 +30,8 @@ abstract class SpawnedProcessBase implements LoggableInterface
     {
         $this->logger = self::buildLogger()->addAllContext(compact('this'));
 
-        ($loggerProxy = $this->logger->ifInfoLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log('Finishing constructor...', ['test config' => AmbientContextForTests::testConfig(), 'environment variables' => EnvVarUtilForTests::getAll()]);
+        $this->logger->logInfo(__FUNCTION__)
+            ?->with(__LINE__, 'Finishing constructor...', ['test config' => AmbientContextForTests::testConfig(), 'environment variables' => EnvVarUtilForTests::getAll()]);
     }
 
     private static function buildLogger(): Logger
@@ -97,8 +93,7 @@ abstract class SpawnedProcessBase implements LoggableInterface
                 $throwableToLog = $throwable->wrappedException();
             }
             $logger = isset($thisObj) ? $thisObj->logger : self::buildLogger();
-            $loggerProxy = $logger->ifLevelEnabledNoLine($level, __FUNCTION__);
-            $loggerProxy?->logThrowable(__LINE__, $throwableToLog, 'Throwable escaped to the top of the script', compact('isExpectedFromAppCode'));
+            $logger->logWithLevel(__FUNCTION__, $level)?->withThrowable(__LINE__, 'Throwable escaped to the top of the script', $throwableToLog, compact('isExpectedFromAppCode'));
             if ($isExpectedFromAppCode) {
                 /** @noinspection PhpUnhandledExceptionInspection */
                 throw $throwableToLog;

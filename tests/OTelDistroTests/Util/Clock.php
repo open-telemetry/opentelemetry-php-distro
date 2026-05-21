@@ -32,8 +32,8 @@ final class Clock implements ClockInterface
     {
         if ($last !== null) {
             if ($current < $last) {
-                ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-                && $loggerProxy->log(
+                $this->logger->logDebug(__FUNCTION__)?->with(
+                    __LINE__,
                     'Detected that clock has jumped backwards'
                     . ' - returning the later time (i.e., the time further into the future) instead',
                     [

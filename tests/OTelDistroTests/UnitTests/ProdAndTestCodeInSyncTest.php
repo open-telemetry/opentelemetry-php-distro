@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace OTelDistroTests\UnitTests\UtilTests\ConfigTests;
+namespace OTelDistroTests\UnitTests;
 
 use OpenTelemetry\Distro\PhpPartFacade;
 use OpenTelemetry\Distro\Util\BoolUtil;

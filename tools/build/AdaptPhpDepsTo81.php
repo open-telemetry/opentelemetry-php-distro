@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\DistroTools\Build;
 
+use OpenTelemetry\Distro\Log\LoggingClassTrait;
 use OpenTelemetry\Distro\Util\ArrayUtil;
 use OpenTelemetry\Distro\Util\BoolUtil;
 use RuntimeException;
@@ -18,7 +19,7 @@ use RuntimeException;
 final class AdaptPhpDepsTo81
 {
     use BuildToolsAssertTrait;
-    use BuildToolsLoggingClassTrait;
+    use LoggingClassTrait;
 
     private const AUTO_INSTRUM_NATIVE_FUNCS_PACKAGES = [
         'open-telemetry/opentelemetry-auto-curl',
@@ -145,13 +146,14 @@ final class AdaptPhpDepsTo81
     private static function reduceComposerJsonToPackagesToAdaptOnly(string $minimalComposerJsonFilePath): array
     {
         $fileContents = BuildToolsUtil::getFileContents($minimalComposerJsonFilePath);
-        self::logDebug(__LINE__, __METHOD__, 'Entered; fileContents: ' . $fileContents);
+        $logDebug = self::logDebug(__FUNCTION__);
+        $logDebug?->with(__LINE__, 'Entered; fileContents: ' . $fileContents);
         $fileContentsJsonDecoded = self::assertIsArray(BuildToolsUtil::decodeJson($fileContents));
         // Keep only "require" top key
         $resultArray = array_filter($fileContentsJsonDecoded, fn ($key) => $key === self::COMPOSER_JSON_REQUIRE_KEY, ARRAY_FILTER_USE_KEY);
         self::assertCount(1, $resultArray);
         self::assertArrayHasKey(self::COMPOSER_JSON_REQUIRE_KEY, $resultArray);
-        self::logDebug(__LINE__, __METHOD__, 'After keeping only "require" top key', compact('resultArray'));
+        $logDebug?->with(__LINE__, 'After keeping only "require" top key', compact('resultArray'));
         // Keep only packages instrumenting native functions
         $requireSection = self::assertIsArray($resultArray[self::COMPOSER_JSON_REQUIRE_KEY]);
         $packageNameToVersion = array_filter($requireSection, fn($package) => in_array($package, self::AUTO_INSTRUM_NATIVE_FUNCS_PACKAGES), ARRAY_FILTER_USE_KEY);
@@ -251,10 +253,18 @@ final class AdaptPhpDepsTo81
     }
 
     /**
-     * Must be defined in class using BuildToolsLoggingClassTrait
+     * Must be defined in class using LoggingClassTrait
      */
     private static function getCurrentSourceCodeFile(): string
     {
         return __FILE__;
+    }
+
+    /**
+     * Must be defined in class using LoggingClassTrait
+     */
+    private static function getCurrentOptionalLogProdFeatureIntOrCategoryString(): null|string // @phpstan-ignore return.unusedType
+    {
+        return null;
     }
 }

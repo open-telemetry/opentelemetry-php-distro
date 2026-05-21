@@ -9,12 +9,13 @@ use OpenTelemetry\Distro\Log\LogLevel;
 class MockLogPreformattedSinkStatement
 {
     public function __construct(
-        public LogLevel $statementLevel,
-        public string $category,
-        public string $srcCodeFile,
-        public int $srcCodeLine,
-        public string $srcCodeFunc,
-        public string $messageWithContext
+        public LogLevel $level,
+        public ?string $category,
+        public string $file,
+        public int $line,
+        public string $func,
+        public string $message,
+        public string $contextAsString,
     ) {
     }
 }

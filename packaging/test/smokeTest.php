@@ -39,8 +39,31 @@ if (array_search("{$scopeName}OpenTelemetry\Distro\PhpPartFacade", get_declared_
 echo CGREEN."OK\n".CDEF;
 
 echo "Trying to log something to stderr: ";
-$loggerClass = "{$scopeName}OpenTelemetry\\Distro\\BootstrapStageLogger";
-$loggerClass::logDebug("This is just a message to test logger", __FILE__, __LINE__, __CLASS__, __FUNCTION__);
+/**
+ * @var class-string<\OpenTelemetry\Distro\Log\LogBackend> $logBackendClass
+ * @noinspection PhpFullyQualifiedNameUsageInspection
+ */
+$logBackendClass = "{$scopeName}OpenTelemetry\\Distro\\Log\\LogBackend";
+/**
+ * @var class-string<\OpenTelemetry\Distro\Log\LogFeature> $logFeatureClass
+ * @noinspection PhpFullyQualifiedNameUsageInspection
+ */
+$logFeatureClass = "{$scopeName}OpenTelemetry\\Distro\\Log\\LogFeature";
+/**
+ * @var class-string<\OpenTelemetry\Distro\Log\LogLevel> $logLevelClass
+ * @noinspection PhpFullyQualifiedNameUsageInspection
+ */
+$logLevelClass = "{$scopeName}OpenTelemetry\\Distro\\Log\\LogLevel";
+$logBackendClass::getSingletonInstance()->write(
+    file: __FILE__,
+    line: __LINE__,
+    func: __FUNCTION__,
+    featureOrCategory: $logFeatureClass::BOOTSTRAP,
+    level: $logLevelClass::off,
+    message: 'This is just a dummy message to test production code logging',
+    context: ['dummy ctx key' => 'dummy ctx value'],
+    isForced: true
+);
 echo CGREEN."OK\n".CDEF;
 
 echo CGREEN."Smoke test passed\n".CDEF;

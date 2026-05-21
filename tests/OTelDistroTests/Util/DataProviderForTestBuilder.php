@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\Util;
 
+use OTelDistroTests\Util\Config\OptionsForProdMetadata;
 use OTelDistroTests\Util\Log\LoggableToString;
 use PHPUnit\Framework\Assert;
 
@@ -444,6 +445,63 @@ final class DataProviderForTestBuilder
         iterable $iterableForFalse
     ): self {
         return $this->addConditionalKeyedDimension($dimensionKey, /* onlyFirstValueCombinable: */ false, $prevDimensionKey, $prevDimensionTrueValue, $iterableForTrue, $iterableForFalse);
+    }
+
+    /**
+     * @return $this
+     */
+    public function addProdBoolConfigOptionKeyedDimension(string $optionName, bool $onlyFirstValueCombinable): self
+    {
+        $defaultValue = OptionsForProdMetadata::get()[$optionName]->defaultValue();
+        return $this->addKeyedDimension($optionName, $onlyFirstValueCombinable, [$defaultValue, !$defaultValue]);
+    }
+
+    /**
+     * @return $this
+     *
+     * @noinspection PhpUnused
+     */
+    public function addProdBoolConfigOptionKeyedDimensionOnlyFirstValueCombinable(string $optionName): self
+    {
+        return $this->addProdBoolConfigOptionKeyedDimension($optionName, /* onlyFirstValueCombinable: */ true);
+    }
+
+    /**
+     * @return $this
+     *
+     * @noinspection PhpUnused
+     */
+    public function addProdBoolConfigOptionKeyedDimensionAllValuesCombinable(string $optionName): self
+    {
+        return $this->addProdBoolConfigOptionKeyedDimension($optionName, /* onlyFirstValueCombinable: */ false);
+    }
+
+    /**
+     * @return $this
+     */
+    public function addProdNullableBoolConfigOptionKeyedDimension(string $optionName, bool $onlyFirstValueCombinable): self
+    {
+        return $this->addKeyedDimension($optionName, $onlyFirstValueCombinable, [null, false, true]);
+    }
+
+    /**
+     * @return $this
+     *
+     * @noinspection PhpUnused
+     */
+    public function addProdNullableBoolConfigOptionKeyedDimensionOnlyFirstValueCombinable(string $optionName): self
+    {
+        return $this->addProdNullableBoolConfigOptionKeyedDimension($optionName, /* onlyFirstValueCombinable: */ true);
+    }
+
+    /**
+     * @return $this
+     *
+     * @noinspection PhpUnused
+     */
+    public function addProdNullableBoolConfigOptionKeyedDimensionAllValuesCombinable(string $optionName): self
+    {
+        return $this->addProdNullableBoolConfigOptionKeyedDimension($optionName, /* onlyFirstValueCombinable: */ false);
     }
 
     /**

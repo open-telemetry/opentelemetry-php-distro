@@ -5,53 +5,43 @@ declare(strict_types=1);
 namespace OTelDistroTests\Util\Log;
 
 use OpenTelemetry\Distro\Log\LogLevel;
-use OpenTelemetry\Distro\Util\TextUtil;
 use Override;
 
 /**
- * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
- *
- * @internal
+ * @phpstan-import-type Context from SinkInterface
  */
 abstract class SinkBase implements SinkInterface
 {
     /** @inheritDoc */
     #[Override]
     public function consume(
-        LogLevel $statementLevel,
+        LogLevel $level,
+        string $category,
+        string $file,
+        int $line,
+        string $func,
         string $message,
         array $context,
-        string $category,
-        string $srcCodeFile,
-        int $srcCodeLine,
-        string $srcCodeFunc,
         ?bool $includeStacktrace,
         int $numberOfStackFramesToSkip
     ): void {
-        if ($includeStacktrace === null ? ($statementLevel <= LogLevel::error) : $includeStacktrace) {
+        if ($includeStacktrace === null ? ($level <= LogLevel::error) : $includeStacktrace) {
             $context[LoggableStackTrace::STACK_TRACE_KEY] = LoggableStackTrace::buildForCurrent($numberOfStackFramesToSkip + 1);
         }
 
-        $ctxAsStr = LoggableToString::convert($context);
-        $msgCtxSeparator = (TextUtil::isEmptyString($message) || TextUtil::isEmptyString($ctxAsStr)) ? '' : ' ';
-        $messageWithContext = $message . $msgCtxSeparator . $ctxAsStr;
-
-        $this->consumePreformatted(
-            $statementLevel,
-            $category,
-            $srcCodeFile,
-            $srcCodeLine,
-            $srcCodeFunc,
-            $messageWithContext
-        );
+        $this->formatAndWrite(level: $level, category: $category, file: $file, line: $line, func: $func, message: $message, context: $context);
     }
 
-    abstract protected function consumePreformatted(
-        LogLevel $statementLevel,
-        string $category,
-        string $srcCodeFile,
-        int $srcCodeLine,
-        string $srcCodeFunc,
-        string $messageWithContext
+    /**
+     * @phpstan-param Context $context
+     */
+    abstract protected function formatAndWrite(
+        LogLevel $level,
+        ?string $category,
+        string $file,
+        int $line,
+        string $func,
+        string $message,
+        array $context
     ): void;
 }

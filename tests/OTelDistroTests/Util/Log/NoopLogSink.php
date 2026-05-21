@@ -8,11 +8,6 @@ use OpenTelemetry\Distro\Log\LogLevel;
 use OTelDistroTests\Util\NoopObjectTrait;
 use Override;
 
-/**
- * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
- *
- * @internal
- */
 final class NoopLogSink implements SinkInterface, LoggableInterface
 {
     use NoopObjectTrait;
@@ -20,13 +15,13 @@ final class NoopLogSink implements SinkInterface, LoggableInterface
     /** @inheritDoc */
     #[Override]
     public function consume(
-        LogLevel $statementLevel,
+        LogLevel $level,
+        string $category,
+        string $file,
+        int $line,
+        string $func,
         string $message,
         array $context,
-        string $category,
-        string $srcCodeFile,
-        int $srcCodeLine,
-        string $srcCodeFunc,
         ?bool $includeStacktrace,
         int $numberOfStackFramesToSkip
     ): void {

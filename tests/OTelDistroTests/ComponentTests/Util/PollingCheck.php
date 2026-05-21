@@ -30,24 +30,20 @@ final class PollingCheck
      */
     public function run(Closure $check): bool
     {
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log(
-            'Starting to check if ' . $this->dbgDesc . '...',
-            ['maxWaitTime' => TimeUtil::formatDurationInMicroseconds($this->maxWaitTimeInMicroseconds)]
-        );
+        $this->logger->logDebug(__FUNCTION__)
+            ?->with(__LINE__, 'Starting to check if ' . $this->dbgDesc . '...', ['maxWaitTime' => TimeUtil::formatDurationInMicroseconds($this->maxWaitTimeInMicroseconds)]);
 
         $numberOfAttempts = 0;
         $sinceStarted = new Stopwatch();
         $sinceLastReport = new Stopwatch();
         while (true) {
             ++$numberOfAttempts;
-            ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-            && $loggerProxy->log('Starting attempt ' . $numberOfAttempts . ' to check if ' . $this->dbgDesc . '...');
+            $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Starting attempt ' . $numberOfAttempts . ' to check if ' . $this->dbgDesc . '...');
             /** @noinspection PhpIfWithCommonPartsInspection */
             if ($check()) {
                 $elapsedTime = $sinceStarted->elapsedInMicroseconds();
-                ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-                && $loggerProxy->log(
+                $this->logger->logDebug(__FUNCTION__)?->with(
+                    __LINE__,
                     'Successfully completed checking if ' . $this->dbgDesc,
                     ['elapsedTime' => TimeUtil::formatDurationInMicroseconds($elapsedTime)]
                 );
@@ -60,8 +56,8 @@ final class PollingCheck
             }
 
             if ($sinceLastReport->elapsedInMicroseconds() >= $this->reportIntervalInMicroseconds) {
-                ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-                && $loggerProxy->log(
+                $this->logger->logDebug(__FUNCTION__)?->with(
+                    __LINE__,
                     'Still checking if ' . $this->dbgDesc . '...',
                     [
                         'elapsedTime'      => TimeUtil::formatDurationInMicroseconds($elapsedTime),
@@ -72,8 +68,8 @@ final class PollingCheck
                 $sinceLastReport->restart();
             }
 
-            ($loggerProxy = $this->logger->ifTraceLevelEnabled(__LINE__, __FUNCTION__))
-            && $loggerProxy->log(
+            $this->logger->logTrace(__FUNCTION__)?->with(
+                __LINE__,
                 'Sleeping ' . TimeUtil::formatDurationInMicroseconds($this->sleepTimeInMicroseconds)
                 . ' before checking again if ' . $this->dbgDesc
                 . ' (numberOfAttempts: ' . $numberOfAttempts . ')'
@@ -82,8 +78,8 @@ final class PollingCheck
             usleep($this->sleepTimeInMicroseconds);
         }
 
-        ($loggerProxy = $this->logger->ifDebugLevelEnabled(__LINE__, __FUNCTION__))
-        && $loggerProxy->log(
+        $this->logger->logDebug(__FUNCTION__)?->with(
+            __LINE__,
             'Reached max wait time while checking if ' . $this->dbgDesc,
             [
                 'elapsedTime'      => TimeUtil::formatDurationInMicroseconds($sinceStarted->elapsedInMicroseconds()),

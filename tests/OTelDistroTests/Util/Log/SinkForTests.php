@@ -4,34 +4,58 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\Util\Log;
 
-use DateTime;
+use OpenTelemetry\Distro\Log\LogBackend;
 use OpenTelemetry\Distro\Log\LogLevel;
-use OTelDistroTests\Util\TextUtilForTests;
+use OpenTelemetry\DistroTools\Build\BuildToolsLogUtil;
+use Override;
 
+/**
+ * @phpstan-import-type Context from SinkBase
+ */
 final class SinkForTests extends SinkBase
 {
+    public const LOG_LINE_PREFIX = '[OTel PHP Distro tests]';
+
+    private const DEFAULT_SYSLOG_LEVEL = LOG_DEBUG;
+
     public function __construct(
         private readonly string $dbgProcessName
     ) {
     }
 
-    protected function consumePreformatted(
-        LogLevel $statementLevel,
-        string $category,
-        string $srcCodeFile,
-        int $srcCodeLine,
-        string $srcCodeFunc,
-        string $messageWithContext
-    ): void {
-        $formattedRecord = '[OTel PHP Distro tests]';
-        $formattedRecord .= ' ' . (new DateTime())->format('Y-m-d H:i:s.v P');
-        $formattedRecord .= ' [' . strtoupper($statementLevel->name) . ']';
-        $formattedRecord .= ' [PID: ' . getmypid() . ']';
-        $formattedRecord .= ' [' . $this->dbgProcessName . ']';
-        $formattedRecord .= ' [' . basename($srcCodeFile) . ':' . $srcCodeLine . ']';
-        $formattedRecord .= ' [' . $srcCodeFunc . ']';
-        $formattedRecord .= TextUtilForTests::combineWithSeparatorIfNotEmpty(' ', $messageWithContext);
-        $this->consumeFormatted($statementLevel, $formattedRecord);
+    /** @inheritDoc */
+    #[Override]
+    public function formatAndWrite(LogLevel $level, ?string $category, string $file, int $line, string $func, string $message, array $context): void
+    {
+        $formattedStatement = BuildToolsLogUtil::formatStatement(
+            prefix: self::LOG_LINE_PREFIX . ' [' . $this->dbgProcessName . ']',
+            level: $level,
+            featureOrCategory: $category,
+            file: $file,
+            line: $line,
+            func: $func,
+            messageWithContext: LogBackend::concatMessageAndContext($message, LoggableToString::convert($context))
+        );
+
+        syslog(self::levelToSyslog($level->value), $formattedStatement);
+
+        self::writeLineToStdErr($formattedStatement);
+    }
+
+    /**
+     * @phpstan-param Context $context
+     */
+    public function formatAndWriteForLogBackend(LogLevel $level, null|int|string $featureOrCategory, string $file, int $line, string $func, string $message, array $context): void
+    {
+        $this->formatAndWrite(
+            level: $level,
+            category: is_int($featureOrCategory) ? BuildToolsLogUtil::prodLogFeatureIntToString($featureOrCategory) : $featureOrCategory,
+            file: $file,
+            line: $line,
+            func: $func,
+            message: $message,
+            context: $context,
+        );
     }
 
     public static function writeLineToStdErr(string $text): void
@@ -39,20 +63,19 @@ final class SinkForTests extends SinkBase
         StdError::singletonInstance()->writeLine($text);
     }
 
-    private function consumeFormatted(LogLevel $statementLevel, string $statementText): void
+    private static function levelToSyslog(int $levelInt): int
     {
-        syslog(self::levelToSyslog($statementLevel), $statementText);
-        self::writeLineToStdErr($statementText);
-    }
+        $levelEnum = LogLevel::tryFrom($levelInt);
+        if ($levelEnum === null) {
+            return self::DEFAULT_SYSLOG_LEVEL;
+        }
 
-    private static function levelToSyslog(LogLevel $level): int
-    {
-        return match ($level) {
+        return match ($levelEnum) {
             LogLevel::off, LogLevel::critical => LOG_CRIT,
             LogLevel::error => LOG_ERR,
             LogLevel::warning => LOG_WARNING,
             LogLevel::info => LOG_INFO,
-            LogLevel::debug, LogLevel::trace => LOG_DEBUG
+            default => self::DEFAULT_SYSLOG_LEVEL,
         };
     }
 }

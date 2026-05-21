@@ -36,15 +36,13 @@ class ScopeSpans
 
     private static function deserializeSpanFromOTelProto(OTelProtoSpan $source): ?Span
     {
-        $logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->addAllContext(compact('source'));
-        $loggerProxyDebug = $logger->ifDebugLevelEnabledNoLine(__FUNCTION__);
-
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
         $dbgCtx->add(compact('source'));
 
         $span = Span::deserializeFromOTelProto($source);
         if (($reason = Span::reasonToDiscard($span)) !== null) {
-            $loggerProxyDebug && $loggerProxyDebug->log(__LINE__, 'Span discarded', compact('reason', 'span'));
+            AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->addAllContext(compact('source'))
+                ->logDebug(__FUNCTION__)?->with(__LINE__, 'Span discarded', compact('reason', 'span'));
             return null;
         }
 

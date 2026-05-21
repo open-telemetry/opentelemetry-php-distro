@@ -113,7 +113,7 @@ class EnumOptionParser extends OptionParser
         }
 
         if ($foundPair == null) {
-            throw new ParseException('Not a valid ' . $this->dbgDesc . ' value. Raw option value: `$rawValue\'');
+            throw new ParseException('Not a valid ' . $this->dbgDesc . ' value. Raw option value: `' . $rawValue . '\'');
         }
 
         return $foundPair[1];

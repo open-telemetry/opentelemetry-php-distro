@@ -60,9 +60,9 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
         $dbgCtx->add(['testConfig' => AmbientContextForTests::testConfig()]);
         $expectedLogLevelForProdCode = $appCodeRequestArgs->getLogLevel(self::LOG_LEVEL_FOR_PROD_CODE_KEY);
         $dbgCtx->add(compact('expectedLogLevelForProdCode'));
-        $prodConfig = self::buildProdConfigFromAppCode();
+        $prodConfig = self::buildProdConfig();
         $dbgCtx->add(compact('prodConfig'));
-        $actualLogLevelForProdCode = $prodConfig->effectiveLogLevel();
+        $actualLogLevelForProdCode = $prodConfig->getOptionValueByName(AmbientContextForTests::testConfig()->escalatedRerunsProdCodeLogLevelOptionName());
         $dbgCtx->add(compact('actualLogLevelForProdCode'));
         self::assertSame($expectedLogLevelForProdCode, $actualLogLevelForProdCode);
         $expectedLogLevelForTestCode = $appCodeRequestArgs->getLogLevel(self::LOG_LEVEL_FOR_TEST_CODE_KEY);
@@ -92,7 +92,8 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
 
         /** @var array<string, mixed> $appCodeRequestArgs */
         $appCodeRequestArgs = [
-            self::LOG_LEVEL_FOR_PROD_CODE_KEY => ArrayUtilForTests::getSingleValue($testCaseHandle->getProdCodeLogLevels()),
+            self::LOG_LEVEL_FOR_PROD_CODE_KEY =>
+                ArrayUtilForTests::getSingleValue($testCaseHandle->getProdCodeLogLevels(AmbientContextForTests::testConfig()->escalatedRerunsProdCodeLogLevelOptionName())),
             self::LOG_LEVEL_FOR_TEST_CODE_KEY => AmbientContextForTests::testConfig()->logLevel,
         ];
         AppCodeAuxOutputUtil::createTempFile(__CLASS__, $testCaseHandle, /* in,out */ $appCodeRequestArgs);

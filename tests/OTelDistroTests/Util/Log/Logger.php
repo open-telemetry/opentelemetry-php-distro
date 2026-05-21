@@ -31,7 +31,7 @@ final class Logger implements LoggableInterface
         string $fqClassName,
         string $srcCodeFile,
         array $context,
-        Backend $backend
+        LogBackendForTests $backend
     ): self {
         return new self(LoggerData::makeRoot($category, $namespace, $fqClassName, $srcCodeFile, $context, $backend));
     }
@@ -75,84 +75,40 @@ final class Logger implements LoggableInterface
         return $this->data->context;
     }
 
-    public function ifCriticalLevelEnabled(int $srcCodeLine, string $srcCodeFunc): ?EnabledLoggerProxy
+    public function logCritical(string $srcCodeFunc): ?EnabledTestLogProxy
     {
-        return $this->ifLevelEnabled(LogLevel::critical, $srcCodeLine, $srcCodeFunc);
+        return $this->logWithLevel($srcCodeFunc, LogLevel::critical);
     }
 
-    public function ifErrorLevelEnabled(int $srcCodeLine, string $srcCodeFunc): ?EnabledLoggerProxy
+    public function logError(string $srcCodeFunc): ?EnabledTestLogProxy
     {
-        return $this->ifLevelEnabled(LogLevel::error, $srcCodeLine, $srcCodeFunc);
+        return $this->logWithLevel($srcCodeFunc, LogLevel::error);
     }
 
-    public function ifWarningLevelEnabled(int $srcCodeLine, string $srcCodeFunc): ?EnabledLoggerProxy
+    public function logWarning(string $srcCodeFunc): ?EnabledTestLogProxy
     {
-        return $this->ifLevelEnabled(LogLevel::warning, $srcCodeLine, $srcCodeFunc);
+        return $this->logWithLevel($srcCodeFunc, LogLevel::warning);
     }
 
-    /** @noinspection PhpUnused */
-    public function ifInfoLevelEnabled(int $srcCodeLine, string $srcCodeFunc): ?EnabledLoggerProxy
+    public function logInfo(string $srcCodeFunc): ?EnabledTestLogProxy
     {
-        return $this->ifLevelEnabled(LogLevel::info, $srcCodeLine, $srcCodeFunc);
+        return $this->logWithLevel($srcCodeFunc, LogLevel::info);
     }
 
-    public function ifDebugLevelEnabled(int $srcCodeLine, string $srcCodeFunc): ?EnabledLoggerProxy
+    public function logDebug(string $srcCodeFunc): ?EnabledTestLogProxy
     {
-        return $this->ifLevelEnabled(LogLevel::debug, $srcCodeLine, $srcCodeFunc);
+        return $this->logWithLevel($srcCodeFunc, LogLevel::debug);
     }
 
-    public function ifTraceLevelEnabled(int $srcCodeLine, string $srcCodeFunc): ?EnabledLoggerProxy
+    public function logTrace(string $srcCodeFunc): ?EnabledTestLogProxy
     {
-        return $this->ifLevelEnabled(LogLevel::trace, $srcCodeLine, $srcCodeFunc);
+        return $this->logWithLevel($srcCodeFunc, LogLevel::trace);
     }
 
-    /** @noinspection PhpUnused */
-    public function ifCriticalLevelEnabledNoLine(string $srcCodeFunc): ?EnabledLoggerProxyNoLine
-    {
-        return $this->ifLevelEnabledNoLine(LogLevel::critical, $srcCodeFunc);
-    }
-
-    /** @noinspection PhpUnused */
-    public function ifErrorLevelEnabledNoLine(string $srcCodeFunc): ?EnabledLoggerProxyNoLine
-    {
-        return $this->ifLevelEnabledNoLine(LogLevel::error, $srcCodeFunc);
-    }
-
-    /** @noinspection PhpUnused */
-    public function ifWarningLevelEnabledNoLine(string $srcCodeFunc): ?EnabledLoggerProxyNoLine
-    {
-        return $this->ifLevelEnabledNoLine(LogLevel::warning, $srcCodeFunc);
-    }
-
-    /** @noinspection PhpUnused */
-    public function ifInfoLevelEnabledNoLine(string $srcCodeFunc): ?EnabledLoggerProxyNoLine
-    {
-        return $this->ifLevelEnabledNoLine(LogLevel::info, $srcCodeFunc);
-    }
-
-    /** @noinspection PhpUnused */
-    public function ifDebugLevelEnabledNoLine(string $srcCodeFunc): ?EnabledLoggerProxyNoLine
-    {
-        return $this->ifLevelEnabledNoLine(LogLevel::debug, $srcCodeFunc);
-    }
-
-    /** @noinspection PhpUnused */
-    public function ifTraceLevelEnabledNoLine(string $srcCodeFunc): ?EnabledLoggerProxyNoLine
-    {
-        return $this->ifLevelEnabledNoLine(LogLevel::trace, $srcCodeFunc);
-    }
-
-    public function ifLevelEnabled(LogLevel $statementLevel, int $srcCodeLine, string $srcCodeFunc): ?EnabledLoggerProxy
+    public function logWithLevel(string $srcCodeFunc, LogLevel $statementLevel): ?EnabledTestLogProxy
     {
         return ($this->data->backend->isEnabledForLevel($statementLevel))
-            ? new EnabledLoggerProxy($statementLevel, $srcCodeLine, $srcCodeFunc, $this->data)
-            : null;
-    }
-
-    public function ifLevelEnabledNoLine(LogLevel $statementLevel, string $srcCodeFunc): ?EnabledLoggerProxyNoLine
-    {
-        return ($this->data->backend->isEnabledForLevel($statementLevel))
-            ? new EnabledLoggerProxyNoLine($statementLevel, $srcCodeFunc, $this->data)
+            ? new EnabledTestLogProxy($statementLevel, $srcCodeFunc, $this->data)
             : null;
     }
 

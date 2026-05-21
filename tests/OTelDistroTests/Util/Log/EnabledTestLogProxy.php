@@ -12,7 +12,7 @@ use Throwable;
  *
  * @internal
  */
-final class EnabledLoggerProxyNoLine
+final class EnabledTestLogProxy
 {
     private ?bool $includeStackTrace = null;
 
@@ -33,7 +33,7 @@ final class EnabledLoggerProxyNoLine
     /**
      * @param array<string, mixed> $statementCtx
      */
-    public function log(int $srcCodeLine, string $message, array $statementCtx = []): bool
+    public function with(int $srcCodeLine, string $message, array $statementCtx = []): bool
     {
         $this->loggerData->backend->log(
             $this->statementLevel,
@@ -52,7 +52,7 @@ final class EnabledLoggerProxyNoLine
     /**
      * @param array<string, mixed> $statementCtx
      */
-    public function logThrowable(int $srcCodeLine, Throwable $throwable, string $message, array $statementCtx = []): bool
+    public function withThrowable(int $srcCodeLine, string $message, Throwable $throwable, array $statementCtx = []): bool
     {
         $this->loggerData->backend->log(
             $this->statementLevel,

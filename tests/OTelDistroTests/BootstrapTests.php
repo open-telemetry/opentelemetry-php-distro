@@ -19,8 +19,7 @@ final class BootstrapTests
 {
     use StaticClassTrait;
 
-    public const UNIT_TESTS_DBG_PROCESS_NAME = 'Unit tests';
-    public const COMPONENT_TESTS_DBG_PROCESS_NAME = 'Component tests';
+    private const TESTS_DBG_PROCESS_NAME = 'PHPUnit';
 
     public const LOG_COMPOSITE_DATA_MAX_DEPTH_IN_TEST_MODE = 15;
 
@@ -50,7 +49,7 @@ final class BootstrapTests
     {
         ExceptionUtil::runCatchWriteToStdErrRethrow(
             function (): void {
-                self::bootstrapShared(self::UNIT_TESTS_DBG_PROCESS_NAME);
+                self::bootstrapShared(self::TESTS_DBG_PROCESS_NAME);
             }
         );
     }
@@ -59,7 +58,7 @@ final class BootstrapTests
     {
         ExceptionUtil::runCatchWriteToStdErrRethrow(
             function (): void {
-                self::bootstrapShared(self::COMPONENT_TESTS_DBG_PROCESS_NAME);
+                self::bootstrapShared(self::TESTS_DBG_PROCESS_NAME);
                 AmbientContextForTests::testConfig()->validateForComponentTests();
             }
         );
