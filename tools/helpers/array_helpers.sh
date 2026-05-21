@@ -37,7 +37,6 @@ function get_one_before_highest_value_from_array() {
     echo "${_ARR_SORTED[${#_ARR_SORTED[@]}-2]}"
 }
 
-
 function is_value_in_array () {
     # The first argument is the element that should be in array
     local value_to_check="${1:?}"
@@ -52,5 +51,3 @@ function is_value_in_array () {
     done
     echo "false"
 }
-
-

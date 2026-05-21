@@ -15,7 +15,7 @@ final class AppCodeContextUtil
 {
     use StaticClassTrait;
 
-    public static function isScopingEnabled(): bool
+    public static function isScopedDepsEnabled(): bool
     {
         return AssertEx::isBool(get_config_option_by_name(OptionForProdName::scoped_deps_enabled->name));
     }
@@ -34,7 +34,7 @@ final class AppCodeContextUtil
 
     public static function adaptClassNameRawStringToScoping(string $unscopedClassName): string
     {
-        return self::isScopingEnabled() ? self::buildScopedClassNameFromRawString($unscopedClassName) : $unscopedClassName;
+        return self::isScopedDepsEnabled() ? self::buildScopedClassNameFromRawString($unscopedClassName) : $unscopedClassName;
     }
 
     public static function buildScopedClassNameFromRawString(string $unscopedClassName): string

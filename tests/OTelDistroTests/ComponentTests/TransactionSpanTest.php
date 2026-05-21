@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\ComponentTests;
 
-use OpenTelemetry\Distro\OTelDistroScoperConfig;
-use OTelDistroTests\ComponentTests\Util\AppCodeContextDataUtil;
-use OTelDistroTests\ComponentTests\Util\AppCodeContextUtil;
+use OTelDistroTests\ComponentTests\Util\AppCodeAuxOutputUtil;
 use OTelDistroTests\ComponentTests\Util\AppCodeHostParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeRequestParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeTarget;

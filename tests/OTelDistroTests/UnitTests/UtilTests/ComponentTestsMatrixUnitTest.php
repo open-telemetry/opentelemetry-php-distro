@@ -22,6 +22,8 @@ use OTelDistroTests\Util\TextUtilForTests;
 final class ComponentTestsMatrixUnitTest extends TestCaseBase
 {
     private const PACKAGE_TYPE_APK = 'apk';
+    private const PACKAGE_TYPE_DEB = 'deb';
+    private const PACKAGE_TYPE_RPM = 'rpm';
 
     private const UNPACKED_PHP_VERSION_ENV_VAR_NAME = OptionForTestsName::ENV_VAR_NAME_PREFIX . 'PHP_VERSION';
     private const UNPACKED_PACKAGE_TYPE_ENV_VAR_NAME = OptionForTestsName::ENV_VAR_NAME_PREFIX . 'PACKAGE_TYPE';
@@ -56,27 +58,6 @@ final class ComponentTestsMatrixUnitTest extends TestCaseBase
     /**
      * @return iterable<string>
      */
-    private static function generateRowsToTestIncreasedLogLevel(): iterable
-    {
-        AssertEx::countAtLeast(2, OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames);
-        AssertEx::countAtLeast(2, OTelDistroProjectProperties::singletonInstance()->testGroupsShortNames);
-
-        $phpVersion = OTelDistroProjectProperties::singletonInstance()->getLowestSupportedPhpVersion();
-        $packageType = OTelDistroProjectProperties::singletonInstance()->testAllPhpVersionsWithPackageType;
-        $testAppCodeHostKindShortName = OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames[0];
-        $testGroupShortName = OTelDistroProjectProperties::singletonInstance()->testGroupsShortNames[0];
-        yield "{$phpVersion->asDotSeparated()},$packageType,$testAppCodeHostKindShortName,$testGroupShortName,OTEL_PHP_LOG_LEVEL_SYSLOG=TRACE";
-
-        $phpVersion = OTelDistroProjectProperties::singletonInstance()->getHighestSupportedPhpVersion();
-        $packageType = self::PACKAGE_TYPE_APK;
-        $testAppCodeHostKindShortName = OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames[1];
-        $testGroupShortName = OTelDistroProjectProperties::singletonInstance()->testGroupsShortNames[1];
-        yield "{$phpVersion->asDotSeparated()},$packageType,$testAppCodeHostKindShortName,$testGroupShortName,OTEL_PHP_LOG_LEVEL_STDERR=DEBUG";
-    }
-
-    /**
-     * @return iterable<string>
-     */
     private static function generateRowsToTestHighestSupportedPhpVersionWithOtherPackageTypes(): iterable
     {
         $packageTypeToExclude = OTelDistroProjectProperties::singletonInstance()->testAllPhpVersionsWithPackageType;
@@ -105,12 +86,39 @@ final class ComponentTestsMatrixUnitTest extends TestCaseBase
     /**
      * @return iterable<string>
      */
+    private static function generateRowsToTestSpecialUseCases(): iterable
+    {
+        AssertEx::countAtLeast(2, OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames);
+        AssertEx::countAtLeast(2, OTelDistroProjectProperties::singletonInstance()->testGroupsShortNames);
+
+        $phpVersion = OTelDistroProjectProperties::singletonInstance()->getLowestSupportedPhpVersion();
+        self::assertSame(self::PACKAGE_TYPE_DEB, OTelDistroProjectProperties::singletonInstance()->testAllPhpVersionsWithPackageType);
+        $packageType = self::PACKAGE_TYPE_DEB;
+        $testAppCodeHostKindShortName = OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames[0];
+        $testGroupShortName = OTelDistroProjectProperties::singletonInstance()->testGroupsShortNames[0];
+        yield "{$phpVersion->asDotSeparated()},$packageType,$testAppCodeHostKindShortName,$testGroupShortName,OTEL_PHP_LOG_LEVEL_SYSLOG=trace,OTEL_PHP_SCOPED_DEPS_ENABLED=false";
+
+        $phpVersion = OTelDistroProjectProperties::singletonInstance()->getHighestSupportedPhpVersion();
+        $packageType = self::PACKAGE_TYPE_APK;
+        $testAppCodeHostKindShortName = OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames[1];
+        $testGroupShortName = OTelDistroProjectProperties::singletonInstance()->testGroupsShortNames[1];
+        yield "{$phpVersion->asDotSeparated()},$packageType,$testAppCodeHostKindShortName,$testGroupShortName,OTEL_PHP_LOG_LEVEL_STDERR=debug";
+
+        $phpVersion = OTelDistroProjectProperties::singletonInstance()->getOneBeforeHighestSupportedPhpVersion();
+        $packageType = self::PACKAGE_TYPE_RPM;
+        $testAppCodeHostKindShortName = OTelDistroProjectProperties::singletonInstance()->testAppCodeHostKindsShortNames[0];
+        yield "{$phpVersion->asDotSeparated()},$packageType,$testAppCodeHostKindShortName,$testGroupShortName,OTEL_PHP_SCOPED_DEPS_ENABLED=false";
+    }
+
+    /**
+     * @return iterable<string>
+     */
     private static function generateExpectedMatrix(): iterable
     {
         yield from self::generateRowsToTestAllPhpVersionsWithOnePackageType();
         yield from self::generateRowsToTestHighestSupportedPhpVersionWithOtherPackageTypes();
 
-        yield from self::generateRowsToTestIncreasedLogLevel();
+        yield from self::generateRowsToTestSpecialUseCases();
     }
 
     /**

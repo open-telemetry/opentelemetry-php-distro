@@ -128,7 +128,7 @@ final class AssertEx
      *
      * @phpstan-assert non-empty-string $actual
      */
-    public static function notEmptyString(string $actual, string $message = ''): string
+    public static function notEmptyString(mixed $actual, string $message = ''): string
     {
         if ($actual === '') {
             Assert::fail($message);
