@@ -37,10 +37,11 @@ final class ComponentTestsMatrixComponentTest extends ComponentTestCaseBase
     private static function appendMatrixRowOptionalPartToTheCurrentRow(array $rowOptionalPartToSet): string
     {
         $matrixRowOptionalPartSuffix = '';
-        foreach ($rowOptionalPartToSet as $key => $val) {
-            /** @phpstan-var string $key */
+        foreach ($rowOptionalPartToSet as $optName => $val) {
+            /** @phpstan-var string $optName */
             /** @phpstan-var string $val */
-            $matrixRowOptionalPartSuffix .= TestMatrixRow::ROW_ELEMENTS_SEPARATOR . $key . TestMatrixRowOptionalPart::KEY_VALUE_SEPARATOR . $val;
+            $envVarName = OptionForProdName::findByName($optName)->toEnvVarName();
+            $matrixRowOptionalPartSuffix .= TestMatrixRow::ROW_ELEMENTS_SEPARATOR . $envVarName . TestMatrixRowOptionalPart::KEY_VALUE_SEPARATOR . $val;
         }
         return AmbientContextForTests::testConfig()->matrixRow()->mandatoryPartRaw() . $matrixRowOptionalPartSuffix;
     }
@@ -128,12 +129,13 @@ final class ComponentTestsMatrixComponentTest extends ComponentTestCaseBase
         $this->implTestForAppCodeSetsHowFinished(
             testArgs: new MixedMap(),
             subAppCode: [__CLASS__, 'appCodeForTestRowOptionalPartThatAlreadySetFromOutside'],
-            additionalAssertCode: function (DebugContextScopeRef $dbgCtx, AgentBackendComms $agentBackendComms, MixedMap $appCodeAuxOutput) use ($rowOptionalPartToSet): void {
+            additionalAssertCode: function (DebugContextScopeRef $dbgCtx, AgentBackendComms $agentBackendComms, MixedMap $appCodeAuxOutput): void {
                 $actualEnvVarsInAppContext = AssertEx::isArray($appCodeAuxOutput->get(self::ACTUAL_ENV_VARS_APP_CODE_CONTEXT_KEY));
                 $dbgCtx->pushSubScope();
-                foreach ($rowOptionalPartToSet as $optName => $expectedOptRawValue) {
+                $prodOptions = AmbientContextForTests::testConfig()->matrixRow()->optionalPart->prodOptions ?? [];
+                foreach ($prodOptions as $optName => $expectedOptRawValue) {
                     $dbgCtx->resetTopSubScope(compact('optName', 'expectedOptRawValue'));
-                    self::assertSame($expectedOptRawValue, $actualEnvVarsInAppContext[$optName]);
+                    self::assertSame($expectedOptRawValue, $actualEnvVarsInAppContext[$optName->toEnvVarName()]);
                 }
                 $dbgCtx->popSubScope();
             }

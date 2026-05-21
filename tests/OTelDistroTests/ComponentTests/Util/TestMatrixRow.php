@@ -9,12 +9,16 @@ use OTelDistroTests\Util\ArrayUtilForTests;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\Config\OptionForTestsName;
 use OTelDistroTests\Util\DebugContext;
+use OTelDistroTests\Util\Log\LoggableInterface;
+use OTelDistroTests\Util\Log\LoggableTrait;
 use OTelDistroTests\Util\OTelDistroProjectProperties;
 use OTelDistroTests\Util\PhpVersionInfo;
 use PHPUnit\Framework\Assert;
 
-final class TestMatrixRow
+final class TestMatrixRow implements LoggableInterface
 {
+    use LoggableTrait;
+
     public const ROW_ELEMENTS_SEPARATOR = ',';
 
     private const APP_CODE_HOST_SHORT_TO_LONG_NAME = [
@@ -47,7 +51,7 @@ final class TestMatrixRow
         return implode(self::ROW_ELEMENTS_SEPARATOR, [$this->phpVersion, $this->packageType, $this->appCodeHostKindShortName, $this->testGroupShortName]);
     }
 
-    public static function parse(string $rawRaw): self
+    public static function parse(string $rowToParse): self
     {
         /**
          * @see tools/test/component/generate_matrix.sh
@@ -63,12 +67,12 @@ final class TestMatrixRow
 
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
-        $elements = explode(self::ROW_ELEMENTS_SEPARATOR, $rawRaw, limit: $optionalPartElementIndex + 1);
+        $elements = explode(self::ROW_ELEMENTS_SEPARATOR, $rowToParse, limit: $optionalPartElementIndex + 1);
         $dbgCtx->add(compact('elements'));
         AssertEx::countAtMost($optionalPartElementIndex + 1, $elements);
 
         $result = [];
-        ArrayUtilForTests::addAssertingKeyNew(OptionForTestsName::matrix_row->toEnvVarName(), $rawRaw, /* ref */ $result);
+        ArrayUtilForTests::addAssertingKeyNew(OptionForTestsName::matrix_row->toEnvVarName(), $rowToParse, /* ref */ $result);
 
         $positionalElementIndex = 0;
         $dbgCtx->add(['positionalElementIndex' => &$positionalElementIndex]); // Track $positionalElementIndex by reference because it is changing through the flow of the function

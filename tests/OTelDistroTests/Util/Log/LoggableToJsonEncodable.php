@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OTelDistroTests\Util\Log;
 
 use BackedEnum;
+use Ds\Map as DsMap;
 use OpenTelemetry\Distro\Log\LogLevel;
 use OpenTelemetry\Distro\Util\StaticClassTrait;
 use OpenTelemetry\Distro\Util\TextUtil;
@@ -254,6 +255,10 @@ final class LoggableToJsonEncodable
             return $object::class . '(' . $object->name . ')';
         }
 
+        if ($object instanceof DsMap) {
+            return self::convertDsMap($object, $depth);
+        }
+
         if (self::isFromDistroNamespace(get_class($object)) && self::isDtoObject($object)) {
             return self::convertDtoObject($object, $depth);
         }
@@ -426,5 +431,19 @@ final class LoggableToJsonEncodable
         }
 
         return true;
+    }
+
+    /**
+     * @param DsMap<mixed, mixed> $dsMap
+     *
+     * @return array<array-key, mixed>
+     */
+    private static function convertDsMap(DsMap $dsMap, int $depth): array
+    {
+        $resultValues = [];
+        foreach ($dsMap as $key => $val) {
+            $resultValues[] = [self::convert($key, $depth + 1), self::convert($val, $depth + 1)];
+        }
+        return ['class' => get_debug_type($dsMap), 'count' => $dsMap->count(), 'values' => self::convertArray($resultValues, $depth)];
     }
 }

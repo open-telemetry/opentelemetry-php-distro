@@ -8,13 +8,17 @@ use Ds\Map;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\Config\OptionForProdName;
 use OTelDistroTests\Util\DebugContext;
+use OTelDistroTests\Util\Log\LoggableInterface;
+use OTelDistroTests\Util\Log\LoggableTrait;
 use PHPUnit\Framework\Assert;
 
 /**
  * @phpstan-import-type OptionsForProdMap from AppCodeHostParams
  */
-final class TestMatrixRowOptionalPart
+final class TestMatrixRowOptionalPart implements LoggableInterface
 {
+    use LoggableTrait;
+
     public const KEY_VALUE_SEPARATOR = '=';
 
     /**
