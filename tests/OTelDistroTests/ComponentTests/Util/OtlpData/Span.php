@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\ComponentTests\Util\OtlpData;
 
-use OpenTelemetry\Distro\Util\TextUtil;
+use Opentelemetry\Proto\Trace\V1\Span as OTelProtoSpan;
+use Opentelemetry\Proto\Trace\V1\SpanFlags as OTelProtoSpanFlags;
+use OpenTelemetry\SemConv\Attributes\UrlAttributes;
+use OpenTelemetry\SemConv\Incubating\Attributes\UrlIncubatingAttributes;
 use OTelDistroTests\ComponentTests\Util\IdGenerator;
 use OTelDistroTests\ComponentTests\Util\TestInfraHttpServerProcessBase;
 use OTelDistroTests\Util\AssertEx;
@@ -14,10 +17,6 @@ use OTelDistroTests\Util\Log\LoggableInterface;
 use OTelDistroTests\Util\Log\LoggableTrait;
 use OTelDistroTests\Util\Log\LogStreamInterface;
 use OTelDistroTests\Util\TextUtilForTests;
-use Opentelemetry\Proto\Trace\V1\Span as OTelProtoSpan;
-use Opentelemetry\Proto\Trace\V1\SpanFlags as OTelProtoSpanFlags;
-use OpenTelemetry\SemConv\Attributes\UrlAttributes;
-use OpenTelemetry\SemConv\Incubating\Attributes\UrlIncubatingAttributes;
 use PHPUnit\Framework\Assert;
 
 final class Span implements LoggableInterface
@@ -85,12 +84,12 @@ final class Span implements LoggableInterface
 
     private static function convertNullableId(string $binaryId): ?string
     {
-        return TextUtil::isEmptyString($binaryId) ? null : self::convertId($binaryId);
+        return $binaryId == '' ? null : self::convertId($binaryId);
     }
 
     private static function convertId(string $binaryId): string
     {
-        Assert::assertFalse(TextUtil::isEmptyString($binaryId));
+        AssertEx::notEmptyString($binaryId);
 
         /** @var int[] $idAsBytesSeq */
         $idAsBytesSeq = [];
@@ -128,7 +127,7 @@ final class Span implements LoggableInterface
     {
         $flagsToLog = strval($this->flags);
         $flagsHumanReadable = IterableUtil::convertToString(FlagsUtil::extractBitNames($this->flags, self::SPAN_FLAGS_MASKS_TO_NAME), separator: ' | ');
-        if (!TextUtil::isEmptyString($flagsHumanReadable)) {
+        if ($flagsHumanReadable !== '') {
             $flagsToLog .= ' (' . $flagsHumanReadable . ')';
         }
         $customToLog = ['flags' => $flagsToLog];

@@ -13,3 +13,15 @@ If `open_basedir` is enabled in `php.ini`, the distro installation path must be 
 ## `xdebug`
 
 Running with `xdebug` is not recommended in production and may cause stability or memory issues in instrumented processes.
+
+## File-based configuration (`OTEL_CONFIG_FILE`)
+
+When using file-based (declarative) configuration:
+
+- Remote configuration (OpAMP) is not available — file-based and remote configuration are mutually exclusive.
+- Resource detectors registered via `Registry::registerResourceDetector()` (e.g., cloud provider detectors from `opentelemetry-php-contrib`) are not automatically active. They must provide a `ComponentProvider` and be explicitly listed in the YAML `resource.detection/development.detectors` section.
+- The distro ships a built-in `distro` detector for `telemetry.distro.name` and `telemetry.distro.version` attributes. See [Configuration](../reference/configuration.md#distro-resource-detector) for usage.
+- Environment variable substitution (`${VAR_NAME}`) in YAML files relies on `$_SERVER` to read values. In web server contexts (Apache, nginx+FPM), process environment variables are not automatically available in `$_SERVER`. To use `${VAR_NAME}` substitution in your YAML configuration, ensure the variables are exposed to PHP:
+  - **Apache (mod_php)**: Use `PassEnv VAR_NAME` or `SetEnv VAR_NAME value` in your virtual host configuration.
+  - **PHP-FPM**: Set `env[VAR_NAME] = value` in your FPM pool configuration, or set `clear_env = no` to pass all process environment variables.
+  - Alternatively, hardcode values directly in the YAML file instead of using `${VAR_NAME}` substitution.

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\Util\Config;
 
-use OpenTelemetry\Distro\Util\TextUtil;
 use Override;
 
 /**
@@ -44,6 +43,6 @@ final class BoolOptionParser extends EnumOptionParser
     #[Override]
     public function parse(string $rawValue): bool
     {
-        return TextUtil::isEmptyString($rawValue) ? false : parent::parse($rawValue);
+        return $rawValue === '' ? false : parent::parse($rawValue);
     }
 }

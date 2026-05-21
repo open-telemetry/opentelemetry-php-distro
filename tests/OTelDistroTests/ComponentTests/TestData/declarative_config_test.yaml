@@ -1,0 +1,27 @@
+file_format: "1.0-rc.2"
+
+resource:
+  attributes:
+    - name: service.name
+      value: declarative-config-component-test
+    - name: test.custom.attribute
+      value: test-value-from-yaml
+  detection/development:
+    detectors:
+      - distro: {}
+
+propagator:
+  composite:
+    - tracecontext:
+    - baggage:
+
+tracer_provider:
+  sampler:
+    parent_based:
+      root:
+        always_on:
+  processors:
+    - batch:
+        exporter:
+          otlp_http:
+            endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces

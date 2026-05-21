@@ -17,6 +17,8 @@ use Throwable;
 
 /**
  * @phpstan-type EnvVars array<string, string>
+ *
+ * @phpstan-type UnsignedByte int<0, 255>
  */
 final class BuildToolsUtil
 {
@@ -193,7 +195,7 @@ final class BuildToolsUtil
     }
 
     /**
-     * @return iterable<int>
+     * @return iterable<UnsignedByte>
      */
     public static function iterateOverChars(string $input): iterable
     {

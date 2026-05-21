@@ -38,6 +38,9 @@ class AppCodeHostParams implements LoggableInterface
     /** @var OptionsForProdMap */
     private Map $prodOptions;
 
+    /** @var array<string, string> */
+    private array $additionalEnvVars = [];
+
     public string $spawnedProcessInternalId;
 
     public function __construct(
@@ -86,6 +89,11 @@ class AppCodeHostParams implements LoggableInterface
         if ($optVal !== OptionsForProdMetadata::get()[$optName->name]->defaultValue()) {
             $this->setProdOption($optName, AssertEx::notNull($optVal));
         }
+    }
+
+    public function setAdditionalEnvVar(string $envVarName, string $envVarValue): void
+    {
+        $this->additionalEnvVars[$envVarName] = $envVarValue;
     }
 
     /**
@@ -222,7 +230,11 @@ class AppCodeHostParams implements LoggableInterface
      */
     public function buildEnvVarsForAppCodeProcess(): array
     {
-        return self::buildEnvVarsForAppCodeProcessImpl(EnvVarUtilForTests::getAll(), $this->prodOptions);
+        $result = self::buildEnvVarsForAppCodeProcessImpl(EnvVarUtilForTests::getAll(), $this->prodOptions);
+        foreach ($this->additionalEnvVars as $envVarName => $envVarValue) {
+            $result[$envVarName] = $envVarValue;
+        }
+        return $result;
     }
 
     public function buildProdConfig(): ConfigSnapshotForProd

@@ -22,17 +22,17 @@ class RandomUtilTest extends TestCaseBase
         $totalSet = ['a', 'b'];
         $randSelectedSubSet = RandomUtil::arrayRandValues($totalSet, 1);
         self::assertTrue($randSelectedSubSet == ['a'] || $randSelectedSubSet == ['b'], LoggableToString::convert(compact('randSelectedSubSet')));
-        AssertEx::listIsSubsetOf($randSelectedSubSet, $totalSet);
+        AssertEx::arrayValuesIsSubsetOf($randSelectedSubSet, $totalSet);
         self::assertEqualsCanonicalizing($totalSet, RandomUtil::arrayRandValues($totalSet, count($totalSet)));
 
         $totalSet = ['a', 'b', 'c'];
         $randSelectedSubSet = RandomUtil::arrayRandValues($totalSet, 1);
         self::assertCount(1, $randSelectedSubSet);
         self::assertTrue($randSelectedSubSet == ['a'] || $randSelectedSubSet == ['b'] || $randSelectedSubSet == ['c'], LoggableToString::convert(compact('randSelectedSubSet')));
-        AssertEx::listIsSubsetOf($randSelectedSubSet, $totalSet);
+        AssertEx::arrayValuesIsSubsetOf($randSelectedSubSet, $totalSet);
         $randSelectedSubSet = RandomUtil::arrayRandValues($totalSet, 2);
         self::assertCount(2, $randSelectedSubSet);
-        AssertEx::listIsSubsetOf($randSelectedSubSet, $totalSet);
+        AssertEx::arrayValuesIsSubsetOf($randSelectedSubSet, $totalSet);
         self::assertEqualsCanonicalizing($totalSet, RandomUtil::arrayRandValues($totalSet, count($totalSet)));
     }
 }
