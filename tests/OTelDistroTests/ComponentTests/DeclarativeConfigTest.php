@@ -29,6 +29,7 @@ final class DeclarativeConfigTest extends ComponentTestCaseBase
     private function buildYamlConfigFile(): string
     {
         $mockCollectorPort = ComponentTestsPHPUnitExtension::getGlobalTestInfra()->getMockOTelCollector()->getPortForAgent();
+        /** @noinspection HttpUrlsUsage */
         $endpoint = 'http://' . HttpServerHandle::CLIENT_LOCALHOST_ADDRESS . ':' . $mockCollectorPort;
         $yamlContent = file_get_contents(self::YAML_TEMPLATE_FILE);
         self::assertNotFalse($yamlContent);
@@ -77,7 +78,7 @@ final class DeclarativeConfigTest extends ComponentTestCaseBase
 
     public function testDeclarativeConfigResourceAttributes(): void
     {
-        self::runAndEscalateLogLevelOnFailure(
+        $this->runAndEscalateLogLevelOnFailure(
             self::buildDbgDescForTest(__CLASS__, __FUNCTION__),
             function (): void {
                 $this->implTestDeclarativeConfigResourceAttributes();
