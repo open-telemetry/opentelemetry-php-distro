@@ -48,7 +48,7 @@ contents:
   type: config
 - src: /source/README.md
   dst: /opt/opentelemetry/php/distro/docs/README.md
-- src: /source/NOTICE
+- src: /source/_BUILT/NOTICE
   dst: /opt/opentelemetry/php/distro/NOTICE
 - src: /source/LICENSE
   dst: /opt/opentelemetry/php/distro/LICENSE

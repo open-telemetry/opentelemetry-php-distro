@@ -31,4 +31,4 @@ jobs:
           name: php-code-for-packages
           path: |
             _BUILT/php_code_for_packages
-            NOTICE
+            _BUILT/NOTICE

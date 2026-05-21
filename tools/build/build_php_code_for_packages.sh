@@ -168,9 +168,12 @@ main() {
 
     local NOTICE_APPEND_CMD=""
     local docker_notice_mount_args=()
+    local -r _BUILT_NOTICE_FILE="${repo_root_dir}/_BUILT/NOTICE"
     if [ "${SKIP_NOTICE}" = "false" ]; then
+        mkdir -p "${repo_root_dir}/_BUILT"
+        cp "${repo_root_dir}/packaging/NOTICE.template" "${_BUILT_NOTICE_FILE}"
         docker_notice_mount_args=(
-            -v "${repo_root_dir}/NOTICE:/docker_host_dst_NOTICE"
+            -v "${_BUILT_NOTICE_FILE}:/docker_host_dst_NOTICE"
         )
         NOTICE_APPEND_CMD="\
             && if [ -f ./NOTICE ]; then cat ./NOTICE >> /docker_host_dst_NOTICE; fi \
@@ -214,7 +217,7 @@ main() {
         # --- Reusable command blocks ---
         local INSTALL_SCOPER_CMD="curl -fLsS -o /usr/local/bin/php-scoper.phar https://github.com/humbug/php-scoper/releases/download/${_PHP_SCOPER_VERSION}/php-scoper.phar"
 
-        local COPY_REPO_TO_TMP_CMD="mkdir -p /tmp/repo && cd /read_only_repo_root && for entry in *; do [ \"\${entry}\" = \"NOTICE\" ] && continue; cp -r \"\${entry}\" /tmp/repo/; done && cd /tmp/repo"
+        local COPY_REPO_TO_TMP_CMD="mkdir -p /tmp/repo && cd /read_only_repo_root && cp -r . /tmp/repo/ && cd /tmp/repo"
 
         local _SCOPED_DISTRO_TEMP_IN_DOCKER_DIR="/tmp/repo/prod_php_OpenTelemetry_scoped"
         local SCOPE_DISTRO_CMD="OTEL_PHP_SCOPER_PREFIX='${_SCOPER_PREFIX}' php -d error_reporting='E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED' /usr/local/bin/php-scoper.phar add-prefix --force --config=/tmp/repo/tools/build/php-scoper.inc.php --output-dir=${_SCOPED_DISTRO_TEMP_IN_DOCKER_DIR} /tmp/repo/prod/php/OpenTelemetry"
@@ -250,7 +253,7 @@ main() {
             echo "Building PHP code (production code and its dependencies) for the packages for PHP version ${_PHP_VERSION_WITH_DOT} ..."
 
             if [ "$SKIP_NOTICE" = "false" ]; then
-                echo "This project depends on following packages for PHP ${_PHP_VERSION_WITH_DOT}" >>NOTICE
+                echo "This project depends on following packages for PHP ${_PHP_VERSION_WITH_DOT}" >>"${_BUILT_NOTICE_FILE}"
             fi
 
             local COMPOSER_LOCK_FILENAME
