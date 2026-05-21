@@ -20,6 +20,8 @@ use OpenTelemetry\Distro\Log\NativeLogWriter;
 use OpenTelemetry\Distro\Util\DistroRuntimeException;
 use OpenTelemetry\Distro\Util\HiddenConstructorTrait;
 use OpenTelemetry\Distro\Util\OTelUtil;
+use OpenTelemetry\SDK\Common\Configuration\Configuration as OTelSdkConfiguration;
+use OpenTelemetry\SDK\Common\Configuration\Variables as OTelSdkConfigVariables;
 use OpenTelemetry\SDK\Registry;
 use OpenTelemetry\SDK\SdkAutoloader;
 use OpenTelemetry\SemConv\Attributes\CodeAttributes;
@@ -86,10 +88,17 @@ final class PhpPartFacade
 
             // User's bootstrap .php file might register remote config handler so it has to be called before remote config handler
             self::loadUserBootstrapPhpFile();
-            // RemoteConfigHandler::fetchAndApply depends on OTel SDK so it has to be called after autoloader for OTel SDK is registered
-            RemoteConfigHandler::fetchAndApply();
+            // Declarative configuration (OTEL_CONFIG_FILE) and remote configuration (OpAMP) are mutually exclusive
+            if (self::isDeclarativeConfigActive()) {
+                self::logDebug(__FUNCTION__)?->with(__LINE__, 'Declarative configuration (OTEL_CONFIG_FILE) is active - skipping remote configuration');
+            } else {
+                // RemoteConfigHandler::fetchAndApply depends on OTel SDK so it has to be called after autoloader for OTel SDK is registered
+                RemoteConfigHandler::fetchAndApply();
+            }
             // OverrideOTelSdkResourceAttributes::register depends on OTel SDK so it has to be called after autoloader for OTel SDK is registered
             OverrideOTelSdkResourceAttributes::register($nativePartVersion, self::$vendorCustomizations);
+            // For file-based config, also register as SPI ComponentProvider so it can be referenced in YAML detectors
+            DistroDetectorComponentProvider::registerSpi();
             self::registerNativeOtlpSerializer();
             self::registerAsyncTransportFactory();
             self::registerOtelLogWriter();
@@ -158,6 +167,11 @@ final class PhpPartFacade
          * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
          */
         return (bool)\OpenTelemetry\Distro\get_config_option_by_name(self::ENABLED_OPT_NAME);
+    }
+
+    private static function isDeclarativeConfigActive(): bool
+    {
+        return OTelSdkConfiguration::has(OTelSdkConfigVariables::OTEL_CONFIG_FILE);
     }
 
     /**

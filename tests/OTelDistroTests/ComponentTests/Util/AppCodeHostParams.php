@@ -38,6 +38,9 @@ class AppCodeHostParams implements LoggableInterface
     /** @var OptionsForProdMap */
     private Map $prodOptions;
 
+    /** @var array<string, string> */
+    private array $additionalEnvVars = [];
+
     public string $spawnedProcessInternalId;
 
     public function __construct(
@@ -86,6 +89,11 @@ class AppCodeHostParams implements LoggableInterface
         if ($optVal !== OptionsForProdMetadata::get()[$optName->name]->defaultValue()) {
             $this->setProdOption($optName, AssertEx::notNull($optVal));
         }
+    }
+
+    public function setAdditionalEnvVar(string $envVarName, string $envVarValue): void
+    {
+        $this->additionalEnvVars[$envVarName] = $envVarValue;
     }
 
     /**
@@ -147,6 +155,10 @@ class AppCodeHostParams implements LoggableInterface
 
         foreach ($this->prodOptions as $optName => $optVal) {
             $result[$optName->toEnvVarName()] = ConfigUtilForTests::optionValueToString($optVal);
+        }
+
+        foreach ($this->additionalEnvVars as $envVarName => $envVarValue) {
+            $result[$envVarName] = $envVarValue;
         }
 
         AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)
