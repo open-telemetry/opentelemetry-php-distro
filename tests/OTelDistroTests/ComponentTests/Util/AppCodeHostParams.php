@@ -119,7 +119,7 @@ class AppCodeHostParams implements LoggableInterface
                     return true;
                 }
 
-                // Drop any other environment variables related to either vanilla or OTel distro
+                // Drop any other environment variables related to either OTel SDK, Distro or contrib
                 foreach (OptionForProdName::getEnvVarNamePrefixes() as $envVarPrefix) {
                     if (TextUtil::isPrefixOfIgnoreCase($envVarPrefix, $envVarName)) {
                         return false;
