@@ -81,15 +81,26 @@ if (!str_contains($content, 'OTEL scoped autoload fix begin')) {
     $autoloadStaticPatchTemplate = <<<'PHP_BLOCK'
 require __DIR__ . '/autoload_static.php';
         // OTEL scoped autoload fix begin
+        // Keep BOTH unprefixed and scoped variants of PSR-4 prefixes / classmap
+        // entries. Unprefixed lookups are needed for namespaces excluded from
+        // scoping (php-scoper exclude-namespaces) — their files declare unscoped
+        // classes and code references them by unscoped names. Scoped lookups are
+        // needed for the rest of the scoped vendor.
         $scopedPrefix = '__PREFIX__\\';
         $composerStaticClass = __NAMESPACE__ . '\\Composer\\Autoload\\__STATIC_CLASS__';
         if (class_exists($composerStaticClass, false)) {
             $newPrefixLengthsPsr4 = [];
             $newPrefixDirsPsr4 = [];
             foreach ($composerStaticClass::$prefixDirsPsr4 as $namespace => $dirs) {
-                $scopedNamespace = str_starts_with($namespace, $scopedPrefix) ? $namespace : $scopedPrefix . $namespace;
-                $newPrefixDirsPsr4[$scopedNamespace] = $dirs;
-                $newPrefixLengthsPsr4[$scopedNamespace[0]][$scopedNamespace] = strlen($scopedNamespace);
+                // Keep the original (unscoped) prefix.
+                $newPrefixDirsPsr4[$namespace] = $dirs;
+                $newPrefixLengthsPsr4[$namespace[0]][$namespace] = strlen($namespace);
+                // Also add a scoped variant when the original isn't already scoped.
+                if (!str_starts_with($namespace, $scopedPrefix)) {
+                    $scopedNamespace = $scopedPrefix . $namespace;
+                    $newPrefixDirsPsr4[$scopedNamespace] = $dirs;
+                    $newPrefixLengthsPsr4[$scopedNamespace[0]][$scopedNamespace] = strlen($scopedNamespace);
+                }
             }
             $composerStaticClass::$prefixDirsPsr4 = $newPrefixDirsPsr4;
             $composerStaticClass::$prefixLengthsPsr4 = $newPrefixLengthsPsr4;

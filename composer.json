@@ -19,6 +19,7 @@
         "open-telemetry/opentelemetry-auto-mysqli": "0.4.0",
         "open-telemetry/opentelemetry-auto-pdo": "0.4.0",
         "open-telemetry/opentelemetry-auto-postgresql": "dev-main",
+        "open-telemetry/opentelemetry-auto-psr18": "1.2.0",
         "open-telemetry/opentelemetry-auto-slim": "1.4.0",
         "open-telemetry/sdk": "1.14.0",
         "open-telemetry/sdk-configuration": "0.8.0",
