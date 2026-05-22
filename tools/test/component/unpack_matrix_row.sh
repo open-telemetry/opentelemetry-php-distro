@@ -118,9 +118,4 @@ function unpack_matrix_row {
     _export_var_to_env 'OTEL_PHP_TESTS_GROUP' "${test_group}" "${verbose}"
 
     _export_var_to_env 'OTEL_PHP_TESTS_MATRIX_ROW' "${matrix_row_as_string}" "${verbose}"
-
-    local -r matrix_row_optional_tail="${matrix_row_parts[*]:4}"
-    if [[ -n "${matrix_row_optional_tail}" ]]; then
-        _export_var_to_env 'OTEL_PHP_TESTS_MATRIX_ROW_OPTIONAL_PART' "${matrix_row_parts[*]:4}" "${verbose}"
-    fi
 }
