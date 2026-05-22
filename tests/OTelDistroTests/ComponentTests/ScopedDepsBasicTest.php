@@ -153,7 +153,59 @@ final class ScopedDepsBasicTest extends ComponentTestCaseBase
         self::assertNull($classNameToSourceCodeFile[$className]);
     }
 
-    public function implTestWhereClassesAreLoadedFrom(MixedMap $testArgs): void
+    private static function assertWhereClassesAreLoadedFrom(?bool $scopedDepsEnabledInTestArgs, DebugContextScopeRef $dbgCtx, MixedMap $appCodeAuxOutput): void
+    {
+        if (($scopedDepsEnabledInMatrixRowOptionalPart = self::scopedDepsEnabledInMatrixRowOptionalPart()) !== null) {
+            $expectedScopedDepsEnabledInAppContext = $scopedDepsEnabledInMatrixRowOptionalPart;
+        } else {
+            if ($scopedDepsEnabledInTestArgs !== null) {
+                $expectedScopedDepsEnabledInAppContext = $scopedDepsEnabledInTestArgs;
+            } else {
+                $expectedScopedDepsEnabledInAppContext = OptionsForProdMetadata::get()[OptionForProdName::scoped_deps_enabled->name]->defaultValue();
+            }
+        }
+
+        $isScopedDepsEnabled = $appCodeAuxOutput->getBool(OptionForProdName::scoped_deps_enabled->name);
+        $dbgCtx->add(compact('isScopedDepsEnabled'));
+        self::assertSame($expectedScopedDepsEnabledInAppContext, $isScopedDepsEnabled);
+
+        /** @var array<string, ?string> $classNameToSourceCodeFile */
+        $classNameToSourceCodeFile = AssertEx::isArray($appCodeAuxOutput->get(self::CLASS_NAME_TO_SOURCE_CODE_FILE_KEY));
+        $distroProdPhpDir = AssertEx::notEmptyString($appCodeAuxOutput->getString(self::DISTRO_PROD_PHP_DIR_KEY));
+        $testsRepoRootDir = AssertEx::notEmptyString($appCodeAuxOutput->getString(self::TESTS_REPO_ROOT_DIR_KEY));
+        self::assertStringStartsNotWith($testsRepoRootDir, $distroProdPhpDir);
+        self::assertStringStartsNotWith($distroProdPhpDir, $testsRepoRootDir);
+        self::assertSame(RepoRootDir::getFullPath(), $testsRepoRootDir);
+
+        foreach (self::CLASSES_ONLY_IN_DISTRO as $unscopedClassName) {
+            $scopedClassName = AppCodeContextUtil::buildScopedClassNameFromRawString($unscopedClassName);
+            if ($isScopedDepsEnabled) {
+                self::assertClassDoesNotExist($classNameToSourceCodeFile, $unscopedClassName);
+                self::assertClassIsLoadedIsFrom($classNameToSourceCodeFile, $scopedClassName, [$distroProdPhpDir]);
+            } else {
+                self::assertClassIsLoadedIsFrom($classNameToSourceCodeFile, $unscopedClassName, [$distroProdPhpDir]);
+                self::assertClassDoesNotExist($classNameToSourceCodeFile, $scopedClassName);
+            }
+        }
+
+        foreach (self::CLASSES_ONLY_IN_APP as $unscopedClassName) {
+            self::assertClassIsLoadedIsFrom($classNameToSourceCodeFile, $unscopedClassName, [$testsRepoRootDir]);
+            $scopedClassName = AppCodeContextUtil::buildScopedClassNameFromRawString($unscopedClassName);
+            self::assertClassDoesNotExist($classNameToSourceCodeFile, $scopedClassName);
+        }
+
+        foreach (self::CLASSES_IN_BOTH as $unscopedClassName) {
+            self::assertClassIsLoadedIsFrom($classNameToSourceCodeFile, $unscopedClassName, [$distroProdPhpDir, $testsRepoRootDir]);
+            $scopedClassName = AppCodeContextUtil::buildScopedClassNameFromRawString($unscopedClassName);
+            if ($isScopedDepsEnabled) {
+                self::assertClassIsLoadedIsFrom($classNameToSourceCodeFile, $scopedClassName, [$distroProdPhpDir]);
+            } else {
+                self::assertClassDoesNotExist($classNameToSourceCodeFile, $scopedClassName);
+            }
+        }
+    }
+
+    private function implTestWhereClassesAreLoadedFrom(MixedMap $testArgs): void
     {
         $scopedDepsEnabledInTestArgs = $testArgs->getNullableBool(OptionForProdName::scoped_deps_enabled->name);
         if (self::scopedDepsEnabledInMatrixRowOptionalPart() !== null) {
@@ -169,54 +221,7 @@ final class ScopedDepsBasicTest extends ComponentTestCaseBase
             testArgs: new MixedMap($testArgsToPass),
             subAppCode: [__CLASS__, 'appCodeForTestWhereClassesAreLoadedFrom'],
             additionalAssertCode: function (DebugContextScopeRef $dbgCtx, AgentBackendComms $agentBackendComms, MixedMap $appCodeAuxOutput) use ($scopedDepsEnabledInTestArgs): void {
-                if (($scopedDepsEnabledInMatrixRowOptionalPart = self::scopedDepsEnabledInMatrixRowOptionalPart()) !== null) {
-                    $expectedScopedDepsEnabledInAppContext = $scopedDepsEnabledInMatrixRowOptionalPart;
-                } else {
-                    if ($scopedDepsEnabledInTestArgs !== null) {
-                        $expectedScopedDepsEnabledInAppContext = $scopedDepsEnabledInTestArgs;
-                    } else {
-                        $expectedScopedDepsEnabledInAppContext = OptionsForProdMetadata::get()[OptionForProdName::scoped_deps_enabled->name]->defaultValue();
-                    }
-                }
-
-                $isScopedDepsEnabled = $appCodeAuxOutput->getBool(OptionForProdName::scoped_deps_enabled->name);
-                $dbgCtx->add(compact('isScopedDepsEnabled'));
-                self::assertSame($expectedScopedDepsEnabledInAppContext, $isScopedDepsEnabled);
-
-                /** @var array<string, ?string> $classNameToSourceCodeFile */
-                $classNameToSourceCodeFile = AssertEx::isArray($appCodeAuxOutput->get(self::CLASS_NAME_TO_SOURCE_CODE_FILE_KEY));
-                $distroProdPhpDir = AssertEx::notEmptyString($appCodeAuxOutput->getString(self::DISTRO_PROD_PHP_DIR_KEY));
-                $testsRepoRootDir = AssertEx::notEmptyString($appCodeAuxOutput->getString(self::TESTS_REPO_ROOT_DIR_KEY));
-                self::assertStringStartsNotWith($testsRepoRootDir, $distroProdPhpDir);
-                self::assertStringStartsNotWith($distroProdPhpDir, $testsRepoRootDir);
-                self::assertSame(RepoRootDir::getFullPath(), $testsRepoRootDir);
-
-                foreach (self::CLASSES_ONLY_IN_DISTRO as $unscopedClassName) {
-                    $scopedClassName = AppCodeContextUtil::buildScopedClassNameFromRawString($unscopedClassName);
-                    if ($isScopedDepsEnabled) {
-                        self::assertClassDoesNotExist($classNameToSourceCodeFile, $unscopedClassName);
-                        self::assertClassIsLoadedIsFrom($classNameToSourceCodeFile, $scopedClassName, [$distroProdPhpDir]);
-                    } else {
-                        self::assertClassIsLoadedIsFrom($classNameToSourceCodeFile, $unscopedClassName, [$distroProdPhpDir]);
-                        self::assertClassDoesNotExist($classNameToSourceCodeFile, $scopedClassName);
-                    }
-                }
-
-                foreach (self::CLASSES_ONLY_IN_APP as $unscopedClassName) {
-                    self::assertClassIsLoadedIsFrom($classNameToSourceCodeFile, $unscopedClassName, [$testsRepoRootDir]);
-                    $scopedClassName = AppCodeContextUtil::buildScopedClassNameFromRawString($unscopedClassName);
-                    self::assertClassDoesNotExist($classNameToSourceCodeFile, $scopedClassName);
-                }
-
-                foreach (self::CLASSES_IN_BOTH as $unscopedClassName) {
-                    self::assertClassIsLoadedIsFrom($classNameToSourceCodeFile, $unscopedClassName, [$distroProdPhpDir, $testsRepoRootDir]);
-                    $scopedClassName = AppCodeContextUtil::buildScopedClassNameFromRawString($unscopedClassName);
-                    if ($isScopedDepsEnabled) {
-                        self::assertClassIsLoadedIsFrom($classNameToSourceCodeFile, $scopedClassName, [$distroProdPhpDir]);
-                    } else {
-                        self::assertClassDoesNotExist($classNameToSourceCodeFile, $scopedClassName);
-                    }
-                }
+                self::assertWhereClassesAreLoadedFrom($scopedDepsEnabledInTestArgs, $dbgCtx, $appCodeAuxOutput);
             },
         );
     }
