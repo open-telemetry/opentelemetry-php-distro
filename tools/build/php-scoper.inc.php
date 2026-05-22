@@ -51,7 +51,7 @@ $primeAutoloadBeforeHook = static function (string $filePath, string $scoperPref
             return $indent . $prime . "\n" . $indent . 'hook(' . $class . '::class,';
         },
         $content
-    );
+    ) ?? $content;
 };
 
 $restoreUnscopedExtensionFunctions = static function (string $filePath, string $scoperPrefix, string $content) use ($extensionFunctionFqcns): string {
