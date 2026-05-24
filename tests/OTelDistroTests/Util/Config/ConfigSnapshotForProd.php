@@ -16,7 +16,7 @@ final class ConfigSnapshotForProd implements LoggableInterface
 
     private readonly ?bool $autoloadEnabled; // @phpstan-ignore property.uninitializedReadonly
     private readonly ?string $bootstrapPhpPartFile; // @phpstan-ignore property.uninitializedReadonly
-    private readonly bool $scopedDepsEnabled; // @phpstan-ignore property.uninitializedReadonly
+    private readonly ?string $configFile; // @phpstan-ignore property.uninitializedReadonly
     private readonly ?WildcardListMatcher $disabledInstrumentations; // @phpstan-ignore property.uninitializedReadonly
     private readonly bool $enabled; // @phpstan-ignore property.uninitializedReadonly
     private readonly ?string $exporterOtlpEndpoint; // @phpstan-ignore property.uninitializedReadonly
@@ -30,6 +30,7 @@ final class ConfigSnapshotForProd implements LoggableInterface
     private readonly LogLevel $logLevelStderr; // @phpstan-ignore property.uninitializedReadonly
     private readonly LogLevel $logLevelSyslog; // @phpstan-ignore property.uninitializedReadonly
     private readonly ?string $resourceAttributes; // @phpstan-ignore property.uninitializedReadonly
+    private readonly bool $scopedDepsEnabled; // @phpstan-ignore property.uninitializedReadonly
     private readonly bool $transactionSpanEnabled; // @phpstan-ignore property.uninitializedReadonly
     private readonly bool $transactionSpanEnabledCli; // @phpstan-ignore property.uninitializedReadonly
     private readonly ?string $userBootstrapPhpFile; // @phpstan-ignore property.uninitializedReadonly

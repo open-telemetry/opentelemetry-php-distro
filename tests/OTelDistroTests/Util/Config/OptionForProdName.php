@@ -15,7 +15,7 @@ enum OptionForProdName
 
     case autoload_enabled;
     case bootstrap_php_part_file;
-    case scoped_deps_enabled;
+    case config_file;
     case disabled_instrumentations;
     case enabled;
     case exporter_otlp_endpoint;
@@ -29,6 +29,7 @@ enum OptionForProdName
     case log_level_stderr;
     case log_level_syslog;
     case resource_attributes;
+    case scoped_deps_enabled;
     case transaction_span_enabled;
     case transaction_span_enabled_cli;
     case user_bootstrap_php_file;
@@ -44,7 +45,7 @@ enum OptionForProdName
         return [
             self::autoload_enabled->name                  => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
             self::bootstrap_php_part_file->name           => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
-            self::scoped_deps_enabled->name              => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
+            self::config_file->name                       => self::OTEL_ENV_VAR_NAME_PREFIX,
             self::disabled_instrumentations->name         => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
             self::enabled->name                           => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
             self::exporter_otlp_endpoint->name            => self::OTEL_ENV_VAR_NAME_PREFIX,
@@ -58,6 +59,7 @@ enum OptionForProdName
             self::log_level_stderr->name                  => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
             self::log_level_syslog->name                  => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
             self::resource_attributes->name               => self::OTEL_ENV_VAR_NAME_PREFIX,
+            self::scoped_deps_enabled->name               => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
             self::transaction_span_enabled->name          => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
             self::transaction_span_enabled_cli->name      => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,
             self::user_bootstrap_php_file->name           => self::OTEL_PHP_ENV_VAR_NAME_PREFIX,

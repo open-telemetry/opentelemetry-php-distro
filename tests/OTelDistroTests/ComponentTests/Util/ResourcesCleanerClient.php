@@ -91,9 +91,9 @@ final class ResourcesCleanerClient
         $logDebug?->with(__LINE__, 'Successfully registered file to delete with ' . ClassNameUtil::fqToShort(ResourcesCleaner::class));
     }
 
-    public function createTempFile(string $fileNamePrefix, bool $shouldBeDeletedOnTestExit = true): string
+    public function createTempFile(string $fileNamePrefix, bool $shouldBeDeletedOnTestExit = true, ?string $fileNameSuffix = null): string
     {
-        $tempFileFullPath = FileUtil::createTempFile($fileNamePrefix);
+        $tempFileFullPath = FileUtil::createTempFile($fileNamePrefix, $fileNameSuffix);
         if ($shouldBeDeletedOnTestExit) {
             $this->registerFileToDelete($tempFileFullPath, isTestScoped: true);
         }

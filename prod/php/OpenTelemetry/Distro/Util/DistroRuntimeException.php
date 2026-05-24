@@ -10,13 +10,13 @@ use Throwable;
 /**
  * @phpstan-import-type Context from GetContextInterface
  */
-final class DistroRuntimeException extends RuntimeException implements GetContextInterface
+class DistroRuntimeException extends RuntimeException implements GetContextInterface
 {
     /**
      * @phpstan-param Context $context
      */
     public function __construct(
-        string $message,
+        string $message = '',
         private readonly array $context = [],
         int $code = 0,
         ?Throwable $previous = null,

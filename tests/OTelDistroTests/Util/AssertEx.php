@@ -262,21 +262,6 @@ final class AssertEx
     }
 
     /**
-     * @template T of numeric|string|object|resource
-     *
-     * @param ?T $actual
-     *
-     * @return T
-     *
-     * @phpstan-assert !null $actual
-     */
-    public static function isNotNull(mixed $actual, string $message = ''): mixed
-    {
-        Assert::assertNotNull($actual, $message);
-        return $actual;
-    }
-
-    /**
      * @return null
      */
     public static function isNull(mixed $actual, string $message = '')
@@ -667,5 +652,10 @@ final class AssertEx
         $dbgCtx->add(['actual type' => get_debug_type($actual)]);
         $dbgCtx->add(compact('actual'));
         Assert::assertTrue(ArrayUtilForTests::isOfArrayKeyType($actual));
+    }
+
+    public static function opaqueAlwaysZero(): int
+    {
+        return 0;
     }
 }

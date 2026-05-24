@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\Util\Log;
 
-use OpenTelemetry\Distro\Log\LogBackend;
 use OpenTelemetry\Distro\Log\LogLevel;
 use OpenTelemetry\DistroTools\Build\BuildToolsLogUtil;
 use Override;
@@ -34,7 +33,7 @@ final class SinkForTests extends SinkBase
             file: $file,
             line: $line,
             func: $func,
-            messageWithContext: LogBackend::concatMessageAndContext($message, $context === [] ? '' : LoggableToString::convert($context))
+            messageWithContext: LoggableToString::convertMessageAndContext($message, $context)
         );
 
         syslog(self::levelToSyslog($level->value), $formattedStatement);

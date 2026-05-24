@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\Util;
 
-use RuntimeException;
+use OpenTelemetry\Distro\Util\DistroRuntimeException;
 
-class TestsInfraException extends RuntimeException
+class TestsInfraException extends DistroRuntimeException
 {
 }

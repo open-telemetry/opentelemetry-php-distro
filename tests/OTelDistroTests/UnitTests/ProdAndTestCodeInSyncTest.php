@@ -6,6 +6,7 @@ namespace OTelDistroTests\UnitTests;
 
 use OpenTelemetry\Distro\PhpPartFacade;
 use OpenTelemetry\Distro\Util\BoolUtil;
+use OpenTelemetry\SDK\Common\Configuration\Variables as OTelSdkConfigVariables;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\Config\BoolOptionParser;
 use OTelDistroTests\Util\Config\OptionForProdName;
@@ -15,10 +16,15 @@ use OTelDistroTests\Util\TestCaseBase;
 
 class ProdAndTestCodeInSyncTest extends TestCaseBase
 {
-    public function testConfigOptionNamesInSync(): void
+    public function testProdAndTestConstsInSync(): void
     {
         AssertEx::sameConstValues(PhpPartFacade::ENABLED_OPT_NAME, OptionForProdName::enabled->name);
         AssertEx::sameConstValues(PhpPartFacade::USER_BOOTSTRAP_PHP_FILE_OPT_NAME, OptionForProdName::user_bootstrap_php_file->name);
+    }
+
+    public function testOTelSdkAndDistroConstsInSync(): void
+    {
+        self::assertSame(OTelSdkConfigVariables::OTEL_CONFIG_FILE, OptionForProdName::config_file->toEnvVarName());
     }
 
     public function testBoolOptionParser(): void

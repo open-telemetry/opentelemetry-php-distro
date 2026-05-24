@@ -8,7 +8,6 @@ use Closure;
 use DirectoryIterator;
 use OpenTelemetry\Distro\Util\StaticClassTrait;
 use OTelDistroTests\Util\Log\LogCategoryForTests;
-use OTelDistroTests\Util\Log\LoggableToString;
 use PHPUnit\Framework\Assert;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -73,19 +72,33 @@ final class FileUtil
         return "OTelDistroTests_{$fileNamePrefix}_";
     }
 
-    public static function createTempFile(string $fileNamePrefix): string
+    public static function createTempFile(string $fileNamePrefix, ?string $fileNameSuffix = null): string
     {
-        $tempFileFullPath = tempnam(sys_get_temp_dir(), prefix: $fileNamePrefix);
         $logCategory = LogCategoryForTests::TEST_INFRA;
         $logger = AmbientContextForTests::loggerFactory()->loggerForClass($logCategory, __NAMESPACE__, __CLASS__, __FILE__);
+        $logDebug = $logger->logDebug(__FUNCTION__);
+        $dbgCtx = compact('fileNamePrefix', 'fileNameSuffix');
 
+        // Generate a unique temp file path (creates a .tmp file by default)
+        $tempFileFullPath = tempnam(sys_get_temp_dir(), prefix: $fileNamePrefix . ($fileNameSuffix === null ? '' : $fileNameSuffix));
         if ($tempFileFullPath === false) {
-            $logger->logCritical(__FUNCTION__)?->includeStackTrace()->with(__LINE__, 'Failed to create a temporary file', compact('fileNamePrefix'));
-            Assert::fail(LoggableToString::convert(compact('fileNamePrefix')));
+            throw new TestsInfraException('Failed to create a temporary file', context: $dbgCtx);
+        }
+        ArrayUtilForTests::append(compact('tempFileFullPath'), to: $dbgCtx);
+
+        // If file suffix should be different - rename the initial temp file
+        if (($fileNameSuffix !== null) && !str_ends_with($tempFileFullPath, $fileNameSuffix)) {
+            $finalTempFileFullPath = $tempFileFullPath . $fileNameSuffix;
+            ArrayUtilForTests::append(compact('finalTempFileFullPath'), to: $dbgCtx);
+            if (!rename($tempFileFullPath, $finalTempFileFullPath)) {
+                $unlinkRetVal = unlink($tempFileFullPath);
+                ArrayUtilForTests::append(compact('unlinkRetVal'), to: $dbgCtx);
+                throw new TestsInfraException('Failed to rename initiail temporary file', context: $dbgCtx);
+            }
+            $tempFileFullPath = $finalTempFileFullPath;
         }
 
-        $logger->logTrace(__FUNCTION__)?->includeStackTrace()->with(__LINE__, 'Created a temporary file', compact('tempFileFullPath', 'fileNamePrefix'));
-
+        $logDebug?->includeStackTrace()->with(__LINE__, 'Created a temporary file', $dbgCtx);
         return $tempFileFullPath;
     }
 
