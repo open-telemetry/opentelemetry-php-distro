@@ -13,11 +13,13 @@ final class SpanExpectations implements ExpectationsInterface
 
     /**
      * @phpstan-param LeafExpectations<SpanKind> $kind
+     * @phpstan-param LeafExpectations<string|null> $instrumentationScopeName
      */
     public function __construct(
         public readonly StringExpectations $name,
         public readonly LeafExpectations $kind,
         public readonly AttributesExpectations $attributes,
+        public readonly LeafExpectations $instrumentationScopeName,
     ) {
     }
 

@@ -23,12 +23,16 @@ class SpanExpectationsBuilder
 
     protected StackTraceExpectations $stackTrace;
 
+    /** @var LeafExpectations<string|null> */
+    protected LeafExpectations $instrumentationScopeName;
+
     public function __construct()
     {
         $this->name = StringExpectations::matchAny();
         $this->kind = LeafExpectations::matchAny(); // @phpstan-ignore assign.propertyType
         $this->attributes = AttributesExpectations::matchAny();
         $this->stackTrace = StackTraceExpectations::matchAny();
+        $this->instrumentationScopeName = LeafExpectations::matchAny(); // @phpstan-ignore assign.propertyType
     }
 
     /**
@@ -130,8 +134,17 @@ class SpanExpectationsBuilder
         return $this->addAttribute(CodeAttributes::CODE_STACKTRACE, $stackTrace);
     }
 
+    /**
+     * @return $this
+     */
+    public function instrumentationScopeName(string $name): self
+    {
+        $this->instrumentationScopeName = LeafExpectations::expectedValue($name); // @phpstan-ignore assign.propertyType
+        return $this;
+    }
+
     public function build(): SpanExpectations
     {
-        return new SpanExpectations($this->name, $this->kind, $this->attributes);
+        return new SpanExpectations($this->name, $this->kind, $this->attributes, $this->instrumentationScopeName);
     }
 }

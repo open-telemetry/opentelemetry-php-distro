@@ -27,19 +27,25 @@ class ScopeSpans
 
     public static function deserializeFromOTelProto(OTelProtoScopeSpans $source): self
     {
+        $scope = DeserializationUtil::deserializeNullableFromOTelProto($source->getScope(), InstrumentationScope::deserializeFromOTelProto(...));
+        $scopeName = $scope?->name;
+
         return new self(
-            scope: DeserializationUtil::deserializeNullableFromOTelProto($source->getScope(), InstrumentationScope::deserializeFromOTelProto(...)),
-            spans: DeserializationUtil::deserializeArrayFromOTelProto($source->getSpans(), self::deserializeSpanFromOTelProto(...)),
+            scope: $scope,
+            spans: DeserializationUtil::deserializeArrayFromOTelProto(
+                $source->getSpans(),
+                fn(OTelProtoSpan $protoSpan) => self::deserializeSpanFromOTelProto($protoSpan, $scopeName)
+            ),
             schemaUrl: $source->getSchemaUrl(),
         );
     }
 
-    private static function deserializeSpanFromOTelProto(OTelProtoSpan $source): ?Span
+    private static function deserializeSpanFromOTelProto(OTelProtoSpan $source, ?string $scopeName): ?Span
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
         $dbgCtx->add(compact('source'));
 
-        $span = Span::deserializeFromOTelProto($source);
+        $span = Span::deserializeFromOTelProto($source, $scopeName);
         if (($reason = Span::reasonToDiscard($span)) !== null) {
             AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->addAllContext(compact('source'))
                 ->logDebug(__FUNCTION__)?->with(__LINE__, 'Span discarded', compact('reason', 'span'));

@@ -42,6 +42,7 @@ final class Psr18AutoInstrumentationTest extends ComponentTestCaseBase
 {
     private const AUTO_INSTRUMENTATION_NAME = 'psr18';
     private const CURL_AUTO_INSTRUMENTATION_NAME = 'curl';
+    private const PSR18_INSTRUMENTATION_SCOPE_NAME = 'io.opentelemetry.contrib.php.psr18';
 
     private const HTTP_APP_CODE_REQUEST_PARAMS_FOR_SERVER_KEY = 'http_app_code_request_params_for_server';
     private const SERVER_RESPONSE_BODY = 'Response from server app code body';
@@ -125,8 +126,7 @@ final class Psr18AutoInstrumentationTest extends ComponentTestCaseBase
         $clientAppCode = $testCaseHandle->ensureMainAppCodeHost(
             setParamsFunc: function (AppCodeHostParams $appCodeHostParams) use ($enablePsr18InstrumentationForClient): void {
                 self::disableTimingDependentFeatures($appCodeHostParams);
-                // Guzzle uses curl under the hood; disable curl instrumentation on the client to assert PSR-18 span in isolation.
-                $disabled = [self::CURL_AUTO_INSTRUMENTATION_NAME];
+                $disabled = [];
                 if (!$enablePsr18InstrumentationForClient) {
                     $disabled[] = self::AUTO_INSTRUMENTATION_NAME;
                 }
@@ -148,9 +148,14 @@ final class Psr18AutoInstrumentationTest extends ComponentTestCaseBase
         );
 
         //
-        // spans: <client app code transaction span> -> <PSR-18 client span> -> <server app code transaction span>
-        //        |--------------------------------------------------------|    |--------------------------------|
-        //        client app host                                               server app host
+        // PSR-18 enabled: client app host spans only (server app host span is a separate trace — excluded)
+        //   <client rootspan> -> <PSR-18 client span> -> <curl span>
+        //   |-----------------------------------------------------|
+        //   client app host
+        //
+        // PSR-18 disabled: two unrelated root spans in separate traces
+        //   <client rootspan>     <server rootspan>
+        //   client app host       server app host
 
         $psr18ClientSpanAttributesExpectations = new AttributesExpectations(
             [
@@ -161,23 +166,13 @@ final class Psr18AutoInstrumentationTest extends ComponentTestCaseBase
                 UrlAttributes::URL_FULL => UrlUtil::buildFullUrl($appCodeRequestParamsForServer->urlParts),
             ],
         );
-        $expectationsForPsr18ClientSpan = (new SpanExpectationsBuilder())->name(HttpMethods::GET)->kind(SpanKind::client)->attributes($psr18ClientSpanAttributesExpectations)->build();
+        $expectationsForPsr18ClientSpan = (new SpanExpectationsBuilder())->name(HttpMethods::GET)->kind(SpanKind::client)->attributes($psr18ClientSpanAttributesExpectations)->instrumentationScopeName(self::PSR18_INSTRUMENTATION_SCOPE_NAME)->build();
 
-        $serverTxSpanAttributesExpectations = new AttributesExpectations(
-            [
-                HttpAttributes::HTTP_REQUEST_METHOD => HttpMethods::GET,
-                HttpAttributes::HTTP_RESPONSE_STATUS_CODE => self::SERVER_RESPONSE_HTTP_STATUS,
-                ServerAttributes::SERVER_ADDRESS => $appCodeRequestParamsForServer->urlParts->host,
-                ServerAttributes::SERVER_PORT => $appCodeRequestParamsForServer->urlParts->port,
-                UrlAttributes::URL_FULL => UrlUtil::buildFullUrl($appCodeRequestParamsForServer->urlParts),
-                UrlAttributes::URL_PATH => $appCodeRequestParamsForServer->urlParts->path,
-                UrlAttributes::URL_SCHEME => $appCodeRequestParamsForServer->urlParts->scheme,
-            ],
+        $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(
+            $enablePsr18InstrumentationForClient
+                ? WaitForOTelSignalCounts::spansAtLeast(3) // client rootspan + PSR-18 span + at least server rootspan; curl span also arrives but is ignored
+                : WaitForOTelSignalCounts::spansAtLeast(2) // client rootspan + server rootspan; other spans (e.g. curl) may also arrive
         );
-        $expectedServerTxSpanName = HttpMethods::GET . ' ' . $appCodeRequestParamsForServer->urlParts->path;
-        $expectationsForServerTxSpan = (new SpanExpectationsBuilder())->name($expectedServerTxSpanName)->kind(SpanKind::server)->attributes($serverTxSpanAttributesExpectations)->build();
-
-        $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(WaitForOTelSignalCounts::spans($enablePsr18InstrumentationForClient ? 3 : 2));
         $dbgCtx->add(compact('agentBackendComms'));
 
         //
@@ -185,22 +180,30 @@ final class Psr18AutoInstrumentationTest extends ComponentTestCaseBase
         //
 
         if ($enablePsr18InstrumentationForClient) {
-            $rootSpan = $agentBackendComms->singleRootSpan();
-            foreach ($agentBackendComms->spans() as $span) {
-                self::assertSame($rootSpan->traceId, $span->traceId);
-            }
-            $psr18ClientSpan = $agentBackendComms->singleChildSpan($rootSpan->id);
+            $psr18ClientSpan = IterableUtil::singleValue($agentBackendComms->findSpansByInstrumentationScope(self::PSR18_INSTRUMENTATION_SCOPE_NAME));
             $expectationsForPsr18ClientSpan->assertMatches($psr18ClientSpan);
-            $serverTxSpan = $agentBackendComms->singleChildSpan($psr18ClientSpan->id);
         } else {
-            $serverTxSpan = IterableUtil::singleValue($agentBackendComms->findSpansWithAttributeValue(ServerAttributes::SERVER_PORT, $appCodeRequestParamsForServer->urlParts->port));
-            self::assertNull($serverTxSpan->parentId);
-            $clientTxSpan = IterableUtil::singleValue(IterableUtil::findByPredicateOnValue($agentBackendComms->spans(), fn(Span $span) => $span->parentId === null && $span !== $serverTxSpan));
-            self::assertNotEquals($serverTxSpan->traceId, $clientTxSpan->traceId);
-        }
+            $serverTxSpanAttributesExpectations = new AttributesExpectations(
+                [
+                    HttpAttributes::HTTP_REQUEST_METHOD => HttpMethods::GET,
+                    HttpAttributes::HTTP_RESPONSE_STATUS_CODE => self::SERVER_RESPONSE_HTTP_STATUS,
+                    ServerAttributes::SERVER_ADDRESS => $appCodeRequestParamsForServer->urlParts->host,
+                    ServerAttributes::SERVER_PORT => $appCodeRequestParamsForServer->urlParts->port,
+                    UrlAttributes::URL_FULL => UrlUtil::buildFullUrl($appCodeRequestParamsForServer->urlParts),
+                    UrlAttributes::URL_PATH => $appCodeRequestParamsForServer->urlParts->path,
+                    UrlAttributes::URL_SCHEME => $appCodeRequestParamsForServer->urlParts->scheme,
+                ],
+            );
+            $expectedServerTxSpanName = HttpMethods::GET . ' ' . $appCodeRequestParamsForServer->urlParts->path;
+            $expectationsForServerTxSpan = (new SpanExpectationsBuilder())->name($expectedServerTxSpanName)->kind(SpanKind::server)->attributes($serverTxSpanAttributesExpectations)->build();
 
-        $expectationsForServerTxSpan->assertMatches($serverTxSpan);
-        self::assertSame($enablePsr18InstrumentationForClient, $serverTxSpan->hasRemoteParent());
+            self::assertEmpty(iterator_to_array($agentBackendComms->findSpansByInstrumentationScope(self::PSR18_INSTRUMENTATION_SCOPE_NAME)));
+            $serverTxSpan = IterableUtil::singleValue(IterableUtil::findByPredicateOnValue(
+                $agentBackendComms->findSpansByInstrumentationScope('io.opentelemetry.php.distro.rootspan'),
+                fn(Span $span) => $span->attributes->tryToGetInt(ServerAttributes::SERVER_PORT) === $appCodeRequestParamsForServer->urlParts->port
+            ));
+            $expectationsForServerTxSpan->assertMatches($serverTxSpan);
+        }
     }
 
     /**

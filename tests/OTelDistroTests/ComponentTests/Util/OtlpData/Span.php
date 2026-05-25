@@ -37,10 +37,11 @@ final class Span implements LoggableInterface
         public readonly int $flags,
         public readonly float $startTimeUnixNano,
         public readonly float $endTimeUnixNano,
+        public readonly ?string $instrumentationScopeName,
     ) {
     }
 
-    public static function deserializeFromOTelProto(OTelProtoSpan $source): self
+    public static function deserializeFromOTelProto(OTelProtoSpan $source, ?string $instrumentationScopeName = null): self
     {
         return new self(
             attributes: Attributes::deserializeFromOTelProto($source->getAttributes()),
@@ -53,6 +54,7 @@ final class Span implements LoggableInterface
             flags: $source->getFlags(),
             startTimeUnixNano: self::convertTimeUnixNano($source->getStartTimeUnixNano()),
             endTimeUnixNano: self::convertTimeUnixNano($source->getEndTimeUnixNano()),
+            instrumentationScopeName: $instrumentationScopeName,
         );
     }
 
