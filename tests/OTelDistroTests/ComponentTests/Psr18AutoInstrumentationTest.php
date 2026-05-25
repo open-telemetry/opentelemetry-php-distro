@@ -41,7 +41,6 @@ use OpenTelemetry\SemConv\Attributes\UrlAttributes;
 final class Psr18AutoInstrumentationTest extends ComponentTestCaseBase
 {
     private const AUTO_INSTRUMENTATION_NAME = 'psr18';
-    private const CURL_AUTO_INSTRUMENTATION_NAME = 'curl';
     private const PSR18_INSTRUMENTATION_SCOPE_NAME = 'io.opentelemetry.contrib.php.psr18';
 
     private const HTTP_APP_CODE_REQUEST_PARAMS_FOR_SERVER_KEY = 'http_app_code_request_params_for_server';
@@ -166,7 +165,12 @@ final class Psr18AutoInstrumentationTest extends ComponentTestCaseBase
                 UrlAttributes::URL_FULL => UrlUtil::buildFullUrl($appCodeRequestParamsForServer->urlParts),
             ],
         );
-        $expectationsForPsr18ClientSpan = (new SpanExpectationsBuilder())->name(HttpMethods::GET)->kind(SpanKind::client)->attributes($psr18ClientSpanAttributesExpectations)->instrumentationScopeName(self::PSR18_INSTRUMENTATION_SCOPE_NAME)->build();
+        $expectationsForPsr18ClientSpan = (new SpanExpectationsBuilder())
+            ->name(HttpMethods::GET)
+            ->kind(SpanKind::client)
+            ->attributes($psr18ClientSpanAttributesExpectations)
+            ->instrumentationScopeName(self::PSR18_INSTRUMENTATION_SCOPE_NAME)
+            ->build();
 
         $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(
             $enablePsr18InstrumentationForClient
