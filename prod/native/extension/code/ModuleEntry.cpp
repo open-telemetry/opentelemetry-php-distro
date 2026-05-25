@@ -189,7 +189,7 @@ PHP_MINIT_FUNCTION(opentelemetry_distro) {
     opentelemetry::php::moduleInit(type, module_number);
 
     if (OTEL_G(globals)->config_->get().opentelemetry_extension_emulation_enabled) {
-        if (OTEL_G(globals)->config_->get().debug_scoper_enabled) {
+        if (OTEL_G(globals)->config_->get().scoped_deps_enabled) {
             opentelemetry_distro_fake.functions = opentelemetry::php::module_functions::opentelemetry_distro_fake_functions;
         }
 

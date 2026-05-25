@@ -27,6 +27,15 @@ function get_array_max_value() {
     echo "$MAX"
 }
 
+# Get value from array that is one before the maximum in sorted order, assumes all values are integers
+function get_one_before_highest_value_from_array() {
+    local -a -r _ARR=(${*//[()]/})
+    # Sort numerically - by default, sort treats values as strings (e.g., "10" comes before "2").
+    # Use the -n flag to sort numbers correctly.
+    readarray -t _ARR_SORTED < <(printf '%s\n' "${_ARR[@]}" | sort -n)
+
+    echo "${_ARR_SORTED[${#_ARR_SORTED[@]}-2]}"
+}
 
 function is_value_in_array () {
     # The first argument is the element that should be in array
@@ -42,5 +51,3 @@ function is_value_in_array () {
     done
     echo "false"
 }
-
-

@@ -236,7 +236,7 @@ final class PackagesPhpRequirementTest extends ComponentTestCaseBase
     {
         self::assertOpcacheEnabled();
 
-        self::implTestForAppCodeSetsHowFinished(
+        $this->implTestForAppCodeSetsHowFinished(
             testArgs: new MixedMap(),
             subAppCode: [__CLASS__, 'appCodeForTestPackagesHaveCorrectPhpVersion'],
             additionalAssertCode: function (DebugContextScopeRef $dbgCtx, AgentBackendComms $agentBackendComms, MixedMap $appCodeAuxOutput): void {
@@ -252,6 +252,6 @@ final class PackagesPhpRequirementTest extends ComponentTestCaseBase
 
     public function testPackagesHaveCorrectPhpVersion(): void
     {
-        self::runAndEscalateLogLevelOnFailure(self::buildDbgDescForTest(__CLASS__, __FUNCTION__), fn() => $this->implTestPackagesHaveCorrectPhpVersion());
+        $this->runAndEscalateLogLevelOnFailure(self::buildDbgDescForTest(__CLASS__, __FUNCTION__), fn() => $this->implTestPackagesHaveCorrectPhpVersion());
     }
 }

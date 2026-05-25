@@ -73,8 +73,7 @@ abstract class HttpServerStarter
              * We repeat $currentTryPorts type to fix PHPStan's
              * "Unable to resolve the template type T in call to method static method" error
              *
-             * @var int[] $currentTryPorts
-             * @noinspection PhpRedundantVariableDocTypeInspection
+             * @phpstan-var int[] $currentTryPorts
              */
             $lastTriedPort = ArrayUtilForTests::getLastValue($currentTryPorts);
             $currentTrySpawnedProcessInternalId = InfraUtilForTests::generateSpawnedProcessInternalId();

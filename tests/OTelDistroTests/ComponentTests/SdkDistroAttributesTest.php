@@ -108,7 +108,7 @@ final class SdkDistroAttributesTest extends ComponentTestCaseBase
     {
         $testArgsEx = $testArgs->cloneAsArray();
         ArrayUtilForTests::addAssertingKeyNew(OptionForProdName::resource_attributes->name, self::buildOTelResourceAttributesForAppProcess($testArgs), /* in,out */ $testArgsEx);
-        self::implTestForAppCodeSetsHowFinished(
+        $this->implTestForAppCodeSetsHowFinished(
             testArgs: new MixedMap($testArgsEx),
             subAppCode: [__CLASS__, 'appCodeForTestAttributes'],
             additionalAssertCode: function (DebugContextScopeRef $dbgCtx, AgentBackendComms $agentBackendComms, MixedMap $appCodeAuxOutput) use ($testArgs): void {
@@ -185,7 +185,7 @@ final class SdkDistroAttributesTest extends ComponentTestCaseBase
      */
     public function testAttributes(MixedMap $testArgs): void
     {
-        self::runAndEscalateLogLevelOnFailure(
+        $this->runAndEscalateLogLevelOnFailure(
             self::buildDbgDescForTestWithArgs(__CLASS__, __FUNCTION__, $testArgs),
             function () use ($testArgs): void {
                 $this->implTestAttributes($testArgs);

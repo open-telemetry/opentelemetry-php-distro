@@ -6,11 +6,6 @@ namespace OTelDistroTests\Util\Config;
 
 use OTelDistroTests\Util\EnumUtilForTestsTrait;
 
-/**
- * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
- *
- * @internal
- */
 enum OptionForTestsName
 {
     use EnumUtilForTestsTrait;
@@ -23,8 +18,6 @@ enum OptionForTestsName
     case data_per_process;
     case data_per_request;
 
-    case env_vars_to_pass_through;
-
     case escalated_reruns_prod_code_log_level_option_name;
     case escalated_reruns_max_count;
 
@@ -32,6 +25,8 @@ enum OptionForTestsName
 
     case log_level;
     case logs_directory;
+
+    case matrix_row;
 
     case mysql_host;
     case mysql_port;

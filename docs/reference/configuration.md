@@ -113,10 +113,17 @@ opentelemetry_distro.enabled=true
 | `OTEL_PHP_OPAMP_CLIENT_KEY` | (empty) | Filesystem path (PEM) | Client key path for OpAMP mTLS |
 | `OTEL_PHP_OPAMP_CLIENT_KEYPASS` | (empty) | String | Passphrase for encrypted client key |
 
+### Supportability
+
+| Option                         | Default | Accepted values  | Description                                                                                                                                    |
+|--------------------------------|---------|------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| `OTEL_PHP_SCOPED_DEPS_ENABLED` | `true` | `true` or `false` | Control whether the scoped or not scoped (i.e., the original) dependencies should be used by the distro. For more details see the notes below. |
+
 ## Notes
 
 - Background transfer works with OTLP HTTP/protobuf mode.
 - `OTEL_PHP_AUTOLOAD_ENABLED` is enforced as enabled by the distro runtime.
+- The distro package includes multiple dependencies such as OpenTelemetry SDK, various auto-instrumentation, their transitive dependencies, etc. It's possible that the monitored application includes dependencies that might clash with the ones in the distro package. This in turn might cause the application to malfunction. In order to prevent that the distro uses **scoped** dependencies by default. The scoping of dependencies' code achieved by adding a unique prefix to their namespaces. Since PHP runtime has runtime reflection changing namespaces theoretically might not be compatible with some corner cases code. In order to allow falling back to the original (i.e., not scoped) dependencies configuration option `scoped_deps_enabled` (`OTEL_PHP_SCOPED_DEPS_ENABLED` environment variable) can be set to `false`.
 
 ## File-based configuration (declarative)
 

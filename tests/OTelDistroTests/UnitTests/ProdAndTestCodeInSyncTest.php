@@ -15,7 +15,7 @@ use OTelDistroTests\Util\TestCaseBase;
 
 class ProdAndTestCodeInSyncTest extends TestCaseBase
 {
-    public function testProdAndTestCodeInSyncTest(): void
+    public function testConfigOptionNamesInSync(): void
     {
         AssertEx::sameConstValues(PhpPartFacade::ENABLED_OPT_NAME, OptionForProdName::enabled->name);
         AssertEx::sameConstValues(PhpPartFacade::USER_BOOTSTRAP_PHP_FILE_OPT_NAME, OptionForProdName::user_bootstrap_php_file->name);

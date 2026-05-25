@@ -50,7 +50,7 @@ final class UserBootstrapPhpFileTest extends ComponentTestCaseBase
 
     private function implTestVariousValues(MixedMap $testArgs): void
     {
-        self::implTestForAppCodeSetsHowFinished(
+        $this->implTestForAppCodeSetsHowFinished(
             testArgs: $testArgs,
             subAppCode: [__CLASS__, 'appCodeForTestVariousValues'],
             additionalAssertCode: function (DebugContextScopeRef $dbgCtx, AgentBackendComms $agentBackendComms, MixedMap $appCodeAuxOutput) use ($testArgs): void {
@@ -66,7 +66,7 @@ final class UserBootstrapPhpFileTest extends ComponentTestCaseBase
      */
     public function testVariousValues(MixedMap $testArgs): void
     {
-        self::runAndEscalateLogLevelOnFailure(
+        $this->runAndEscalateLogLevelOnFailure(
             self::buildDbgDescForTestWithArgs(__CLASS__, __FUNCTION__, $testArgs),
             function () use ($testArgs): void {
                 $this->implTestVariousValues($testArgs);

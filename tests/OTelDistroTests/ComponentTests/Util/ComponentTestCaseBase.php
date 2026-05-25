@@ -400,7 +400,7 @@ class ComponentTestCaseBase extends TestCaseBase
         return $array[$key];
     }
 
-    protected static function buildProdConfig(): ConfigSnapshotForProd
+    protected static function buildProdConfigInAppCodeContext(): ConfigSnapshotForProd
     {
         /** @var ?array<string, string[]> $envVarPrefixToOptNames */
         static $envVarPrefixToOptNames = null;

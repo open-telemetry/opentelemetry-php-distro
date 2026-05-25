@@ -46,7 +46,7 @@ class AppCodeHostParams implements LoggableInterface
     public function __construct(
         public readonly string $dbgProcessNamePrefix
     ) {
-        $this->prodOptions = new Map();
+        $this->prodOptions = AmbientContextForTests::testConfig()->matrixRow()->optionalPart?->prodOptions->copy() ?? new Map();
     }
 
     /**
@@ -97,70 +97,20 @@ class AppCodeHostParams implements LoggableInterface
     }
 
     /**
-     * @param OptionsForProdMap $prodOptions
-     *
-     * @return bool
-     */
-    private static function areAnyProdLogLevelRelatedOptionsSet(Map $prodOptions): bool
-    {
-        return !IterableUtil::isEmpty(IterableUtil::findByPredicateOnValue(IterableUtil::keys($prodOptions), fn($optName) => $optName->isLogLevelRelated()));
-    }
-
-    private static function isProdEnvVarLogRelated(string $envVarName): bool
-    {
-        foreach (OptionForProdName::cases() as $optName) {
-            if ($optName->isLogRelated() && $optName->toEnvVarName() === $envVarName) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * @phpstan-param EnvVars $inputEnvVars
+     * @phpstan-param EnvVars $envVarsPHPUnitContext
      *
      * @return EnvVars
      */
-    private static function removeProdLogLevelRelatedEnvVars(array $inputEnvVars): array
-    {
-        $outputEnvVars = $inputEnvVars;
-        foreach (OptionForProdName::getAllLogLevelRelated() as $optName) {
-            $envVarName = $optName->toEnvVarName();
-            if (array_key_exists($envVarName, $outputEnvVars)) {
-                unset($outputEnvVars[$envVarName]);
-            }
-        }
-
-        return $outputEnvVars;
-    }
-
-    /**
-     * @phpstan-param EnvVars           $baseEnvVars
-     * @phpstan-param OptionsForProdMap $prodOptions
-     *
-     * @return EnvVars
-     */
-    private static function filterBaseEnvVars(array $baseEnvVars, Map $prodOptions): array
+    public static function filterEnvVarsFromPhpUnitToAppCodeContext(array $envVarsPHPUnitContext): array
     {
         $logDebug = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->logDebug(__FUNCTION__);
         if ($logDebug !== null) {
-            ksort(/* ref */ $baseEnvVars);
-            $logDebug->with(__LINE__, 'Entered', compact('baseEnvVars'));
-        }
-
-        $areAnyProdLogLevelRelatedOptionsSet = self::areAnyProdLogLevelRelatedOptionsSet($prodOptions);
-        $logDebug?->with(__LINE__, 'Before handling log related options', compact('areAnyProdLogLevelRelatedOptionsSet'));
-        $envVars = $baseEnvVars;
-        if ($areAnyProdLogLevelRelatedOptionsSet) {
-            $envVars = self::removeProdLogLevelRelatedEnvVars($envVars);
-        }
-        if ($logDebug !== null) {
-            ksort(/* ref */ $envVars);
-            $logDebug->with(__LINE__, 'After handling log related options', compact('envVars'));
+            ksort(/* ref */ $envVarsPHPUnitContext);
+            $logDebug->with(__LINE__, 'Entered', compact('envVarsPHPUnitContext'));
         }
 
         $result = array_filter(
-            $envVars,
+            $envVarsPHPUnitContext,
             function (string $envVarName): bool {
                 // Return false for entries to be removed
 
@@ -169,27 +119,17 @@ class AppCodeHostParams implements LoggableInterface
                     return true;
                 }
 
-                // Keep environment variables related to production code logging
-                if (self::isProdEnvVarLogRelated($envVarName)) {
-                    return true;
-                }
-
-                // Keep environment variables explicitly configured to be passed through
-                if (AmbientContextForTests::testConfig()->isEnvVarToPassThrough($envVarName)) {
-                    return true;
-                }
-
-                // Drop any other environment variables related to either vanilla or OTel distro
+                // Drop any other environment variables related to either OTel SDK, Distro or contrib
                 foreach (OptionForProdName::getEnvVarNamePrefixes() as $envVarPrefix) {
                     if (TextUtil::isPrefixOfIgnoreCase($envVarPrefix, $envVarName)) {
                         return false;
                     }
                 }
 
-                // Drop Composer environment variables that interfere with OTel SDK initialization
+                // Drop Composer Dependency Manager for PHP environment variables that interfere with OTel SDK initialization
                 // COMPOSER_DEV_MODE causes ComposerHandler::isRunning() to return true,
                 // which prevents SdkAutoloader::autoload() from being called
-                if (TextUtil::isPrefixOfIgnoreCase('COMPOSER_', $envVarName)) {
+                if (TextUtil::isPrefixOfIgnoreCase('COMPOSER', $envVarName)) {
                     return false;
                 }
 
@@ -207,33 +147,22 @@ class AppCodeHostParams implements LoggableInterface
     }
 
     /**
-     * @phpstan-param EnvVars           $inheritedEnvVars
-     * @phpstan-param OptionsForProdMap $prodOptions
-     *
-     * @return EnvVars
-     */
-    public static function buildEnvVarsForAppCodeProcessImpl(array $inheritedEnvVars, Map $prodOptions): array
-    {
-        $result = self::filterBaseEnvVars($inheritedEnvVars, $prodOptions);
-
-        foreach ($prodOptions as $optName => $optVal) {
-            $result[$optName->toEnvVarName()] = ConfigUtilForTests::optionValueToString($optVal);
-        }
-
-        AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)
-            ->logDebug(__FUNCTION__)?->with(__LINE__, 'Exiting', compact('result'));
-        return $result;
-    }
-
-    /**
      * @return EnvVars
      */
     public function buildEnvVarsForAppCodeProcess(): array
     {
-        $result = self::buildEnvVarsForAppCodeProcessImpl(EnvVarUtilForTests::getAll(), $this->prodOptions);
+        $result = self::filterEnvVarsFromPhpUnitToAppCodeContext(EnvVarUtilForTests::getAll());
+
+        foreach ($this->prodOptions as $optName => $optVal) {
+            $result[$optName->toEnvVarName()] = ConfigUtilForTests::optionValueToString($optVal);
+        }
+
         foreach ($this->additionalEnvVars as $envVarName => $envVarValue) {
             $result[$envVarName] = $envVarValue;
         }
+
+        AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)
+            ->logDebug(__FUNCTION__)?->with(__LINE__, 'Exiting', compact('result'));
         return $result;
     }
 

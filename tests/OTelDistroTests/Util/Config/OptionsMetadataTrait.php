@@ -37,10 +37,10 @@ trait OptionsMetadataTrait
             $result[$pair[0]->name] = $pair[1];
         }
 
-        Assert::assertCount(count($cases), $result);
         foreach ($cases as $case) {
             Assert::assertArrayHasKey($case->name, $result);
         }
+        Assert::assertCount(count($cases), $result);
 
         return $result;
     }

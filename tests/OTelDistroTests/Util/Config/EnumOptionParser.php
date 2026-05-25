@@ -7,8 +7,10 @@ namespace OTelDistroTests\Util\Config;
 use BackedEnum;
 use OpenTelemetry\Distro\Util\TextUtil;
 use OTelDistroTests\Util\ExceptionUtil;
+use OTelDistroTests\Util\ReflectionUtil;
 use Override;
 use PHPUnit\Framework\Assert;
+use ReflectionType;
 use UnitEnum;
 
 /**
@@ -31,10 +33,14 @@ class EnumOptionParser extends OptionParser
      */
     public function __construct(
         private readonly string $dbgDesc,
+        private readonly ReflectionType $parsedValueReflType,
         private readonly array $nameValuePairs,
         private readonly bool $isCaseSensitive,
         private readonly bool $isUnambiguousPrefixAllowed
     ) {
+        foreach ($nameValuePairs as [$_, $value]) {
+            Assert::assertSame(get_debug_type($value), ReflectionUtil::getReflectionTypeCanonicalName($parsedValueReflType));
+        }
     }
 
     /**
@@ -44,13 +50,19 @@ class EnumOptionParser extends OptionParser
      *
      * @return self<TEnum>
      */
-    public static function useEnumCasesNames(string $enumClass, bool $isCaseSensitive, bool $isUnambiguousPrefixAllowed): self
-    {
+    public static function useEnumCasesNames(
+        string $enumClass,
+        ReflectionType $parsedValueReflType,
+        bool $isCaseSensitive,
+        bool $isUnambiguousPrefixAllowed
+    ): self {
+        Assert::assertSame($enumClass, ReflectionUtil::getReflectionTypeCanonicalName($parsedValueReflType));
+
         $nameValuePairs = [];
         foreach ($enumClass::cases() as $enumCase) {
             $nameValuePairs[] = [$enumCase->name, $enumCase];
         }
-        return new self($enumClass, $nameValuePairs, $isCaseSensitive, $isUnambiguousPrefixAllowed);
+        return new self($enumClass, $parsedValueReflType, $nameValuePairs, $isCaseSensitive, $isUnambiguousPrefixAllowed);
     }
 
     /**
@@ -60,15 +72,21 @@ class EnumOptionParser extends OptionParser
      *
      * @return self<TEnum>
      */
-    public static function useEnumCasesValues(string $enumClass, bool $isCaseSensitive, bool $isUnambiguousPrefixAllowed): self
-    {
+    public static function useEnumCasesValues(
+        string $enumClass,
+        ReflectionType $parsedValueReflType,
+        bool $isCaseSensitive,
+        bool $isUnambiguousPrefixAllowed,
+    ): self {
+        Assert::assertSame($enumClass, ReflectionUtil::getReflectionTypeCanonicalName($parsedValueReflType));
+
         /** @var list<array{string, TEnum}> $nameValuePairs */
         $nameValuePairs = [];
         foreach ($enumClass::cases() as $enumCase) {
             Assert::assertIsString($enumCase->value);
             $nameValuePairs[] = [$enumCase->value, $enumCase];
         }
-        return new self($enumClass, $nameValuePairs, $isCaseSensitive, $isUnambiguousPrefixAllowed);
+        return new self($enumClass, $parsedValueReflType, $nameValuePairs, $isCaseSensitive, $isUnambiguousPrefixAllowed);
     }
 
     /**
@@ -117,5 +135,11 @@ class EnumOptionParser extends OptionParser
         }
 
         return $foundPair[1];
+    }
+
+    #[Override]
+    public function getParsedValueReflectionType(): ReflectionType
+    {
+        return $this->parsedValueReflType;
     }
 }

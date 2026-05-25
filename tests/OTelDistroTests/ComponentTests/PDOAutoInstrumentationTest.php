@@ -258,7 +258,7 @@ final class PDOAutoInstrumentationTest extends ComponentTestCaseBase
      */
     public function testAutoInstrumentation(MixedMap $testArgs): void
     {
-        self::runAndEscalateLogLevelOnFailure(
+        $this->runAndEscalateLogLevelOnFailure(
             self::buildDbgDescForTestWithArgs(__CLASS__, __FUNCTION__, $testArgs),
             function () use ($testArgs): void {
                 $this->implTestAutoInstrumentation($testArgs);

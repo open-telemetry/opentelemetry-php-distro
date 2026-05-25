@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OTelDistroTests\UnitTests\UtilTests\ConfigTests;
 
 use OTelDistroTests\Util\Config\EnumOptionParser;
+use OTelDistroTests\Util\ReflectionUtil;
 use OTelDistroTests\Util\TestCaseBase;
 
 class EnumOptionsParsingTest extends TestCaseBase
@@ -14,10 +15,15 @@ class EnumOptionsParsingTest extends TestCaseBase
      */
     public static function dataProviderForTestEnumWithSomeEntriesArePrefixOfOtherOnes(): array
     {
-        /** @noinspection PhpUnnecessaryLocalVariableInspection */
+        /** @noinspection PhpParamsInspection, PhpUnnecessaryLocalVariableInspection */
         $testArgsTuples = [
             [
-                EnumOptionParser::useEnumCasesNames(EnumOptionsParsingTestDummyEnum::class, isCaseSensitive: true, isUnambiguousPrefixAllowed: true),
+                EnumOptionParser::useEnumCasesNames(
+                    enumClass: EnumOptionsParsingTestDummyEnum::class,
+                    parsedValueReflType: ReflectionUtil::extractReflectionTypeFromClosureParamAssertName(fn(EnumOptionsParsingTestDummyEnum $_) => null, EnumOptionsParsingTestDummyEnum::class),
+                    isCaseSensitive: true,
+                    isUnambiguousPrefixAllowed: true,
+                ),
                 [
                     new OptionTestValidValue(" anotherEnumEntry\t\n", EnumOptionsParsingTestDummyEnum::anotherEnumEntry),
                     new OptionTestValidValue("anotherEnumEnt  \n ", EnumOptionsParsingTestDummyEnum::anotherEnumEntry),
@@ -29,7 +35,13 @@ class EnumOptionsParsingTest extends TestCaseBase
                 ]
             ],
             [
-                EnumOptionParser::useEnumCasesValues(EnumOptionsParsingTestDummyBackedEnum::class, isCaseSensitive: true, isUnambiguousPrefixAllowed: true),
+                EnumOptionParser::useEnumCasesValues(
+                    enumClass: EnumOptionsParsingTestDummyBackedEnum::class,
+                    parsedValueReflType:
+                    ReflectionUtil::extractReflectionTypeFromClosureParamAssertName(fn(EnumOptionsParsingTestDummyBackedEnum $_) => null, EnumOptionsParsingTestDummyBackedEnum::class),
+                    isCaseSensitive: true,
+                    isUnambiguousPrefixAllowed: true,
+                ),
                 [
                     new OptionTestValidValue(" anotherEnumEntry_value\t\n", EnumOptionsParsingTestDummyBackedEnum::anotherEnumEntry),
                     new OptionTestValidValue("anotherEnumEnt  \n ", EnumOptionsParsingTestDummyBackedEnum::anotherEnumEntry),
@@ -43,6 +55,7 @@ class EnumOptionsParsingTest extends TestCaseBase
             [
                 new EnumOptionParser(
                     dbgDesc: '<enum defined in ' . __METHOD__ . '>',
+                    parsedValueReflType: ReflectionUtil::stringReflectionType(),
                     nameValuePairs: [
                         ['enumEntry', 'enumEntry_value'],
                         ['enumEntryWithSuffix', 'enumEntryWithSuffix_value'],

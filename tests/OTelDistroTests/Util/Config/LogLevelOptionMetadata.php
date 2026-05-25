@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OTelDistroTests\Util\Config;
 
 use OpenTelemetry\Distro\Log\LogLevel;
+use OTelDistroTests\Util\ReflectionUtil;
 
 /**
  * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
@@ -28,7 +29,12 @@ final class LogLevelOptionMetadata extends OptionWithDefaultValueMetadata
         /** @var ?EnumOptionParser<LogLevel> $result */
         static $result = null;
         if ($result === null) {
-            $result = EnumOptionParser::useEnumCasesNames(LogLevel::class, isCaseSensitive: false, isUnambiguousPrefixAllowed: true);
+            $result = EnumOptionParser::useEnumCasesNames(
+                LogLevel::class,
+                parsedValueReflType: ReflectionUtil::extractReflectionTypeFromClosureParamAssertName(fn(LogLevel $_) => null, LogLevel::class),
+                isCaseSensitive: false,
+                isUnambiguousPrefixAllowed: true,
+            );
         }
         return $result;
     }

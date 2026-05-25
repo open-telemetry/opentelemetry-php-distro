@@ -32,6 +32,7 @@ final class EnvVarUtil
         Assert::assertNull(self::get($envVarName));
     }
 
+    /** @noinspection PhpUnused */
     public static function setOrUnsetIfValueNull(string $envVarName, ?string $envVarValue): void
     {
         if ($envVarValue === null) {
@@ -39,13 +40,5 @@ final class EnvVarUtil
         } else {
             self::set($envVarName, $envVarValue);
         }
-    }
-
-    /**
-     * @return EnvVars
-     */
-    public static function getAll(): array
-    {
-        return getenv();
     }
 }

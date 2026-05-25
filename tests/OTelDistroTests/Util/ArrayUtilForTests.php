@@ -30,9 +30,7 @@ final class ArrayUtilForTests
      */
     public static function getFirstValue(array $array): mixed
     {
-        $key = array_key_first($array);
-        assert($key !== null);
-        return $array[$key];
+        return $array[AssertEx::notNull(array_key_first($array))];
     }
 
     /**
@@ -55,8 +53,7 @@ final class ArrayUtilForTests
      */
     public static function getLastValue(array $array)
     {
-        Assert::assertNotEmpty($array);
-        return $array[array_key_last($array)];
+        return $array[AssertEx::notNull(array_key_last($array))];
     }
 
     /**

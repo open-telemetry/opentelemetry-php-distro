@@ -1,5 +1,7 @@
 <?php
 
+/** @noinspection PhpFullyQualifiedNameUsageInspection */
+
 declare(strict_types=1);
 
 use OpenTelemetry\Distro\OTelDistroScoperConfig;
@@ -9,21 +11,31 @@ use OpenTelemetry\Distro\OTelDistroScoperConfig;
  *
  *          bootstrap_php_part.php
  *          ScoperConfig.php
- *          85 (<PHP major><PHP minor>)
- *              OpenTelemetry/  (under this directory the layout is the same as in <repo>/prod/php/OpenTelemetry/)
- *                  ...
- *                  Distro/
- *                  ...
- *              vendor/
+ *          not_scoped
+ *              OpenTelemetry/ (under this directory the layout is the same as in <repo>/prod/php/OpenTelemetry/)
+ *              vendor_85/ (vendor_<PHP major><PHP minor>)
+ *          scoped
+ *              85 (<PHP major><PHP minor>)
+ *                  OpenTelemetry/  (under this directory the layout is the same as in <repo>/prod/php/OpenTelemetry/)
+ *                      ...
+ *                      Distro/
+ *                      ...
+ *                  vendor/
  */
 
-$prodPhpDir = __DIR__ . DIRECTORY_SEPARATOR . PHP_MAJOR_VERSION . PHP_MINOR_VERSION;
-$vendorDir = $prodPhpDir . DIRECTORY_SEPARATOR . 'vendor';
+$isScopingEnabled = \OpenTelemetry\Distro\get_config_option_by_name('scoped_deps_enabled');
+$prodPhpSubDir = $isScopingEnabled
+    ? ('scoped' . DIRECTORY_SEPARATOR . PHP_MAJOR_VERSION . PHP_MINOR_VERSION . DIRECTORY_SEPARATOR)
+    : 'not_scoped';
+$prodPhpDir = __DIR__ . DIRECTORY_SEPARATOR . $prodPhpSubDir;
+$vendorSubDir = $isScopingEnabled
+    ? 'vendor'
+    : ('vendor_' . PHP_MAJOR_VERSION . PHP_MINOR_VERSION);
+$vendorDir = $prodPhpDir . DIRECTORY_SEPARATOR . $vendorSubDir;
 $otelDistroDir = $prodPhpDir . DIRECTORY_SEPARATOR . 'OpenTelemetry' . DIRECTORY_SEPARATOR . 'Distro';
 
 require __DIR__ . DIRECTORY_SEPARATOR . 'ScoperConfig.php';
-/** @noinspection PhpFullyQualifiedNameUsageInspection */
-$scopePrefixIfEnabled = \OpenTelemetry\Distro\get_config_option_by_name('debug_scoper_enabled') ? (OTelDistroScoperConfig::PREFIX . '\\') : '';
+$scopePrefixIfEnabled = $isScopingEnabled ? (OTelDistroScoperConfig::PREFIX . '\\') : '';
 
 require $otelDistroDir . DIRECTORY_SEPARATOR . 'ProdPhpDir.php';
 /**

@@ -204,7 +204,7 @@ final class AgentBackendComms
                 break;
             }
             /** @var Span $current */
-            $current = AssertEx::isNotNull($this->findSpanById($current->parentId));
+            $current = AssertEx::notNull($this->findSpanById($current->parentId));
         }
         return false;
     }

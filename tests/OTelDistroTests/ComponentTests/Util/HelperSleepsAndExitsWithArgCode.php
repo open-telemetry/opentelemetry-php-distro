@@ -29,7 +29,7 @@ final class HelperSleepsAndExitsWithArgCode extends SpawnedProcessBase
     protected function processConfig(): void
     {
         parent::processConfig();
-        AmbientContextForTests::testConfig()->validateForAppCode();
+        AmbientContextForTests::testConfig()->verifyForAppCode();
     }
 
     public static function run(): void

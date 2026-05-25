@@ -21,10 +21,7 @@ final class MemoryUtil
     {
         /** @var list<string> $unitsSuffixes */
         static $unitsSuffixes = ['B', 'KB', 'MB', 'GB', 'TB'];
-        /**
-         * @var int $unitsStep
-         * @noinspection PhpRedundantVariableDocTypeInspection
-         */
+        /** @phpstan-var int $unitsStep */
         static $unitsStep = 1024;
 
         $absSizeInBytes = AssertEx::isInt(abs($sizeInBytes));

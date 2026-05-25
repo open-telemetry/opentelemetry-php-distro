@@ -199,8 +199,8 @@ final class TestCaseHandle implements LoggableInterface
     private function startAppCodeHost(Closure $setParamsFunc, string $dbgInstanceName): AppCodeHostHandle
     {
         return match (AmbientContextForTests::testConfig()->appCodeHostKind()) {
-            AppCodeHostKind::cliScript => new CliScriptAppCodeHostHandle($this, $setParamsFunc, $this->resourcesCleaner, $dbgInstanceName),
-            AppCodeHostKind::builtinHttpServer => $this->startBuiltinHttpServerAppCodeHost($setParamsFunc, $dbgInstanceName),
+            AppCodeHostKind::CLI_script => new CliScriptAppCodeHostHandle($this, $setParamsFunc, $this->resourcesCleaner, $dbgInstanceName),
+            AppCodeHostKind::Builtin_HTTP_server => $this->startBuiltinHttpServerAppCodeHost($setParamsFunc, $dbgInstanceName),
         };
     }
 

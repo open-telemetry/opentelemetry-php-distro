@@ -1,13 +1,27 @@
 #!/usr/bin/env bash
-set -e -o pipefail
-#set -x
+set -e -u -o pipefail
+set -x
 
-this_script_dir="$( dirname "${BASH_SOURCE[0]}" )"
-this_script_dir="$( realpath "${this_script_dir}" )"
-repo_root_dir="$( realpath "${this_script_dir}/../../../.." )"
+function main {
+    this_script_dir="$(dirname "${BASH_SOURCE[0]}")"
+    this_script_dir="$(realpath "${this_script_dir}")"
+    repo_root_dir="$(realpath "${this_script_dir}/../../../..")"
 
-source "${repo_root_dir}/tools/test/component/unpack_matrix_row.sh"
+    pushd "${repo_root_dir}" || exit 1
 
-unpack_matrix_row "$@" "OTEL_PHP_TESTS" "true" &> /dev/null
+    echo "Current directory: ${PWD}"
 
-env | sort 2> /dev/null
+    source ./tools/test/component/unpack_matrix_row.sh
+
+    local -r matrix_row="${1:?}"
+    local -r env_output_dest_file="${2:?}"
+
+    local -r unpack_matrix_row_verbose='true'
+    unpack_matrix_row "${matrix_row}" "${unpack_matrix_row_verbose}"
+
+    env | sort > "${env_output_dest_file}"
+
+    popd || exit 1
+}
+
+main "$@"

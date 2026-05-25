@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\Util\Config;
 
+use OTelDistroTests\Util\ReflectionUtil;
 use Override;
 
 /**
@@ -36,7 +37,13 @@ final class BoolOptionParser extends EnumOptionParser
             }
         }
 
-        parent::__construct(dbgDesc: 'bool', nameValuePairs: self::$boolNameToValue, isCaseSensitive: false, isUnambiguousPrefixAllowed: false);
+        parent::__construct(
+            dbgDesc: 'bool',
+            parsedValueReflType: ReflectionUtil::boolReflectionType(),
+            nameValuePairs: self::$boolNameToValue,
+            isCaseSensitive: false,
+            isUnambiguousPrefixAllowed: false
+        );
     }
 
     /** @inheritDoc */

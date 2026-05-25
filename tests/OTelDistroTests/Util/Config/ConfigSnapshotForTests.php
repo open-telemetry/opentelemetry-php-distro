@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace OTelDistroTests\Util\Config;
 
 use OpenTelemetry\Distro\Log\LogLevel;
-use OpenTelemetry\Distro\Util\WildcardListMatcher;
 use OTelDistroTests\ComponentTests\Util\AppCodeHostKind;
 use OTelDistroTests\ComponentTests\Util\EnvVarUtilForTests;
 use OTelDistroTests\ComponentTests\Util\TestGroupName;
 use OTelDistroTests\ComponentTests\Util\TestInfraDataPerProcess;
 use OTelDistroTests\ComponentTests\Util\TestInfraDataPerRequest;
+use OTelDistroTests\ComponentTests\Util\TestMatrixRow;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\ExceptionUtil;
 use OTelDistroTests\Util\Log\LoggableInterface;
@@ -30,8 +30,6 @@ final class ConfigSnapshotForTests implements LoggableInterface
     private readonly ?TestInfraDataPerProcess $dataPerProcess; // @phpstan-ignore property.uninitializedReadonly
     private readonly ?TestInfraDataPerRequest $dataPerRequest; // @phpstan-ignore property.uninitializedReadonly
 
-    private readonly ?WildcardListMatcher $envVarsToPassThrough; // @phpstan-ignore property.uninitializedReadonly
-
     public readonly int $escalatedRerunsMaxCount; // @phpstan-ignore property.uninitializedReadonly
     private readonly ?string $escalatedRerunsProdCodeLogLevelOptionName; // @phpstan-ignore property.uninitializedReadonly
 
@@ -39,6 +37,8 @@ final class ConfigSnapshotForTests implements LoggableInterface
 
     public readonly LogLevel $logLevel; // @phpstan-ignore property.uninitializedReadonly
     public readonly ?string $logsDirectory; // @phpstan-ignore property.uninitializedReadonly
+
+    private readonly ?TestMatrixRow $matrixRow; // @phpstan-ignore property.uninitializedReadonly
 
     public readonly ?string $mysqlHost; // @phpstan-ignore property.uninitializedReadonly
     public readonly ?int $mysqlPort; // @phpstan-ignore property.uninitializedReadonly
@@ -59,11 +59,11 @@ final class ConfigSnapshotForTests implements LoggableInterface
     {
         self::setPropertiesToValuesFrom($optNameToParsedValue);
 
-        $this->validateFileExistsIfSet(OptionForTestsName::app_code_php_exe);
-        $this->validateFileExistsIfSet(OptionForTestsName::app_code_bootstrap_php_part_file);
-        $this->validateFileExistsIfSet(OptionForTestsName::app_code_ext_binary);
+        $this->verifyFileExistsIfSet(OptionForTestsName::app_code_php_exe);
+        $this->verifyFileExistsIfSet(OptionForTestsName::app_code_bootstrap_php_part_file);
+        $this->verifyFileExistsIfSet(OptionForTestsName::app_code_ext_binary);
 
-        $this->validateDirectoryExistsOrCanBeCreatedIfSet(OptionForTestsName::logs_directory);
+        $this->verifyDirectoryExistsOrCanBeCreatedIfSet(OptionForTestsName::logs_directory);
     }
 
     public function appCodeHostKind(): AppCodeHostKind
@@ -81,18 +81,14 @@ final class ConfigSnapshotForTests implements LoggableInterface
         return AssertEx::notNull($this->dataPerRequest);
     }
 
-    public function isEnvVarToPassThrough(string $envVarName): bool
-    {
-        if ($this->envVarsToPassThrough === null) {
-            return false;
-        }
-
-        return $this->envVarsToPassThrough->match($envVarName) !== null;
-    }
-
     public function isSmoke(): bool
     {
         return $this->group === TestGroupName::smoke;
+    }
+
+    public function matrixRow(): TestMatrixRow
+    {
+        return AssertEx::notNull($this->matrixRow);
     }
 
     public function doesRequireExternalServices(): bool
@@ -112,7 +108,7 @@ final class ConfigSnapshotForTests implements LoggableInterface
         return $result;
     }
 
-    private function validateNotNullOption(OptionForTestsName $optName): void
+    private function verifyOptionIsNotNull(OptionForTestsName $optName): void
     {
         $propertyName = TextUtilForTests::snakeToCamelCase($optName->name);
         $propertyValue = $this->$propertyName;
@@ -124,7 +120,7 @@ final class ConfigSnapshotForTests implements LoggableInterface
         }
     }
 
-    private function validateFileExistsIfSet(OptionForTestsName $optName): void
+    private function verifyFileExistsIfSet(OptionForTestsName $optName): void
     {
         $propertyName = TextUtilForTests::snakeToCamelCase($optName->name);
         $propertyValue = $this->$propertyName;
@@ -148,7 +144,7 @@ final class ConfigSnapshotForTests implements LoggableInterface
         }
     }
 
-    private function validateDirectoryExistsOrCanBeCreatedIfSet(OptionForTestsName $optName): void
+    private function verifyDirectoryExistsOrCanBeCreatedIfSet(OptionForTestsName $optName): void
     {
         $propertyName = TextUtilForTests::snakeToCamelCase($optName->name);
         $propertyValue = $this->$propertyName;
@@ -175,25 +171,29 @@ final class ConfigSnapshotForTests implements LoggableInterface
         }
     }
 
-    public function validateForComponentTests(): void
+    public function verifyForComponentTests(): void
     {
-        $this->validateNotNullOption(OptionForTestsName::app_code_host_kind);
+        $this->verifyOptionIsNotNull(OptionForTestsName::app_code_host_kind);
+
+        Assert::assertNotNull($this->matrixRow);
+        Assert::assertSame($this->matrixRow->appCodeHostKind, $this->appCodeHostKind);
+        Assert::assertSame($this->matrixRow->testGroupName, $this->group);
     }
 
-    public function validateForSpawnedProcess(): void
+    public function verifyForSpawnedProcess(): void
     {
-        $this->validateNotNullOption(OptionForTestsName::data_per_process);
+        $this->verifyOptionIsNotNull(OptionForTestsName::data_per_process);
     }
 
-    public function validateForAppCode(): void
+    public function verifyForAppCode(): void
     {
-        $this->validateForSpawnedProcess();
-        $this->validateNotNullOption(OptionForTestsName::app_code_host_kind);
+        $this->verifyForSpawnedProcess();
+        $this->verifyOptionIsNotNull(OptionForTestsName::app_code_host_kind);
     }
 
-    public function validateForAppCodeRequest(): void
+    public function verifyForAppCodeRequest(): void
     {
-        $this->validateForAppCode();
-        $this->validateNotNullOption(OptionForTestsName::data_per_request);
+        $this->verifyForAppCode();
+        $this->verifyOptionIsNotNull(OptionForTestsName::data_per_request);
     }
 }

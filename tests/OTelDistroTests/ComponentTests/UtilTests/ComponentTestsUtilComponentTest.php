@@ -60,7 +60,7 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
         $dbgCtx->add(['testConfig' => AmbientContextForTests::testConfig()]);
         $expectedLogLevelForProdCode = $appCodeRequestArgs->getLogLevel(self::LOG_LEVEL_FOR_PROD_CODE_KEY);
         $dbgCtx->add(compact('expectedLogLevelForProdCode'));
-        $prodConfig = self::buildProdConfig();
+        $prodConfig = self::buildProdConfigInAppCodeContext();
         $dbgCtx->add(compact('prodConfig'));
         $actualLogLevelForProdCode = $prodConfig->getOptionValueByName(AmbientContextForTests::testConfig()->escalatedRerunsProdCodeLogLevelOptionName());
         $dbgCtx->add(compact('actualLogLevelForProdCode'));
@@ -114,27 +114,6 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
         $appCodeAuxOutput = AppCodeAuxOutputUtil::readDataAsMixedMapFromTempFile($appCodeRequestArgs);
         $dbgCtx->add(compact('appCodeAuxOutput'));
         self::assertTrue($appCodeAuxOutput->getBool(self::DID_APP_CODE_FINISH_SUCCESSFULLY_KEY));
-    }
-
-    /**
-     * @return array<string, ?string>
-     */
-    private static function unsetLogLevelRelatedEnvVars(): array
-    {
-        $envVars = EnvVarUtilForTests::getAll();
-        $logLevelRelatedEnvVarsToRestore = [];
-        foreach (OptionForProdName::getAllLogLevelRelated() as $optName) {
-            $envVarName = $optName->toEnvVarName();
-            if (array_key_exists($envVarName, $envVars)) {
-                $logLevelRelatedEnvVarsToRestore[$envVarName] = $envVars[$envVarName];
-                EnvVarUtilForTests::unset($envVarName);
-            } else {
-                $logLevelRelatedEnvVarsToRestore[$envVarName] = null;
-            }
-
-            self::assertNull(EnvVarUtilForTests::get($envVarName));
-        }
-        return $logLevelRelatedEnvVarsToRestore;
     }
 
     private function implTestRunAndEscalateLogLevelOnFailure(MixedMap $testArgs): void
@@ -203,7 +182,6 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
             return;
         }
 
-        $logLevelRelatedEnvVarsToRestore = self::unsetLogLevelRelatedEnvVars();
         $prodCodeSyslogLevelEnvVarName = OptionForProdName::log_level_syslog->toEnvVarName();
         $initialLogLevelForProdCode = $testArgs->getLogLevel(self::LOG_LEVEL_FOR_PROD_CODE_KEY);
         EnvVarUtilForTests::set($prodCodeSyslogLevelEnvVarName, $initialLogLevelForProdCode->name);
@@ -232,7 +210,7 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
 
         $nextRunCount = 1;
         try {
-            self::runAndEscalateLogLevelOnFailure(
+            $this->runAndEscalateLogLevelOnFailure(
                 self::buildDbgDescForTestWithArgs(__CLASS__, __FUNCTION__, $testArgs),
                 function () use ($testArgs, &$nextRunCount): void {
                     $testArgs['currentRunCount'] = $nextRunCount++;
@@ -253,8 +231,5 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
         AmbientContextForTests::resetLogLevel($logLevelForTestCodeToRestore);
 
         self::assertSame($initialLogLevelForProdCode->name, EnvVarUtilForTests::get($prodCodeSyslogLevelEnvVarName));
-        foreach ($logLevelRelatedEnvVarsToRestore as $envVarName => $envVarValue) {
-            EnvVarUtilForTests::setOrUnset($envVarName, $envVarValue);
-        }
     }
 }

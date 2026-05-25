@@ -59,7 +59,7 @@ final class BootstrapTests
         ExceptionUtil::runCatchWriteToStdErrRethrow(
             function (): void {
                 self::bootstrapShared(self::TESTS_DBG_PROCESS_NAME);
-                AmbientContextForTests::testConfig()->validateForComponentTests();
+                AmbientContextForTests::testConfig()->verifyForComponentTests();
             }
         );
     }

@@ -89,7 +89,7 @@ final class BuildToolsLogUtil
                 file: $file,
                 line: $line,
                 func: $func,
-                messageWithContext: LogBackend::concatMessageAndContext($message, LogBackend::contextToText($context)),
+                messageWithContext: LogBackend::concatMessageAndContext($message, $context === [] ? '' : LogBackend::contextToText($context)),
             )
         );
     }
