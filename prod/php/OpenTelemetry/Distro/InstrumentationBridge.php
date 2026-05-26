@@ -67,6 +67,10 @@ final class InstrumentationBridge
         $logTrace = self::logTrace(__FUNCTION__);
         $logTrace?->with(__LINE__, 'Entered', compact('class', 'function'));
 
+        if ($class !== null) {
+            class_exists($class) || interface_exists($class);
+        }
+
         $success = self::nativeHookNoThrow($class, $function, $pre, $post);
 
         if ($this->enableDebugHooks) {

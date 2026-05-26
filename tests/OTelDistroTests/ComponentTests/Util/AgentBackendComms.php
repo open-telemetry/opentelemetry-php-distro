@@ -167,9 +167,9 @@ final class AgentBackendComms
     }
 
     /**
-     * @return iterable<Span>
+     * @return \Generator<int, Span>
      */
-    public function findSpansByInstrumentationScope(string $scopeName): iterable
+    public function findSpansByInstrumentationScope(string $scopeName): \Generator
     {
         foreach ($this->spans() as $span) {
             if ($span->instrumentationScopeName === $scopeName) {
