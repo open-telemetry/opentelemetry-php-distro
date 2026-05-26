@@ -81,23 +81,36 @@ if (!str_contains($content, 'OTEL scoped autoload fix begin')) {
     $autoloadStaticPatchTemplate = <<<'PHP_BLOCK'
 require __DIR__ . '/autoload_static.php';
         // OTEL scoped autoload fix begin
-        // Keep BOTH unprefixed and scoped variants of PSR-4 prefixes / classmap
-        // entries. Unprefixed lookups are needed for namespaces excluded from
-        // scoping (php-scoper exclude-namespaces) — their files declare unscoped
-        // classes and code references them by unscoped names. Scoped lookups are
-        // needed for the rest of the scoped vendor.
+        // The scoped vendor's autoload_static.php retains unscoped PSR-4 prefixes
+        // (php-scoper does not rewrite them). Excluded namespaces (php-scoper
+        // exclude-namespaces: Psr\Http\Client, Psr\Http\Message, Http\Client,
+        // Http\Promise) keep their unscoped prefix because the scoped vendor files
+        // for those packages still declare unscoped classes and code references
+        // them by unscoped names. All other prefixes are converted to the scoped
+        // variant so that class_exists('OpenTelemetry\...') does NOT accidentally
+        // trigger loading of a scoped-vendor file (which declares OTelDistroScoped\...)
+        // and cause a "Cannot redeclare class" fatal error.
         $scopedPrefix = '__PREFIX__\\';
+        $excludedPsr4Prefixes = ['Psr\\Http\\Client\\', 'Psr\\Http\\Message\\', 'Http\\Client\\', 'Http\\Promise\\'];
         $composerStaticClass = __NAMESPACE__ . '\\Composer\\Autoload\\__STATIC_CLASS__';
         if (class_exists($composerStaticClass, false)) {
             $newPrefixLengthsPsr4 = [];
             $newPrefixDirsPsr4 = [];
             foreach ($composerStaticClass::$prefixDirsPsr4 as $namespace => $dirs) {
-                // Keep the original (unscoped) prefix.
-                $newPrefixDirsPsr4[$namespace] = $dirs;
-                $newPrefixLengthsPsr4[$namespace[0]][$namespace] = strlen($namespace);
-                // Also add a scoped variant when the original isn't already scoped.
-                if (!str_starts_with($namespace, $scopedPrefix)) {
-                    $scopedNamespace = $scopedPrefix . $namespace;
+                $isExcluded = false;
+                foreach ($excludedPsr4Prefixes as $excl) {
+                    if (str_starts_with($namespace, $excl)) {
+                        $isExcluded = true;
+                        break;
+                    }
+                }
+                if ($isExcluded) {
+                    // Excluded from scoping: files declare unscoped classes. Keep unscoped prefix only.
+                    $newPrefixDirsPsr4[$namespace] = $dirs;
+                    $newPrefixLengthsPsr4[$namespace[0]][$namespace] = strlen($namespace);
+                } else {
+                    // Scoped: files declare scoped classes. Use scoped prefix only.
+                    $scopedNamespace = str_starts_with($namespace, $scopedPrefix) ? $namespace : $scopedPrefix . $namespace;
                     $newPrefixDirsPsr4[$scopedNamespace] = $dirs;
                     $newPrefixLengthsPsr4[$scopedNamespace[0]][$scopedNamespace] = strlen($scopedNamespace);
                 }
