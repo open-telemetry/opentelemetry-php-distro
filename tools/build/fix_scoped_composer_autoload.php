@@ -70,6 +70,24 @@ $content = $replaceOrFail(
     "Failed to patch autoload unregister callback in $autoloadRealPath\n"
 );
 
+// Load excluded namespaces from php-scoper.inc.php - single source of truth.
+// We use a closure to isolate the require's variable scope so that $prefix, $extensionFunctionFqcns
+// and the patcher closures defined in php-scoper.inc.php don't leak into this script's scope.
+/** @var list<string> $excludedNamespaces */
+$excludedNamespaces = (static function (): array {
+    /** @var array{exclude-namespaces: list<string>} $config */
+    $config = require __DIR__ . '/php-scoper.inc.php';
+    return $config['exclude-namespaces'];
+})();
+
+// Build a PHP single-quoted array literal suitable for embedding in autoload_real.php.
+// Each namespace needs a trailing backslash to match the PSR-4 prefix convention.
+// e.g. 'Psr\Http\Client' (actual string) -> "'Psr\\Http\\Client\\'" (PHP source literal)
+$excludedPsr4PrefixesCode = '[' . implode(', ', array_map(
+    static fn(string $ns): string => "'" . str_replace('\\', '\\\\', $ns . '\\') . "'",
+    $excludedNamespaces
+)) . ']';
+
 if (!str_contains($content, 'OTEL scoped autoload fix begin')) {
     if (!preg_match('/ComposerStaticInit([a-f0-9]+)/', $content, $matches)) {
         fwrite(STDERR, "Failed to determine ComposerStaticInit hash in $autoloadRealPath\\n");
@@ -83,15 +101,14 @@ require __DIR__ . '/autoload_static.php';
         // OTEL scoped autoload fix begin
         // The scoped vendor's autoload_static.php retains unscoped PSR-4 prefixes
         // (php-scoper does not rewrite them). Excluded namespaces (php-scoper
-        // exclude-namespaces: Psr\Http\Client, Psr\Http\Message, Http\Client,
-        // Http\Promise) keep their unscoped prefix because the scoped vendor files
-        // for those packages still declare unscoped classes and code references
-        // them by unscoped names. All other prefixes are converted to the scoped
-        // variant so that class_exists('OpenTelemetry\...') does NOT accidentally
-        // trigger loading of a scoped-vendor file (which declares OTelDistroScoped\...)
+        // exclude-namespaces: see php-scoper.inc.php) keep their unscoped prefix because
+        // the scoped vendor files for those packages still declare unscoped classes and code
+        // references them by unscoped names. All other prefixes are converted to the scoped
+        // variant so that class_exists('OpenTelemetry\...') does NOT accidentally trigger
+        // loading of a scoped-vendor file (which declares OTelDistroScoped\...)
         // and cause a "Cannot redeclare class" fatal error.
         $scopedPrefix = '__PREFIX__\\';
-        $excludedPsr4Prefixes = ['Psr\\Http\\Client\\', 'Psr\\Http\\Message\\', 'Http\\Client\\', 'Http\\Promise\\'];
+        $excludedPsr4Prefixes = __EXCLUDED_PSR4_PREFIXES__;
         $composerStaticClass = __NAMESPACE__ . '\\Composer\\Autoload\\__STATIC_CLASS__';
         if (class_exists($composerStaticClass, false)) {
             $newPrefixLengthsPsr4 = [];
@@ -129,8 +146,8 @@ require __DIR__ . '/autoload_static.php';
         // OTEL scoped autoload fix end
 PHP_BLOCK;
     $autoloadStaticPatch = str_replace(
-        ['__PREFIX__', '__STATIC_CLASS__'],
-        [$prefix, $composerStaticClassName],
+        ['__PREFIX__', '__STATIC_CLASS__', '__EXCLUDED_PSR4_PREFIXES__'],
+        [$prefix, $composerStaticClassName, $excludedPsr4PrefixesCode],
         $autoloadStaticPatchTemplate
     );
 
