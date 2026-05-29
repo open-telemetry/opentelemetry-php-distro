@@ -97,7 +97,7 @@ final class AssertEx
      *
      * @phpstan-return TValue
      *
-     * @phpstan-assert array{key: mixed, ...} $actualArray
+     * @phpstan-assert non-empty-array<TKey, TValue> $actualArray
      */
     public static function arrayHasKey(string|int $expectedKey, array $actualArray): mixed
     {
@@ -186,6 +186,21 @@ final class AssertEx
     }
 
     /**
+     * @template T
+     *
+     * @param false|T $actual
+     *
+     * @return T
+     *
+     * @phpstan-assert T $actual
+     */
+    public static function notFalse(mixed $actual, string $message = ''): mixed
+    {
+        Assert::assertNotFalse($actual, $message);
+        return $actual;
+    }
+
+    /**
      * @param Countable|array<array-key, mixed> $expected
      * @param Countable|array<array-key, mixed> $actual
      */
@@ -194,17 +209,26 @@ final class AssertEx
         Assert::assertSame(count($expected), count($actual));
     }
 
+    /**
+     * @phpstan-assert string $actual
+     */
     public static function isString(mixed $actual, string $message = ''): string
     {
         Assert::assertIsString($actual, $message);
         return $actual;
     }
 
+    /**
+     * @phpstan-assert ?string $actual
+     */
     public static function isNullableString(mixed $actual, string $message = ''): ?string
     {
         return $actual === null ? null : self::isString($actual, $message);
     }
 
+    /**
+     * @phpstan-assert int $actual
+     */
     public static function isInt(mixed $actual, string $message = ''): int
     {
         Assert::assertIsInt($actual, $message);
@@ -213,6 +237,8 @@ final class AssertEx
 
     /**
      * @return non-negative-int
+     *
+     * @phpstan-assert non-negative-int $actual
      */
     public static function isNonNegativeInt(mixed $actual, string $message = ''): int
     {
@@ -223,6 +249,8 @@ final class AssertEx
 
     /**
      * @return positive-int
+     *
+     * @phpstan-assert positive-int $actual
      */
     public static function isPositiveInt(mixed $actual, string $message = ''): int
     {
@@ -231,6 +259,9 @@ final class AssertEx
         return $actual; // @phpstan-ignore return.type
     }
 
+    /**
+     * @phpstan-assert float $actual
+     */
     public static function isFloat(mixed $actual, string $message = ''): float
     {
         Assert::assertIsFloat($actual, $message);
@@ -239,6 +270,8 @@ final class AssertEx
 
     /**
      * @return array<array-key, mixed>
+     *
+     * @phpstan-assert array<array-key, mixed> $actual
      */
     public static function isArray(mixed $actual, string $message = ''): array
     {
@@ -263,6 +296,8 @@ final class AssertEx
 
     /**
      * @return null
+     *
+     * @phpstan-assert null $actual
      */
     public static function isNull(mixed $actual, string $message = '')
     {
@@ -475,11 +510,13 @@ final class AssertEx
     public static function equalLists(array $expected, array $actual): void
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
-        Assert::assertSame(count($expected), count($actual));
+        AssertEx::sameCount($expected, $actual);
+        $dbgCtx->pushSubScope();
         foreach (RangeUtil::generateUpTo(count($expected)) as $i) {
-            $dbgCtx->add(compact('i'));
+            $dbgCtx->resetTopSubScope(compact('i'));
             Assert::assertSame($expected[$i], $actual[$i]);
         }
+        $dbgCtx->popSubScope();
     }
 
     /**

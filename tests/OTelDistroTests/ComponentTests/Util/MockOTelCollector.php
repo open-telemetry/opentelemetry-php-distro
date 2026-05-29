@@ -113,7 +113,7 @@ final class MockOTelCollector extends TestInfraHttpServerProcessBase
     }
 
     #[Override]
-    protected function shouldRequestHaveSpawnedProcessInternalId(ServerRequestInterface $request): bool
+    protected function shouldRequestHaveServerId(ServerRequestInterface $request): bool
     {
         return $request->getUri()->getPath() !== self::INTAKE_TRACE_DATA_URI_PATH;
     }

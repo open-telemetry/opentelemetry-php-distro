@@ -53,7 +53,7 @@ final class BuiltinHttpServerAppCodeHost extends AppCodeHostBase
     protected function runImpl(): void
     {
         $dataPerRequest = AmbientContextForTests::testConfig()->dataPerRequest();
-        if (($response = self::verifySpawnedProcessInternalId($dataPerRequest->spawnedProcessInternalId)) !== null) {
+        if (($response = self::verifyServerId($dataPerRequest->serverId)) !== null) {
             self::sendResponse($response);
             return;
         }

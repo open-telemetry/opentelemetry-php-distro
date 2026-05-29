@@ -17,7 +17,7 @@ final class ProcessHandle implements LoggableInterface
 {
     /** @var ?resource $procOpenRetVal */
     private mixed $procOpenRetVal;
-    private ProcessInfo $lastInfo;
+    private StartedProcessStatus $lastStatus;
     private readonly Logger $logger;
 
     /**
@@ -28,14 +28,14 @@ final class ProcessHandle implements LoggableInterface
         mixed $procOpenRetVal,
     ) {
         $this->procOpenRetVal = $procOpenRetVal;
-        $this->lastInfo = self::buildInfo($this->procOpenRetVal);
+        $this->lastStatus = self::ensureUpToDateStatus($this->procOpenRetVal);
         $this->logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->addAllContext(compact('this'));
     }
 
     /**
      * @param resource $procOpenRetVal
      */
-    private static function buildInfo(mixed $procOpenRetVal): ProcessInfo
+    private static function ensureUpToDateStatus(mixed $procOpenRetVal): StartedProcessStatus
     {
         $procStatus = proc_get_status(AssertEx::notNull($procOpenRetVal));
         /** @noinspection PhpConditionAlreadyCheckedInspection */
@@ -43,32 +43,32 @@ final class ProcessHandle implements LoggableInterface
             throw new ComponentTestsInfraException(ExceptionUtil::buildMessage('proc_get_status returned value which means an error', compact('procStatus')));
         }
 
-        $pid = AssertEx::isInt($procStatus['pid']);
+        $pid = ProcessUtil::assertValidPid($procStatus['pid']);
         $exitCode = AssertEx::isBool($procStatus['running']) ? null : AssertEx::isInt($procStatus['exitcode']);
-        return new ProcessInfo($pid, $exitCode);
+        return new StartedProcessStatus($pid, $exitCode);
     }
 
-    public function getCurrentInfo(): ProcessInfo
+    public function getStatus(): StartedProcessStatus
     {
-        if (!($this->lastInfo->hasExited() || $this->isClosed())) {
-            $this->lastInfo = self::buildInfo(AssertEx::notNull($this->procOpenRetVal));
+        if (!($this->lastStatus->hasExited() || $this->isClosed())) {
+            $this->lastStatus = self::ensureUpToDateStatus(AssertEx::notNull($this->procOpenRetVal));
         }
-        return $this->lastInfo;
+        return $this->lastStatus;
     }
 
     public function waitForProcessToExit(int $maxWaitTimeInMicroseconds, ?LogLevel $logLevelTimedout = null): bool
     {
         $logDebug = $this->logger->inherit()->addAllContext(compact('maxWaitTimeInMicroseconds'))->logDebug(__FUNCTION__);
 
-        (new PollingCheck($this->dbgProcessName . ' exited', $maxWaitTimeInMicroseconds))->run(fn() => $this->getCurrentInfo()->hasExited());
+        (new PollingCheck($this->dbgProcessName . ' exited', $maxWaitTimeInMicroseconds))->run(fn() => $this->getStatus()->hasExited());
 
-        if ($this->getCurrentInfo()->hasExited()) {
+        if ($this->getStatus()->hasExited()) {
             $logDebug?->with(__LINE__, 'Process exited');
         } else {
             $this->logger->logWithLevel(__FUNCTION__, $logLevelTimedout ?? LogLevel::warning)?->with(__LINE__, 'Wait for the started process to exit timed out');
         }
 
-        return $this->getCurrentInfo()->hasExited();
+        return $this->getStatus()->hasExited();
     }
 
     public function close(): void
@@ -91,6 +91,6 @@ final class ProcessHandle implements LoggableInterface
 
     public function toLog(LogStreamInterface $stream): void
     {
-        $stream->toLogAs(['lastInfo' => $this->lastInfo, 'is closed' => ($this->procOpenRetVal === null)]);
+        $stream->toLogAs(['lastStatus' => $this->lastStatus, 'is closed' => ($this->procOpenRetVal === null)]);
     }
 }

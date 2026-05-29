@@ -10,7 +10,7 @@ final class TestInfraDataPerRequest
      * @param ?array<string, mixed> $appCodeRequestArgs
      */
     public function __construct(
-        public readonly string $spawnedProcessInternalId,
+        public readonly string $serverId,
         public readonly ?AppCodeTarget $appCodeTarget = null,
         public ?array $appCodeRequestArgs = null,
         public bool $isAppCodeExpectedToThrow = false,

@@ -36,6 +36,7 @@
         "dealerdirect/phpcodesniffer-composer-installer": "1.2.1",
         "ext-ctype": "*",
         "ext-curl": "*",
+        "ext-posix": "*",
         "ext-pgsql": "*",
         "ext-pdo": "*",
         "ext-zlib": "*",

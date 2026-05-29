@@ -18,11 +18,11 @@ final class ResourcesCleanerHandle extends HttpServerHandle
         parent::__construct(
             ClassNameUtil::fqToShort(ResourcesCleaner::class) /* <- dbgServerDesc */,
             $httpSpawnedProcessHandle->spawnedProcessOsId,
-            $httpSpawnedProcessHandle->spawnedProcessInternalId,
+            $httpSpawnedProcessHandle->serverId,
             $httpSpawnedProcessHandle->ports
         );
 
-        $this->resourcesCleanerClient = new ResourcesCleanerClient($this->spawnedProcessInternalId, $this->getMainPort());
+        $this->resourcesCleanerClient = new ResourcesCleanerClient($this->serverId, $this->getMainPort());
     }
 
     public function getClient(): ResourcesCleanerClient

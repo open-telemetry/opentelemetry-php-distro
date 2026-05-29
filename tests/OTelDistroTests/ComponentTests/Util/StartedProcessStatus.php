@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\ComponentTests\Util;
 
-final class ProcessInfo
+/**
+ * @phpstan-import-type Pid from ProcessUtil
+ */
+final class StartedProcessStatus
 {
+    /**
+     * @param Pid $pid
+     */
     public function __construct(
         public readonly int $pid,
         public readonly ?int $exitCode,

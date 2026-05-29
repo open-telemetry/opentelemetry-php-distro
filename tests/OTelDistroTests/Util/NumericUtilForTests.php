@@ -6,6 +6,7 @@ namespace OTelDistroTests\Util;
 
 use OpenTelemetry\Distro\Util\StaticClassTrait;
 use InvalidArgumentException;
+use PHPUnit\Framework\Assert;
 
 /**
  * Code in this file is part of implementation internals, and thus it is not covered by the backward compatibility.
@@ -46,5 +47,16 @@ final class NumericUtilForTests
             }
         }
         return 0;
+    }
+
+    public static function isValidIntString(string $rawValue): bool
+    {
+        return filter_var($rawValue, FILTER_VALIDATE_INT) !== false;
+    }
+
+    public static function parseStringAsInt(string $rawValue): int
+    {
+        Assert::assertTrue(self::isValidIntString($rawValue));
+        return intval($rawValue);
     }
 }

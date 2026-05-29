@@ -103,9 +103,12 @@ final class IterableUtil
     }
 
     /**
-     * @param iterable<mixed, mixed> $iterable
+     * @template TKey
+     * @template TValue
      *
-     * @return iterable<mixed, mixed>
+     * @param iterable<TKey, TValue> $iterable
+     *
+     * @return iterable<TKey, TValue>
      */
     public static function skipFirst(iterable $iterable): iterable
     {
@@ -479,6 +482,22 @@ final class IterableUtil
                 yield $value;
             }
         }
+    }
+
+    /**
+     * @template TValue
+     *
+     * @param iterable<TValue> $iterable
+     * @param TValue $value
+     */
+    public static function contains(iterable $iterable, mixed $value): bool
+    {
+        foreach ($iterable as $currentValue) {
+            if ($currentValue === $value) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

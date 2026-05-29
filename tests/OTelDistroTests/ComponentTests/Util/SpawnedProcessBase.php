@@ -45,7 +45,7 @@ abstract class SpawnedProcessBase implements LoggableInterface
 
         if ($this->shouldRegisterThisProcessWithResourcesCleaner()) {
             TestCase::assertNotNull(
-                AmbientContextForTests::testConfig()->dataPerProcess()->resourcesCleanerSpawnedProcessInternalId,
+                AmbientContextForTests::testConfig()->dataPerProcess()->resourcesCleanerServerId,
                 LoggableToString::convert(AmbientContextForTests::testConfig())
             );
             TestCase::assertNotNull(
@@ -121,7 +121,7 @@ abstract class SpawnedProcessBase implements LoggableInterface
     protected function registerWithResourcesCleaner(): void
     {
         $resourcesCleanerClient = new ResourcesCleanerClient(
-            AssertEx::notNull(AmbientContextForTests::testConfig()->dataPerProcess()->resourcesCleanerSpawnedProcessInternalId),
+            AssertEx::notNull(AmbientContextForTests::testConfig()->dataPerProcess()->resourcesCleanerServerId),
             AssertEx::notNull(AmbientContextForTests::testConfig()->dataPerProcess()->resourcesCleanerPort),
         );
         $resourcesCleanerClient->registerProcessToTerminate(

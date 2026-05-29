@@ -80,7 +80,7 @@ final class HttpClientUtilForTests
             $httpMethod,
             $urlRelPart,
             [
-                RequestOptions::HEADERS     =>
+                RequestOptions::HEADERS =>
                     $headers
                     + [RequestHeadersRawSnapshotSource::optionNameToHeaderName(OptionForTestsName::data_per_request->name) => PhpSerializationUtil::serializeToString($dataPerRequest)],
                 /*

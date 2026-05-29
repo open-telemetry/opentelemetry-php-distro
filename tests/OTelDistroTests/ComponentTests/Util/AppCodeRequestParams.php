@@ -14,9 +14,9 @@ class AppCodeRequestParams implements LoggableInterface
 
     public TestInfraDataPerRequest $dataPerRequest;
 
-    public function __construct(string $spawnedProcessInternalId, AppCodeTarget $appCodeTarget)
+    public function __construct(string $serverId, AppCodeTarget $appCodeTarget)
     {
-        $this->dataPerRequest = new TestInfraDataPerRequest(spawnedProcessInternalId: $spawnedProcessInternalId, appCodeTarget: $appCodeTarget);
+        $this->dataPerRequest = new TestInfraDataPerRequest(serverId: $serverId, appCodeTarget: $appCodeTarget);
     }
 
     /**

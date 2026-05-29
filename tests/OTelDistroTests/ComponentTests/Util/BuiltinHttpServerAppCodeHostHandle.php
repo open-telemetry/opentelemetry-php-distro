@@ -19,7 +19,7 @@ final class BuiltinHttpServerAppCodeHostHandle extends HttpAppCodeHostHandle
         $setParamsFunc($appCodeHostParams);
 
         $httpServerHandle = BuiltinHttpServerAppCodeHostStarter::startBuiltinHttpServerAppCodeHost($appCodeHostParams, $resourcesCleaner, $portsInUse);
-        $appCodeHostParams->spawnedProcessInternalId = $httpServerHandle->spawnedProcessInternalId;
+        $appCodeHostParams->serverId = $httpServerHandle->serverId;
 
         parent::__construct($testCaseHandle, $appCodeHostParams, $httpServerHandle);
     }

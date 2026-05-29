@@ -47,8 +47,8 @@ final class TestInfraHttpServerStarter extends HttpServerStarter
 
     /** @inheritDoc */
     #[Override]
-    protected function buildEnvVarsForSpawnedProcess(string $dbgProcessName, string $spawnedProcessInternalId, array $ports): array
+    protected function buildEnvVarsForSpawnedProcess(string $dbgProcessName, string $serverId, array $ports): array
     {
-        return InfraUtilForTests::buildEnvVarsForSpawnedProcessWithoutAppCode($dbgProcessName, $spawnedProcessInternalId, $ports, $this->resourcesCleaner);
+        return InfraUtilForTests::buildEnvVarsForSpawnedProcessWithoutAppCode($dbgProcessName, $serverId, $ports, $this->resourcesCleaner);
     }
 }

@@ -115,6 +115,7 @@ final class BuildToolsLogUtil
     {
         if (self::ensureStdErrIsDefined()) {
             fwrite(STDERR, $text . PHP_EOL);
+            fflush(STDERR);
         }
     }
 }

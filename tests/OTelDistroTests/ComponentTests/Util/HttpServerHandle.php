@@ -11,6 +11,9 @@ use OTelDistroTests\Util\Log\LoggableTrait;
 use PHPUnit\Framework\Assert;
 use Psr\Http\Message\ResponseInterface;
 
+/**
+ * @phpstan-import-type Pid from ProcessUtil
+ */
 class HttpServerHandle implements LoggableInterface
 {
     use LoggableTrait;
@@ -21,12 +24,13 @@ class HttpServerHandle implements LoggableInterface
     public const PID_KEY = 'pid';
 
     /**
-     * @param int[] $ports
+     * @param list<Pid> $serverPids
+     * @param list<int> $ports
      */
     public function __construct(
         public readonly string $dbgProcessName,
-        public readonly int $spawnedProcessOsId,
-        public readonly string $spawnedProcessInternalId,
+        public readonly array $serverPids,
+        public readonly string $serverId,
         public readonly array $ports
     ) {
     }
@@ -45,7 +49,7 @@ class HttpServerHandle implements LoggableInterface
         return HttpClientUtilForTests::sendRequest(
             $httpMethod,
             new UrlParts(port: $this->getMainPort(), path: $path),
-            new TestInfraDataPerRequest(spawnedProcessInternalId: $this->spawnedProcessInternalId),
+            new TestInfraDataPerRequest(serverId: $this->serverId),
             $headers
         );
     }

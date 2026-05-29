@@ -162,7 +162,7 @@ abstract class TestInfraHttpServerProcessBase extends SpawnedProcessBase
     {
     }
 
-    protected function shouldRequestHaveSpawnedProcessInternalId(ServerRequestInterface $request): bool
+    protected function shouldRequestHaveServerId(ServerRequestInterface $request): bool
     {
         return true;
     }
@@ -201,7 +201,7 @@ abstract class TestInfraHttpServerProcessBase extends SpawnedProcessBase
      */
     private function processRequestWrapperImpl(ServerRequestInterface $request): Promise|ResponseInterface
     {
-        if ($this->shouldRequestHaveSpawnedProcessInternalId($request)) {
+        if ($this->shouldRequestHaveServerId($request)) {
             $testConfigForRequest = ConfigUtilForTests::read(
                 new RequestHeadersRawSnapshotSource(
                     function (string $headerName) use ($request): ?string {
@@ -211,11 +211,11 @@ abstract class TestInfraHttpServerProcessBase extends SpawnedProcessBase
                 AmbientContextForTests::loggerFactory()
             );
 
-            $verifySpawnedProcessInternalIdResponse = self::verifySpawnedProcessInternalId(
-                $testConfigForRequest->dataPerRequest()->spawnedProcessInternalId
+            $verifyServerIdResponse = self::verifyServerId(
+                $testConfigForRequest->dataPerRequest()->serverId
             );
-            if ($verifySpawnedProcessInternalIdResponse !== null) {
-                return $verifySpawnedProcessInternalIdResponse;
+            if ($verifyServerIdResponse !== null) {
+                return $verifyServerIdResponse;
             }
         }
 

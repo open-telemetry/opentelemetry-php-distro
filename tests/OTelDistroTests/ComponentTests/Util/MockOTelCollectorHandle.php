@@ -24,7 +24,7 @@ final class MockOTelCollectorHandle extends HttpServerHandle
         parent::__construct(
             ClassNameUtil::fqToShort(MockOTelCollector::class) /* <- dbgServerDesc */,
             $httpSpawnedProcessHandle->spawnedProcessOsId,
-            $httpSpawnedProcessHandle->spawnedProcessInternalId,
+            $httpSpawnedProcessHandle->serverId,
             $httpSpawnedProcessHandle->ports
         );
 

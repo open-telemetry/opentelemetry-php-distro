@@ -37,6 +37,7 @@
         "ext-ctype": "*",
         "ext-curl": "*",
         "ext-mysqli": "*",
+        "ext-posix": "*",
         "ext-pgsql": "*",
         "ext-pdo": "*",
         "ext-zlib": "*",

@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace OTelDistroTests\ComponentTests\Util;
 
+/**
+ * @phpstan-import-type Pid from ProcessUtil
+ */
 final class TestInfraDataPerProcess
 {
     /**
+     * @param Pid $phpUnitPid
      * @param int[] $thisServerPorts
      */
     public function __construct(
-        public readonly int $rootProcessId,
-        public readonly ?string $resourcesCleanerSpawnedProcessInternalId,
+        public readonly int $phpUnitPid,
+        public readonly ?string $resourcesCleanerServerId,
         public readonly ?int $resourcesCleanerPort,
-        public readonly string $thisSpawnedProcessInternalId,
+        public readonly string $thisServerId,
         public readonly array $thisServerPorts,
     ) {
     }

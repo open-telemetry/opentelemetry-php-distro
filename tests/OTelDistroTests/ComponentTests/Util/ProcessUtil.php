@@ -14,6 +14,7 @@ use OTelDistroTests\Util\Log\LogCategoryForTests;
 
 /**
  * @phpstan-import-type EnvVars from EnvVarUtil
+ * @phpstan-type Pid non-negative-int
  */
 final class ProcessUtil
 {
@@ -25,18 +26,9 @@ final class ProcessUtil
         return $cmdExitCode === 0;
     }
 
-    public static function waitForProcessToExitUsingPid(string $dbgProcessDesc, int $pid, int $maxWaitTimeInMicroseconds): bool
-    {
-        return (new PollingCheck(
-            $dbgProcessDesc . ' process (PID: ' . $pid . ') exited' /* <- dbgDesc */,
-            $maxWaitTimeInMicroseconds,
-        ))->run(
-            function () use ($pid): bool {
-                return !self::doesProcessExist($pid);
-            }
-        );
-    }
-
+    /**
+     * @param Pid $pid
+     */
     public static function execCommandToTerminateProcess(int $pid, bool $force = false): bool
     {
         $logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->addAllContext(compact('pid', 'force'));
@@ -71,7 +63,7 @@ final class ProcessUtil
     /**
      * @phpstan-param EnvVars $envVars
      */
-    public static function startBackgroundProcess(string $dbgProcessName, string $command, array $envVars, ?ResourcesCleanerClient $resourcesCleanerClient, bool $isTestScoped): void
+    public static function startBackgroundProcess(string $dbgProcessName, string $command, array $envVars, ?ResourcesCleanerClient $resourcesCleanerClient, bool $isTestScoped): StartedProcessStatus
     {
         $processHandle = self::procOpenEx(
             dbgProcessName: $dbgProcessName,
@@ -84,6 +76,8 @@ final class ProcessUtil
 
         // Close handle to allow process to exit
         $processHandle->close();
+
+        return $processHandle->getStatus();
     }
 
     /**
@@ -97,7 +91,7 @@ final class ProcessUtil
         bool $isTestScoped,
         int $maxWaitTimeInMicroseconds,
         ?LogLevel $logLevelTimedout = null,
-    ): ProcessInfo {
+    ): StartedProcessStatus {
         $logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__);
         $logger->addAllContext(compact('dbgProcessName', 'command', 'envVars'));
 
@@ -113,15 +107,15 @@ final class ProcessUtil
 
         try {
             $processHandle->waitForProcessToExit($maxWaitTimeInMicroseconds, $logLevelTimedout);
-            if (!$processHandle->getCurrentInfo()->hasExited()) {
+            if (!$processHandle->getStatus()->hasExited()) {
                 $logger->logWithLevel(__FUNCTION__, $logLevelTimedout ?? LogLevel::warning)?->with(__LINE__, 'Wait for the started process to exit timed out - terminating the process');
-                self::execCommandToTerminateProcess(AssertEx::isInt($processHandle->getCurrentInfo()->pid));
+                self::execCommandToTerminateProcess(AssertEx::isInt($processHandle->getStatus()->pid));
             }
         } finally {
             $processHandle->close();
         }
 
-        return $processHandle->getCurrentInfo();
+        return $processHandle->getStatus();
     }
 
     /**
@@ -144,15 +138,28 @@ final class ProcessUtil
         }
 
         $processHandle = new ProcessHandle($dbgProcessName, $procOpenRetVal);
-        $resourcesCleanerClient?->registerProcessToTerminate($dbgProcessName, $processHandle->getCurrentInfo()->pid, $isTestScoped);
+        $resourcesCleanerClient?->registerProcessToTerminate($dbgProcessName, $processHandle->getStatus()->pid, $isTestScoped);
 
         $logInfo = $logger->logInfo(__FUNCTION__);
         $logInfo?->with(__LINE__, "Started process $dbgProcessName ($command)", compact('processHandle'));
         return $processHandle;
     }
 
+    /**
+     * @return Pid
+     *
+     * @phpstan-assert Pid $actual
+     */
+    public static function assertValidPid(int $actual): int
+    {
+        return AssertEx::isNonNegativeInt($actual);
+    }
+
+    /**
+     * @return Pid
+     */
     public static function getCurrentPid(): int
     {
-        return AssertEx::isInt(getmypid());
+        return self::assertValidPid(getmypid());
     }
 }

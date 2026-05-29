@@ -19,7 +19,7 @@ final class HttpAppCodeRequestParams extends AppCodeRequestParams
 
     public function __construct(HttpServerHandle $httpServerHandle, AppCodeTarget $appCodeTarget)
     {
-        parent::__construct($httpServerHandle->spawnedProcessInternalId, $appCodeTarget);
+        parent::__construct($httpServerHandle->serverId, $appCodeTarget);
 
         $this->urlParts = new UrlParts(scheme: HttpSchemes::HTTP, host: HttpServerHandle::CLIENT_LOCALHOST_ADDRESS, port: $httpServerHandle->getMainPort(), path: self::DEFAULT_HTTP_REQUEST_URL_PATH);
     }

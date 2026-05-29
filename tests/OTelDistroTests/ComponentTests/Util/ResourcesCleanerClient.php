@@ -18,7 +18,7 @@ final class ResourcesCleanerClient
     private Logger $logger;
 
     public function __construct(
-        private readonly string $resourcesCleanerSpawnedProcessInternalId,
+        private readonly string $resourcesCleanerServerId,
         private readonly int $resourcesCleanerPort
     ) {
         $this->logger = $this->buildLogger();
@@ -57,7 +57,7 @@ final class ResourcesCleanerClient
         $response = HttpClientUtilForTests::sendRequest(
             HttpMethods::POST,
             new UrlParts(port: $this->resourcesCleanerPort, path: ResourcesCleaner::REGISTER_PROCESS_TO_TERMINATE_URI_PATH),
-            new TestInfraDataPerRequest(spawnedProcessInternalId: $this->resourcesCleanerSpawnedProcessInternalId),
+            new TestInfraDataPerRequest(serverId: $this->resourcesCleanerServerId),
             headers: [
                 ResourcesCleaner::DBG_PROCESS_NAME_HEADER_NAME => $dbgProcessName,
                 ResourcesCleaner::PID_HEADER_NAME => strval($pid),
@@ -81,7 +81,7 @@ final class ResourcesCleanerClient
         $response = HttpClientUtilForTests::sendRequest(
             HttpMethods::POST,
             new UrlParts(port: $this->resourcesCleanerPort, path: ResourcesCleaner::REGISTER_FILE_TO_DELETE_URI_PATH),
-            new TestInfraDataPerRequest(spawnedProcessInternalId: $this->resourcesCleanerSpawnedProcessInternalId),
+            new TestInfraDataPerRequest(serverId: $this->resourcesCleanerServerId),
             [ResourcesCleaner::PATH_HEADER_NAME => $fullPath, ResourcesCleaner::IS_TEST_SCOPED_HEADER_NAME => BoolUtil::toString($isTestScoped)] /* <- headers */
         );
         if ($response->getStatusCode() !== HttpStatusCodes::OK) {

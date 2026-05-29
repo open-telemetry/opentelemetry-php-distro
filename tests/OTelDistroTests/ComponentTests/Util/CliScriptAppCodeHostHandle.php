@@ -35,7 +35,7 @@ final class CliScriptAppCodeHostHandle extends AppCodeHostHandle
     ) {
         $this->logger = AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__);
         $appCodeHostParams = new AppCodeHostParams(dbgProcessNamePrefix: ClassNameUtil::fqToShort(CliScriptAppCodeHost::class) . '_' . $dbgInstanceName);
-        $appCodeHostParams->spawnedProcessInternalId = InfraUtilForTests::generateSpawnedProcessInternalId();
+        $appCodeHostParams->serverId = InfraUtilForTests::generateServerId();
         $setParamsFunc($appCodeHostParams);
 
         parent::__construct($testCaseHandle, $appCodeHostParams);
@@ -54,7 +54,7 @@ final class CliScriptAppCodeHostHandle extends AppCodeHostHandle
     {
         $localLogger = $this->logger->inherit()->addAllContext(compact('appCodeTarget'));
         $logDebug = $localLogger->logDebug(__FUNCTION__);
-        $requestParams = new AppCodeRequestParams($this->appCodeHostParams->spawnedProcessInternalId, $appCodeTarget);
+        $requestParams = new AppCodeRequestParams($this->appCodeHostParams->serverId, $appCodeTarget);
         if ($setParamsFunc !== null) {
             $setParamsFunc($requestParams);
         }
@@ -73,7 +73,7 @@ final class CliScriptAppCodeHostHandle extends AppCodeHostHandle
 
         $envVars = InfraUtilForTests::addTestInfraDataPerProcessToEnvVars(
             $this->appCodeHostParams->buildEnvVarsForAppCodeProcess(),
-            $this->appCodeHostParams->spawnedProcessInternalId,
+            $this->appCodeHostParams->serverId,
             [] /* <- targetServerPorts */,
             $this->resourcesCleaner,
             $dbgProcessName

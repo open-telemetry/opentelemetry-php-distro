@@ -12,16 +12,16 @@ use React\Http\Message\Response;
 
 trait HttpServerProcessTrait
 {
-    protected static function verifySpawnedProcessInternalId(
-        string $receivedSpawnedProcessInternalId
+    protected static function verifyServerId(
+        string $receivedServerId
     ): ?ResponseInterface {
-        $expectedSpawnedProcessInternalId = AmbientContextForTests::testConfig()->dataPerProcess()->thisSpawnedProcessInternalId;
-        if ($expectedSpawnedProcessInternalId !== $receivedSpawnedProcessInternalId) {
+        $expectedServerId = AmbientContextForTests::testConfig()->dataPerProcess()->thisServerId;
+        if ($expectedServerId !== $receivedServerId) {
             return self::buildErrorResponse(
                 HttpStatusCodes::BAD_REQUEST,
                 'Received server ID does not match the expected one.'
-                . ' Expected: ' . $expectedSpawnedProcessInternalId
-                . ', received: ' . $receivedSpawnedProcessInternalId
+                . ' Expected: ' . $expectedServerId
+                . ', received: ' . $receivedServerId
             );
         }
 

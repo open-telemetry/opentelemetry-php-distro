@@ -75,7 +75,7 @@ final class ProcessUtilTest extends ComponentTestCaseBase
 
         $envVars = InfraUtilForTests::buildEnvVarsForSpawnedProcessWithoutAppCode(
             $dbgProcessName,
-            InfraUtilForTests::generateSpawnedProcessInternalId(),
+            InfraUtilForTests::generateServerId(),
             [] /* <- ports */,
             $testCaseHandle->getResourcesCleaner(),
         );

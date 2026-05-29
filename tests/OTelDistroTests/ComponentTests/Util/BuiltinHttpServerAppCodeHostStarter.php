@@ -46,12 +46,12 @@ final class BuiltinHttpServerAppCodeHostStarter extends HttpServerStarter
 
     /** @inheritDoc */
     #[Override]
-    protected function buildEnvVarsForSpawnedProcess(string $dbgProcessName, string $spawnedProcessInternalId, array $ports): array
+    protected function buildEnvVarsForSpawnedProcess(string $dbgProcessName, string $serverId, array $ports): array
     {
         Assert::assertCount(1, $ports);
         return InfraUtilForTests::addTestInfraDataPerProcessToEnvVars(
             $this->appCodeHostParams->buildEnvVarsForAppCodeProcess(),
-            $spawnedProcessInternalId,
+            $serverId,
             $ports,
             $this->resourcesCleaner,
             $dbgProcessName

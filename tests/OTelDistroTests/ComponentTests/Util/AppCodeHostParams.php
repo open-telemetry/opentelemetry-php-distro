@@ -41,7 +41,7 @@ class AppCodeHostParams implements LoggableInterface
     /** @var array<string, string> */
     private array $additionalEnvVars = [];
 
-    public string $spawnedProcessInternalId;
+    public string $serverId;
 
     public function __construct(
         public readonly string $dbgProcessNamePrefix

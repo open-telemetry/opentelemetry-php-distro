@@ -165,7 +165,7 @@ class ComponentTestCaseBase extends TestCaseBase
 
     protected static function buildResourcesCleanerClientForAppCode(): ResourcesCleanerClient
     {
-        $resCleanerId = AmbientContextForTests::testConfig()->dataPerProcess()->resourcesCleanerSpawnedProcessInternalId;
+        $resCleanerId = AmbientContextForTests::testConfig()->dataPerProcess()->resourcesCleanerServerId;
         Assert::assertNotNull($resCleanerId);
         $resCleanerPort = AmbientContextForTests::testConfig()->dataPerProcess()->resourcesCleanerPort;
         Assert::assertNotNull($resCleanerPort);
