@@ -318,15 +318,28 @@ function main() {
 
     copy_file "composer.json" "${_REPO_TEMP_COPY_DIR}/"
 
-    pushd "${_REPO_TEMP_COPY_DIR}" || exit 1
-        # composer run-script -- download_and_adapt_packages_to_PHP_81 "${_REPO_TEMP_COPY_DIR}"
-        #   expects
-        #       - "./composer.json"
-        #   creates
-        #       - "./${_PHP_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH:?}/"
-        #       - "./${_COMPOSER_HOME_FOR_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH:?}/config.json"
-        php "${this_script_dir}/download_adapt_packages_to_PHP_81_and_gen_config.php"
-    popd || exit 1
+    # SC2086: Double quote to prevent globbing and word splitting.
+    # shellcheck disable=SC2086
+    local -r _lowest_supported_php_version_no_dot=$(get_array_min_value ${_PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS})
+    local -r _PHP_docker_image_for_tools=$(build_light_PHP_docker_image_name_for_version_no_dot "${_lowest_supported_php_version_no_dot}")
+
+    # composer run-script -- download_and_adapt_packages_to_PHP_81 "${_REPO_TEMP_COPY_DIR}"
+    #   expects
+    #       - "./composer.json"
+    #   creates
+    #       - "./${_PHP_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH:?}/"
+    #       - "./${_COMPOSER_HOME_FOR_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH:?}/config.json"
+    docker run --rm \
+        -v "${repo_root_dir}:/read_only_repo_root:ro" \
+        -v "${_REPO_TEMP_COPY_DIR}:/repo_temp_copy_dir" \
+        -w "/repo_temp_copy_dir" \
+        "${_PHP_docker_image_for_tools}" \
+        sh -c "\
+            curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin \
+            && php /read_only_repo_root/tools/build/download_adapt_packages_to_PHP_81_and_gen_config.php \
+            && chown -R ${current_user_id}:${current_user_group_id} /repo_temp_copy_dir \
+            && chmod -R +r,u+w /repo_temp_copy_dir \
+        "
 
     local GENERATED_COMPOSER_LOCK_FILES_STAGE_DIR="${_REPO_TEMP_COPY_DIR}/${_PROJECT_PROPERTIES_GENERATED_LOCK_FILES_FOLDER:?}"
     mkdir -p "${GENERATED_COMPOSER_LOCK_FILES_STAGE_DIR}"
@@ -353,9 +366,12 @@ function main() {
         done
     done
 
-    pushd "${_REPO_TEMP_COPY_DIR}" || exit 1
-        php "${repo_root_dir}/tools/build/verify_generated_composer_lock_files.php"
-    popd || exit 1
+    docker run --rm \
+        -v "${repo_root_dir}:/read_only_repo_root:ro" \
+        -v "${_REPO_TEMP_COPY_DIR}:/repo_temp_copy_dir" \
+        -w "/repo_temp_copy_dir" \
+        "${_PHP_docker_image_for_tools}" \
+        sh -c "php /read_only_repo_root/tools/build/verify_generated_composer_lock_files.php"
 
     mkdir -p "${_PROJECT_PROPERTIES_GENERATED_LOCK_FILES_FOLDER:?}"
     delete_dir_contents "${_PROJECT_PROPERTIES_GENERATED_LOCK_FILES_FOLDER:?}"

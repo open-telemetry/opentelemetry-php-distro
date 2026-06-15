@@ -180,7 +180,16 @@ main() {
 
     local -r _BUILT_PHP_CODE_FOR_PACKAGES_DIR="${repo_root_dir}/_BUILT/php_code_for_packages"
     if [ "${DEV_ONLY_RESCOPE_DISTRO}" = "false" ]; then
-        rm -rf "${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}"
+        # Clean previously generated output inside docker — docker-generated files (scoped/, not_scoped/vendor_*/)
+        # are owned by root and cannot be deleted locally without sudo
+        if [ -d "${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}" ]; then
+            local _cleanup_docker_image
+            _cleanup_docker_image=$(build_light_PHP_docker_image_name_for_version_no_dot "${PHP_VERSIONS_WITHOUT_DOT[0]}")
+            docker run --rm \
+                -v "${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}:/target" \
+                "${_cleanup_docker_image}" \
+                sh -c "rm -rf /target/*"
+        fi
     fi
     mkdir -p "${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}"
 
