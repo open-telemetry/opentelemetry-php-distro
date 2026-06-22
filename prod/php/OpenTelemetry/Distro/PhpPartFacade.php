@@ -237,6 +237,12 @@ final class PhpPartFacade
         $logDebug?->with(__LINE__, 'Finished successfully');
     }
 
+    public static function earlySetup(): void
+    {
+        self::registerNativeOtlpSerializer();
+        self::registerAsyncTransportFactory();
+    }
+
     private static function registerAsyncTransportFactory(): void
     {
         /**
@@ -268,7 +274,7 @@ final class PhpPartFacade
             // Load classes such as \OpenTelemetry\Contrib\Otlp\SpanExporter to shadow the ones in SDK
             $otelOtlpDir = ProdPhpDir::$fullPath . DIRECTORY_SEPARATOR . 'OpenTelemetry' . DIRECTORY_SEPARATOR . 'Contrib' . DIRECTORY_SEPARATOR . 'Otlp';
             foreach (['SpanExporter', 'LogsExporter', 'MetricExporter'] as $exporter) {
-                require $otelOtlpDir . DIRECTORY_SEPARATOR . $exporter . '.php';
+                require_once $otelOtlpDir . DIRECTORY_SEPARATOR . $exporter . '.php';
             }
         }
     }
