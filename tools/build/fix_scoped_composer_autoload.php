@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Applies four post-scoping fixes to a php-scoper-generated vendor directory:
  *
@@ -27,6 +25,8 @@ declare(strict_types=1);
  *
  * Usage: php tools/build/fix_scoped_composer_autoload.php <namespace_prefix> <vendor_dir>
  */
+
+declare(strict_types=1);
 
 if ($_SERVER['argc'] !== 3) {
     fwrite(STDERR, "Usage: php tools/build/fix_scoped_composer_autoload.php <namespace_prefix> <vendor_dir>\n");
