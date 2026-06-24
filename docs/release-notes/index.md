@@ -1,3 +1,7 @@
+## 0.5.1
+
+- fix: bump guzzlehttp/guzzle to fix security vulnerability (PR [#123](https://github.com/open-telemetry/opentelemetry-php-distro/pull/123))
+
 ## 0.5.0
 
 - feat: add earlySetup to register OTLP transport before SDK initialization ([#121](https://github.com/open-telemetry/opentelemetry-php-distro/pull/121))
