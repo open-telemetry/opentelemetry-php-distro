@@ -1,0 +1,5 @@
+{
+  "repositories": [
+    {"type": "path", "url": "/absolute/path/to/your/local/package"}
+  ]
+}

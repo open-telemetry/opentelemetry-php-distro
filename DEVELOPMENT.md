@@ -171,6 +171,50 @@ instead of the usual `composer update`
 
 3) Commit the changes to the composer's lock files
 
+## Testing with unreleased/local PHP packages
+
+When a package is not yet published to Packagist, you can point the build system to a local checkout using a `.local-repos.json` file in the repository root. The file is gitignored.
+
+**Setup:**
+
+1. Copy the example and edit it:
+
+```bash
+cp .local-repos.json.example .local-repos.json
+```
+
+```json
+{
+  "repositories": [
+    {"type": "path", "url": "/absolute/path/to/your/local/package"}
+  ]
+}
+```
+
+2. Add the package to `require` in `composer.json` (if not already present):
+
+```json
+"open-telemetry/your-package-name": "*"
+```
+
+3. Regenerate lock files:
+
+```bash
+./tools/build/generate_composer_lock_files.sh --local-repos-file .local-repos.json
+```
+
+4. Build PHP dependencies:
+
+```bash
+./tools/build/build_php_code_for_packages.sh --php_versions '81 82 83 84 85' --skip_notice --local-repos-file .local-repos.json
+```
+
+**Caveats:**
+
+- Do not commit `generated_composer_lock_files/`, `composer.json`, or `.local-repos.json` while testing with local packages — the lock files reference local paths and `composer.json` contains a temporary `require` entry.
+- The local package's own `vendor/` directory is excluded from the build (dev tools like phpstan/psalm would otherwise be included and cause memory issues in php-scoper).
+- To restore normal CI/build behavior: remove `.local-repos.json`, revert the `composer.json` change, and regenerate lock files.
+
 ## Making a release
 
 Release process:

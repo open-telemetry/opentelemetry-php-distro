@@ -45,6 +45,7 @@ html_docs
 
 # For local development
 z_local*
+.local-repos.json
 
 # Per user PHPStan configuration
 phpstan.neon

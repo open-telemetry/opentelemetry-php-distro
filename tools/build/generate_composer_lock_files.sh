@@ -2,11 +2,18 @@
 set -e -u -o pipefail
 #set -x
 
+LOCAL_REPOS_FILE=""
+LOCAL_REPOS_EXTRA_MOUNTS=()
+LOCAL_REPOS_HOST_PATHS=()
+
 function show_help() {
     echo "Usage: $0 [optional arguments]"
     echo
     echo "Options:"
     echo "  --keep_temp_files       Optional. Keep temporary files. Default: false (i.e., delete temporary files on both success and failure)."
+    echo "  --local-repos-file      Optional. Path to a JSON file listing local Composer package paths for development (gitignored)."
+    echo "                          Each entry is mounted into Docker as a path repository so Composer can resolve dev packages."
+    echo "                          See .local-repos.json.example. Default: none (packages installed from Packagist)."
     echo
     echo "Example:"
     echo "  $0 --keep_temp_files"
@@ -21,6 +28,10 @@ function parse_args() {
         --keep_temp_files)
             export OTEL_PHP_TOOLS_KEEP_TEMP_FILES="true"
             ;;
+        --local-repos-file)
+            LOCAL_REPOS_FILE="${2}"
+            shift
+            ;;
         --help)
             show_help
             exit 0
@@ -33,6 +44,53 @@ function parse_args() {
         esac
         shift
     done
+}
+
+function load_local_repos() {
+    if [ -z "${LOCAL_REPOS_FILE}" ]; then
+        return
+    fi
+    if [ ! -f "${LOCAL_REPOS_FILE}" ]; then
+        echo "Error: --local-repos-file not found: ${LOCAL_REPOS_FILE}"
+        exit 1
+    fi
+    echo "Using local repositories from: ${LOCAL_REPOS_FILE}"
+    local count
+    count=$(jq '.repositories | length' "${LOCAL_REPOS_FILE}")
+    local i
+    local j=0
+    for (( i=0; i<count; i++ )); do
+        local host_path
+        host_path=$(jq -r ".repositories[${i}].url" "${LOCAL_REPOS_FILE}")
+        if [ ! -d "${host_path}" ]; then
+            echo "Warning: local repo path does not exist, skipping: ${host_path}"
+            continue
+        fi
+        local docker_path="/local_repos/${j}"
+        echo "  [${j}] ${host_path} -> ${docker_path}"
+        LOCAL_REPOS_EXTRA_MOUNTS+=(-v "${host_path}:${docker_path}:ro")
+        LOCAL_REPOS_HOST_PATHS+=("${host_path}")
+        j=$(( j + 1 ))
+    done
+}
+
+function patch_composer_json_with_local_repos() {
+    local _json_path="${1:?}"
+    if [ ${#LOCAL_REPOS_HOST_PATHS[@]} -eq 0 ]; then
+        return
+    fi
+    local repos_json="["
+    local i
+    for (( i=0; i<${#LOCAL_REPOS_HOST_PATHS[@]}; i++ )); do
+        if [ $i -gt 0 ]; then repos_json+=","; fi
+        repos_json+="{\"type\":\"path\",\"url\":\"/local_repos/${i}\"}"
+    done
+    repos_json+="]"
+    local tmp
+    tmp=$(mktemp)
+    jq --argjson new_repos "${repos_json}" '.repositories = ($new_repos + (.repositories // []))' "${_json_path}" > "${tmp}"
+    mv "${tmp}" "${_json_path}"
+    echo "Patched ${_json_path} with ${#LOCAL_REPOS_HOST_PATHS[@]} local repo(s)"
 }
 
 function build_command_to_derive_for_prod() {
@@ -271,10 +329,16 @@ function generate_composer_lock_for_PHP_version() {
         docker_cmds_for_PHP_81+=("&&" cp "/from_docker_host/${_COMPOSER_HOME_FOR_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH:?}/"* "/repo_root/${_COMPOSER_HOME_FOR_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH:?}/")
     fi
 
+    local docker_local_repos_mounts=()
+    if [ "${#LOCAL_REPOS_EXTRA_MOUNTS[@]}" -gt 0 ]; then
+        docker_local_repos_mounts=("${LOCAL_REPOS_EXTRA_MOUNTS[@]}")
+    fi
+
     docker run --rm \
         -v "${composer_json_full_path}:/repo_root/composer.json:ro" \
         -v "${_STAGE_DIR}:/from_docker_host/generated_composer_lock_files_stage_dir" \
         "${docker_args_for_PHP_81[@]}" \
+        "${docker_local_repos_mounts[@]+"${docker_local_repos_mounts[@]}"}" \
         -w "/repo_root" \
         "${PHP_docker_image}" \
         sh -c "\
@@ -307,6 +371,7 @@ function main() {
 
     # Parse arguments
     parse_args "$@"
+    load_local_repos
 
     current_user_id="$(id -u)"
     current_user_group_id="$(id -g)"
@@ -357,6 +422,9 @@ function main() {
         derive_composer_json_for_env_kind "${GENERATED_COMPOSER_LOCK_FILES_STAGE_DIR}" "${env_kind}"
     done
 
+    for env_kind in "dev" "prod" "prod_static_check" "test"; do
+        patch_composer_json_with_local_repos "$(build_generated_composer_json_full_path "${GENERATED_COMPOSER_LOCK_FILES_STAGE_DIR}" "${env_kind}")"
+    done
 
     # SC2086: Double quote to prevent globbing and word splitting.
     # shellcheck disable=SC2086
@@ -366,12 +434,16 @@ function main() {
         done
     done
 
-    docker run --rm \
-        -v "${repo_root_dir}:/read_only_repo_root:ro" \
-        -v "${_REPO_TEMP_COPY_DIR}:/repo_temp_copy_dir" \
-        -w "/repo_temp_copy_dir" \
-        "${_PHP_docker_image_for_tools}" \
-        sh -c "php /read_only_repo_root/tools/build/verify_generated_composer_lock_files.php"
+    if [ ${#LOCAL_REPOS_HOST_PATHS[@]} -eq 0 ]; then
+        docker run --rm \
+            -v "${repo_root_dir}:/read_only_repo_root:ro" \
+            -v "${_REPO_TEMP_COPY_DIR}:/repo_temp_copy_dir" \
+            -w "/repo_temp_copy_dir" \
+            "${_PHP_docker_image_for_tools}" \
+            sh -c "php /read_only_repo_root/tools/build/verify_generated_composer_lock_files.php"
+    else
+        echo "Skipping verify_generated_composer_lock_files: local repos in use (dev mode)"
+    fi
 
     mkdir -p "${_PROJECT_PROPERTIES_GENERATED_LOCK_FILES_FOLDER:?}"
     delete_dir_contents "${_PROJECT_PROPERTIES_GENERATED_LOCK_FILES_FOLDER:?}"

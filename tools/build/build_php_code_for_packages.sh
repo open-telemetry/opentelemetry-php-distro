@@ -5,6 +5,9 @@ set -e -u -o pipefail
 SKIP_NOTICE=false
 SKIP_VERIFY=false
 DEV_ONLY_RESCOPE_DISTRO=false
+LOCAL_REPOS_FILE=""
+LOCAL_REPOS_EXTRA_MOUNTS=()
+LOCAL_REPOS_OVERRIDE_CMDS=""
 current_user_id="$(id -u)"
 current_user_group_id="$(id -g)"
 
@@ -16,6 +19,9 @@ show_help() {
     echo "  --skip_notice              Optional. Skip notice file generator. Default: false (i.e., NOTICE file is generated)."
     echo "  --skip_verify              Optional. Skip verify step. Default: false (i.e., verify step is executed)."
     echo "  --dev_only_rescope_distro  Optional. Only re-scope distro code (prod/php/OpenTelemetry). Skips composer install and notice."
+    echo "  --local-repos-file         Optional. Path to a JSON file listing local Composer package paths for development (gitignored)."
+    echo "                             Each entry is mounted into Docker and overlaid onto vendor/ after composer install."
+    echo "                             See .local-repos.json.example. Default: none (packages installed from Packagist)."
     echo
     echo "Example:"
     echo "  $0 --php_versions '81 82 83 84 85' --skip_notice"
@@ -41,6 +47,10 @@ parse_args() {
         --dev_only_rescope_distro)
             DEV_ONLY_RESCOPE_DISTRO=true
             ;;
+        --local-repos-file)
+            LOCAL_REPOS_FILE="${2}"
+            shift
+            ;;
         --help)
             show_help
             exit 0
@@ -52,6 +62,42 @@ parse_args() {
             ;;
         esac
         shift
+    done
+}
+
+load_local_repos() {
+    if [ -z "${LOCAL_REPOS_FILE}" ]; then
+        return
+    fi
+    if [ ! -f "${LOCAL_REPOS_FILE}" ]; then
+        echo "Error: --local-repos-file not found: ${LOCAL_REPOS_FILE}"
+        exit 1
+    fi
+    echo "Using local repositories from: ${LOCAL_REPOS_FILE}"
+    local count
+    count=$(jq '.repositories | length' "${LOCAL_REPOS_FILE}")
+    local i
+    for (( i=0; i<count; i++ )); do
+        local host_path
+        host_path=$(jq -r ".repositories[${i}].url" "${LOCAL_REPOS_FILE}")
+        local docker_path="/local_repos/${i}"
+        if [ ! -d "${host_path}" ]; then
+            echo "Warning: local repo path does not exist, skipping: ${host_path}"
+            continue
+        fi
+        echo "  [${i}] ${host_path} -> ${docker_path}"
+        LOCAL_REPOS_EXTRA_MOUNTS+=(-v "${host_path}:${docker_path}:ro")
+        # \$(...) is intentionally escaped so the subshell runs inside the container, not on the host.
+        # If composer installed via symlink (path repo), replace with real files so the copy to host
+        # and php-scoper work correctly (symlinks to /local_repos/* are invalid outside the container).
+        # Exclude vendor/ from the copy: a published package never ships its own dev vendor tree,
+        # and copying it would feed huge dev-only files (phpstan.phar, psalm dictionaries) into php-scoper.
+        LOCAL_REPOS_OVERRIDE_CMDS+="\
+            && echo 'Overriding vendor with local repo: ${host_path}' \
+            && _pkg_vendor_dir=/tmp/repo/vendor/\$(jq -r .name ${docker_path}/composer.json) \
+            && if [ -L \"\${_pkg_vendor_dir}\" ]; then rm \"\${_pkg_vendor_dir}\" && cp -rf ${docker_path}/. \"\${_pkg_vendor_dir}/\" && rm -rf \"\${_pkg_vendor_dir}/vendor/\"; \
+               elif [ \"\$(realpath ${docker_path} 2>/dev/null)\" != \"\$(realpath \${_pkg_vendor_dir} 2>/dev/null)\" ]; then cp -rf ${docker_path}/. \"\${_pkg_vendor_dir}/\" && rm -rf \"\${_pkg_vendor_dir}/vendor/\"; fi \
+        "
     done
 }
 
@@ -135,6 +181,7 @@ main() {
 
     # Parse arguments
     parse_args "$@"
+    load_local_repos
 
     # Validate required arguments
     # SC2128: Expanding an array without an index only gives the first element.
@@ -239,6 +286,9 @@ main() {
             -v "${repo_root_dir}/:/read_only_repo_root/:ro"
             -v "${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}/:/docker_host_dst_php_code_for_packages/"
         )
+        if [ "${#LOCAL_REPOS_EXTRA_MOUNTS[@]}" -gt 0 ]; then
+            docker_mount_args+=("${LOCAL_REPOS_EXTRA_MOUNTS[@]}")
+        fi
         local docker_sh_cmd=""
 
         # See prod/php/bootstrap_php_part.php for the layout of PHP code after package is installed
@@ -301,14 +351,21 @@ main() {
 
             docker_mount_args+=("${docker_notice_mount_args[@]}")
 
+            local _APK_EXTRA_PKGS="bash"
+            local VERIFY_LOCK_FILES_CMD="cd /read_only_repo_root/ && php ./tools/build/verify_generated_composer_lock_files.php"
+            if [ "${#LOCAL_REPOS_EXTRA_MOUNTS[@]}" -gt 0 ]; then
+                _APK_EXTRA_PKGS="bash jq"
+                VERIFY_LOCK_FILES_CMD="echo 'Skipping verify_generated_composer_lock_files: local repos in use (dev mode)'"
+            fi
+
             docker_sh_cmd="\
-                apk update && apk add bash \
+                apk update && apk add ${_APK_EXTRA_PKGS} \
                 && curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin \
-                && cd /read_only_repo_root/ && php ./tools/build/verify_generated_composer_lock_files.php \
+                && ${VERIFY_LOCK_FILES_CMD} \
                 && ${COPY_REPO_TO_TMP_CMD} \
                 && rm -rf composer.json composer.lock ./vendor/ \
                 && php ./tools/build/select_json_lock_and_install_PHP_deps.php prod \
-                \
+                ${LOCAL_REPOS_OVERRIDE_CMDS} \
                 && rm -rf ${_NOT_SCOPED_VENDOR_PHP_VERSION_IN_DOCKER_DIR} \
                 && mkdir -p ${_NOT_SCOPED_VENDOR_PHP_VERSION_IN_DOCKER_DIR} \
                 && cp -r /tmp/repo/vendor/. ${_NOT_SCOPED_VENDOR_PHP_VERSION_IN_DOCKER_DIR}/ \

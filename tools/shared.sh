@@ -4,10 +4,10 @@ set -e -u -o pipefail
 
 # return the repo root dir if the script is run from the repo root dir
 function verify_running_from_repo_root() {
-    if [ ! -d "${PWD}/.git" ]; then
+    if [ ! -e "${PWD}/.git" ]; then
         echo "Error: This script must be run from the repository root directory"
         echo "Current directory: ${PWD}"
-        echo "Expected: A directory containing a .git subdirectory"
+        echo "Expected: A directory containing a .git subdirectory (or .git file for submodules)"
         exit 1
     fi
     echo "$(realpath ${PWD})"
