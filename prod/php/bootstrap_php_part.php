@@ -36,6 +36,9 @@ $otelDistroDir = $prodPhpDir . DIRECTORY_SEPARATOR . 'OpenTelemetry' . DIRECTORY
 
 require __DIR__ . DIRECTORY_SEPARATOR . 'ScoperConfig.php';
 $scopePrefixIfEnabled = $isScopingEnabled ? (OTelDistroScoperConfig::PREFIX . '\\') : '';
+if ($isScopingEnabled) {
+    class_alias(OTelDistroScoperConfig::class, OTelDistroScoperConfig::PREFIX . '\\' . OTelDistroScoperConfig::class);
+}
 
 require $otelDistroDir . DIRECTORY_SEPARATOR . 'ProdPhpDir.php';
 /**

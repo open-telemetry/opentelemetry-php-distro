@@ -85,6 +85,7 @@ final class PhpPartFacade
             self::prepareForOTelSdk();
 
             self::registerAutoloaderForVendorDir();
+            self::loadCustomInstrumentationBridge();
 
             // User's bootstrap .php file might register remote config handler so it has to be called before remote config handler
             self::loadUserBootstrapPhpFile();
@@ -361,6 +362,25 @@ final class PhpPartFacade
         }
 
         $span->end();
+    }
+
+    private static function loadCustomInstrumentationBridge(): void
+    {
+        $envValue = getenv('OTEL_PHP_CUSTOM_INSTRUMENTATION_ENABLED');
+        if ($envValue === false || strtolower($envValue) !== 'true') {
+            return;
+        }
+
+        $aliasFile = ProdPhpDir::$fullPath . 'unscoped_api_aliases.php';
+        if (!file_exists($aliasFile)) {
+            self::logError(__FUNCTION__)?->with(__LINE__, 'OTEL_PHP_CUSTOM_INSTRUMENTATION_ENABLED=true but alias file not found (non-scoped build?)', compact('aliasFile'));
+            return;
+        }
+
+        $logDebug = self::logDebug(__FUNCTION__);
+        $logDebug?->with(__LINE__, 'Loading custom instrumentation bridge', compact('aliasFile'));
+        require $aliasFile;
+        $logDebug?->with(__LINE__, 'Custom instrumentation bridge loaded');
     }
 
     private static function loadUserBootstrapPhpFile(): void

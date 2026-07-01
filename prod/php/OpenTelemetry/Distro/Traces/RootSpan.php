@@ -15,6 +15,7 @@ use OpenTelemetry\API\Behavior\LogsMessagesTrait;
 use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanKind;
 use OpenTelemetry\Context\Context;
+use OpenTelemetry\Context\ContextStorageScopeInterface;
 use OpenTelemetry\SDK\Common\Configuration\Configuration;
 use OpenTelemetry\SDK\Common\Util\ShutdownHandler;
 use OpenTelemetry\SemConv\Attributes\HttpAttributes;
@@ -31,6 +32,8 @@ class RootSpan
     use LogsMessagesTrait;
 
     private const DEFAULT_SPAN_NAME_FOR_SCRIPT = '<script>';
+
+    private static ?ContextStorageScopeInterface $rootScope = null;
 
     private static function isCliSapi(): bool
     {
@@ -102,7 +105,7 @@ class RootSpan
             );
         }
         $span = $spanBuilder->startSpan();
-        Context::storage()->attach($span->storeInContext($parent));
+        self::$rootScope = Context::storage()->attach($span->storeInContext($parent));
     }
 
     /**
@@ -147,7 +150,10 @@ class RootSpan
      */
     public static function shutdownHandler(ServerRequestInterface $request): void
     {
-        $scope = Context::storage()->scope();
+        // Use saved root scope directly — context storage scope() may return wrong scope
+        // if user instrumentation attached/detached scopes out of order (e.g. with OTEL_PHP_CUSTOM_INSTRUMENTATION_ENABLED).
+        $scope = self::$rootScope ?? Context::storage()->scope();
+        self::$rootScope = null;
         if (!$scope) {
             self::logDebug('Root span not created or ended too early');
             return;

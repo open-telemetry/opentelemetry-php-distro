@@ -309,8 +309,8 @@ main() {
         if [ "${DEV_ONLY_RESCOPE_DISTRO}" = "true" ]; then
             echo "Re-scoping distro code only for PHP version ${_PHP_VERSION_WITH_DOT} ..."
 
-            if [ ! -d "${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}/${_PHP_VERSION_WITHOUT_DOT}" ]; then
-                echo "Error: vendor dir ${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}/${_PHP_VERSION_WITHOUT_DOT} does not exist. Run full build first."
+            if [ ! -d "${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}/scoped/${_PHP_VERSION_WITHOUT_DOT}" ]; then
+                echo "Error: vendor dir ${_BUILT_PHP_CODE_FOR_PACKAGES_DIR}/scoped/${_PHP_VERSION_WITHOUT_DOT} does not exist. Run full build first."
                 exit 1
             fi
 
@@ -326,6 +326,11 @@ main() {
                 \
                 && chown -R ${current_user_id}:${current_user_group_id} ${_SCOPED_PHP_VERSION_IN_DOCKER_DIR}/OpenTelemetry/ \
                 && chmod -R +r,u+w ${_SCOPED_PHP_VERSION_IN_DOCKER_DIR}/OpenTelemetry/ \
+                \
+                && echo 'Generating unscoped API aliases' \
+                && php /tmp/repo/tools/build/generate_unscoped_api_aliases.php '${_SCOPER_PREFIX}' ${_SCOPED_PHP_VERSION_IN_DOCKER_DIR}/vendor ${_SCOPED_PHP_VERSION_IN_DOCKER_DIR}/unscoped_api_aliases.php \
+                && chown ${current_user_id}:${current_user_group_id} ${_SCOPED_PHP_VERSION_IN_DOCKER_DIR}/unscoped_api_aliases.php \
+                && chmod +r,u+w ${_SCOPED_PHP_VERSION_IN_DOCKER_DIR}/unscoped_api_aliases.php \
             "
         else
             echo "Building PHP code (production code and its dependencies) for the packages for PHP version ${_PHP_VERSION_WITH_DOT} ..."
@@ -384,6 +389,9 @@ main() {
                 && rm -rf ${_SCOPED_PHP_VERSION_IN_DOCKER_DIR}/vendor \
                 && mkdir -p ${_SCOPED_PHP_VERSION_IN_DOCKER_DIR}/vendor \
                 && cp -r ./vendor/. ${_SCOPED_PHP_VERSION_IN_DOCKER_DIR}/vendor/ \
+                \
+                && echo 'Generating unscoped API aliases' \
+                && php /tmp/repo/tools/build/generate_unscoped_api_aliases.php '${_SCOPER_PREFIX}' ${_SCOPED_PHP_VERSION_IN_DOCKER_DIR}/vendor ${_SCOPED_PHP_VERSION_IN_DOCKER_DIR}/unscoped_api_aliases.php \
                 \
                 && echo 'Scoping distro code with prefix ${_SCOPER_PREFIX}' \
                 && ${SCOPE_DISTRO_CMD} \
