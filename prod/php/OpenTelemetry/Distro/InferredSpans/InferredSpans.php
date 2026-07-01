@@ -16,6 +16,7 @@ use OpenTelemetry\API\Trace\SpanKind;
 use OpenTelemetry\API\Trace\TracerInterface;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextStorageScopeInterface;
+use OpenTelemetry\Context\ScopeInterface;
 use OpenTelemetry\Distro\Util\OTelUtil;
 use OpenTelemetry\SDK\Trace\Span;
 use OpenTelemetry\SemConv\Attributes\CodeAttributes;
@@ -28,7 +29,7 @@ use WeakReference;
 /**
  * @phpstan-type StackTraceFrameCallType '->'|'::'
  * @phpstan-type ExtendedStackTraceFrame array{function: string, line?: int, file?: string, class?: class-string, type?: StackTraceFrameCallType, span: WeakReference<SpanInterface>,
- *  context: WeakReference<ContextInterface>, scope: WeakReference<ContextStorageScopeInterface>, stackTraceId: int}
+ *  context: WeakReference<ContextInterface>, scope: ContextStorageScopeInterface, stackTraceId: int}
  * @phpstan-type ExtendedStackTrace array<string|int, ExtendedStackTraceFrame>
  * @phpstan-type DebugBackTraceFrame array{function: string, line?: int, file?: string, class?: class-string, type?: StackTraceFrameCallType, args?: array<mixed>, object?: object}
  * @phpstan-type DebugBackTrace array<non-negative-int, DebugBackTraceFrame>
@@ -377,7 +378,7 @@ class InferredSpans
         $newFrame = $frame;
         $newFrame[self::METADATA_SPAN] = WeakReference::create($span);
         $newFrame[self::METADATA_CONTEXT] = WeakReference::create($context);
-        $newFrame[self::METADATA_SCOPE] = WeakReference::create($scope);
+        $newFrame[self::METADATA_SCOPE] = $scope; // strong ref: keeps context/span alive even if detached externally
         $newFrame[self::METADATA_STACKTRACE_ID] = $stackTraceId;
 
         self::logDebug("Span started: " . $newFrame['function'] . " parentContext: " . ($parentContext ? "custom" : "default") . " stackTraceId: " . $stackTraceId);
@@ -404,16 +405,26 @@ class InferredSpans
             return;
         }
 
+        $scope = $frame[self::METADATA_SCOPE]; // strong ref — scope (and its context/span) kept alive by InferredSpans
+
         if ($dropSpan) {
             self::logDebug("Span dropped:   " . $span->getName() . ' StackTraceId: ' . $frame[self::METADATA_STACKTRACE_ID]);
-            $frame[self::METADATA_SCOPE]->get()?->detach();
+            $scope->detach(); // safe: returns DETACHED flag if already detached by third party, no crash
             return;
         }
 
-        $scope = Context::storage()->scope();
-        $scope?->detach();
+        $detachResult = $scope->detach();
 
-        if (!$scope || $scope->context() === Context::getCurrent()) {
+        if ($detachResult & ScopeInterface::DETACHED) {
+            // Scope was already detached by a third-party hook using Context::storage()->scope() anti-pattern
+            // (e.g. opentelemetry-auto-curl POST hook). The strong ref above kept context and span alive,
+            // so we can still end the span — child spans (e.g. user's billing.charge) will not be orphaned.
+            $span->end($endEpochNanos);
+            self::logDebug("Span finished (scope detached externally): " . $span->getName() . ' StackTraceId: ' . $frame[self::METADATA_STACKTRACE_ID]);
+            return;
+        }
+
+        if ($scope->context() === Context::getCurrent()) {
             return;
         }
 
