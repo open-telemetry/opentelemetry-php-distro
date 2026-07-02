@@ -151,7 +151,7 @@ class RootSpan
     public static function shutdownHandler(ServerRequestInterface $request): void
     {
         // Use saved root scope directly — context storage scope() may return wrong scope
-        // if user instrumentation attached/detached scopes out of order (e.g. with OTEL_PHP_CUSTOM_INSTRUMENTATION_ENABLED).
+        // if user instrumentation attached/detached scopes out of order (e.g. with OTEL_PHP_SCOPED_DEPS_BRIDGE_ENABLED).
         $scope = self::$rootScope ?? Context::storage()->scope();
         self::$rootScope = null;
         if (!$scope) {

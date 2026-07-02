@@ -88,7 +88,7 @@ final class PhpPartFacade
             self::prepareForOTelSdk();
 
             self::registerAutoloaderForVendorDir();
-            CustomInstrumentationBridge::load(self::$vendorCustomizations);
+            ScopedDepsBridge::load(self::$vendorCustomizations);
 
             // User's bootstrap .php file might register remote config handler so it has to be called before remote config handler
             self::loadUserBootstrapPhpFile();
@@ -336,7 +336,7 @@ final class PhpPartFacade
         $context = $span->storeInContext($parent);
         // Push our own scope reference instead of relying on Context::storage()->scope() in the post-hook -
         // that would read whatever is currently on top, which may belong to code that ran during this call
-        // (e.g. user instrumentation bridged via OTEL_PHP_CUSTOM_INSTRUMENTATION_ENABLED) rather than this hook.
+        // (e.g. user instrumentation bridged via OTEL_PHP_SCOPED_DEPS_BRIDGE_ENABLED) rather than this hook.
         self::$debugHookScopeStack[] = Context::storage()->attach($context);
     }
 

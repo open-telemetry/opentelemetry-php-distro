@@ -6,7 +6,7 @@ namespace OTelDistroTests\UnitTests;
 
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\Context\Context;
-use OpenTelemetry\Distro\CustomInstrumentationBridge;
+use OpenTelemetry\Distro\ScopedDepsBridge;
 use OpenTelemetry\Distro\Log\LogBackend;
 use OpenTelemetry\Distro\Log\LogLevel;
 use OpenTelemetry\SDK\Sdk;
@@ -14,10 +14,10 @@ use OTelDistroTests\UnitTests\UtilTests\ProdLogTests\LogBackendTestUtil;
 use OTelDistroTests\Util\TestCaseBase;
 use ReflectionMethod;
 
-final class CustomInstrumentationBridgeVersionWarningTest extends TestCaseBase
+final class ScopedDepsBridgeVersionWarningTest extends TestCaseBase
 {
     /**
-     * Exercises CustomInstrumentationBridge::warnIfVersionMismatch() directly via Reflection (it is
+     * Exercises ScopedDepsBridge::warnIfVersionMismatch() directly via Reflection (it is
      * private, called only from a shutdown function registered by load()).
      *
      * Forces the 3 probe classes to autoload as plain unscoped classes first - this reproduces the
@@ -38,7 +38,7 @@ final class CustomInstrumentationBridgeVersionWarningTest extends TestCaseBase
         };
         $tempLogBackend = new LogBackend(maxEnabledLevel: LogLevel::warning->value, sourceCodeRootDirs: [], formatAndWrite: $formatAndWrite);
 
-        $warnIfVersionMismatch = new ReflectionMethod(CustomInstrumentationBridge::class, 'warnIfVersionMismatch');
+        $warnIfVersionMismatch = new ReflectionMethod(ScopedDepsBridge::class, 'warnIfVersionMismatch');
         $warnIfVersionMismatch->setAccessible(true);
 
         $bundledVersions = [
@@ -72,7 +72,7 @@ final class CustomInstrumentationBridgeVersionWarningTest extends TestCaseBase
         };
         $tempLogBackend = new LogBackend(maxEnabledLevel: LogLevel::warning->value, sourceCodeRootDirs: [], formatAndWrite: $formatAndWrite);
 
-        $warnIfVersionMismatch = new ReflectionMethod(CustomInstrumentationBridge::class, 'warnIfVersionMismatch');
+        $warnIfVersionMismatch = new ReflectionMethod(ScopedDepsBridge::class, 'warnIfVersionMismatch');
         $warnIfVersionMismatch->setAccessible(true);
 
         LogBackendTestUtil::saveActOnTempInstanceRestore(

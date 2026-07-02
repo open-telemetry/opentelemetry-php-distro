@@ -92,11 +92,11 @@ opentelemetry_distro.enabled=true
 | --- | --- | --- | --- |
 | `OTEL_PHP_ATTR_HOOKS_ENABLED` | `false` | `true` or `false` | Enables `#[WithSpan]` / `#[SpanAttribute]` attribute-based span creation. See [Attribute-based instrumentation](attribute-instrumentation.md). |
 
-### Custom instrumentation
+### Scoped dependencies bridge
 
 | Option | Default | Accepted values | Description |
 | --- | --- | --- | --- |
-| `OTEL_PHP_CUSTOM_INSTRUMENTATION_ENABLED` | `false` | `true` or `false` | Lets the application's own OpenTelemetry instrumentation share the distro's runtime (tracer provider, context) so custom spans join the distro's traces. See [the note below](#custom-instrumentation-interop). |
+| `OTEL_PHP_SCOPED_DEPS_BRIDGE_ENABLED` | `false` | `true` or `false` | Lets the application's own OpenTelemetry usage (instrumentation it writes itself, or officially published auto-instrumentation packages it installs on its own) share the distro's runtime (tracer provider, context) so its spans join the distro's traces. See [the note below](#scoped-dependencies-bridge-interop). |
 
 ### Inferred spans
 
@@ -137,15 +137,15 @@ opentelemetry_distro.enabled=true
 - `OTEL_PHP_AUTOLOAD_ENABLED` is enforced as enabled by the distro runtime.
 - The distro package includes multiple dependencies such as OpenTelemetry SDK, various auto-instrumentation, their transitive dependencies, etc. It's possible that the monitored application includes dependencies that might clash with the ones in the distro package. This in turn might cause the application to malfunction. In order to prevent that the distro uses **scoped** dependencies by default. The scoping of dependencies' code achieved by adding a unique prefix to their namespaces. Since PHP runtime has runtime reflection changing namespaces theoretically might not be compatible with some corner cases code. In order to allow falling back to the original (i.e., not scoped) dependencies configuration option `scoped_deps_enabled` (`OTEL_PHP_SCOPED_DEPS_ENABLED` environment variable) can be set to `false`.
 
-### Custom instrumentation interop
+### Scoped dependencies bridge interop
 
-By default the distro's OpenTelemetry runtime is **scoped** (see the note above): its classes live under a unique namespace prefix, separate from the standard `OpenTelemetry\*` classes an application would install via Composer. As a result, instrumentation the application writes itself — using the public `OpenTelemetry\API\*` / `OpenTelemetry\Context\*` / `OpenTelemetry\SDK\*` API and the `OpenTelemetry\Instrumentation\hook()` function — runs against a **separate** runtime: its spans use a no-op tracer provider and an empty context, so they are neither exported nor connected to the distro's traces.
+By default the distro's OpenTelemetry runtime is **scoped** (see the note above): its classes live under a unique namespace prefix, separate from the standard `OpenTelemetry\*` classes an application would install via Composer. As a result, the application's own OpenTelemetry usage — instrumentation it writes itself, or officially published auto-instrumentation packages it installs on its own (for example `open-telemetry/opentelemetry-auto-pdo`), using the public `OpenTelemetry\API\*` / `OpenTelemetry\Context\*` / `OpenTelemetry\SDK\*` API and the `OpenTelemetry\Instrumentation\hook()` function — runs against a **separate** runtime: its spans use a no-op tracer provider and an empty context, so they are neither exported nor connected to the distro's traces.
 
-Setting `OTEL_PHP_CUSTOM_INSTRUMENTATION_ENABLED=true` bridges the two: before the application's Composer autoloader runs, the distro registers class aliases mapping the unscoped `OpenTelemetry\*` API onto its scoped implementation. The application's own instrumentation then transparently uses the distro's tracer provider and context, so its spans are exported and correctly parented within the distro's traces. This also enables user-installed auto-instrumentation packages (for example `open-telemetry/opentelemetry-auto-pdo`) to emit connected spans.
+Setting `OTEL_PHP_SCOPED_DEPS_BRIDGE_ENABLED=true` bridges the two: before the application's Composer autoloader runs, the distro registers class aliases mapping the unscoped `OpenTelemetry\*` API onto its scoped implementation. The application's own OpenTelemetry usage then transparently uses the distro's tracer provider and context, so its spans are exported and correctly parented within the distro's traces.
 
 Because the distro ships specific versions of the OpenTelemetry packages, when this option is enabled the distro checks at shutdown whether the application has installed different versions of `open-telemetry/api`, `open-telemetry/context`, or `open-telemetry/sdk`, and logs a warning for each mismatch (the distro's bundled version is the one actually used at runtime). If the versions differ significantly the shared runtime may behave unexpectedly; align the application's versions with the distro's to avoid this.
 
-This option has no effect when scoping is disabled (`OTEL_PHP_SCOPED_DEPS_ENABLED=false`): without scoping the distro already uses the unscoped `OpenTelemetry\*` classes that the application uses, so custom instrumentation shares the runtime without any bridging.
+This option has no effect when scoping is disabled (`OTEL_PHP_SCOPED_DEPS_ENABLED=false`): without scoping the distro already uses the unscoped `OpenTelemetry\*` classes that the application uses, so its OpenTelemetry usage shares the runtime without any bridging.
 
 ## File-based configuration (declarative)
 

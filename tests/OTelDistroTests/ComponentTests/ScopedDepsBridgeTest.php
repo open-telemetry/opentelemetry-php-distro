@@ -23,24 +23,25 @@ use OTelDistroTests\Util\MixedMap;
  * @group smoke
  * @group does_not_require_external_services
  */
-final class CustomInstrumentationBridgeTest extends ComponentTestCaseBase
+final class ScopedDepsBridgeTest extends ComponentTestCaseBase
 {
-    private const BRIDGE_ENABLED_KEY = 'custom_instrumentation_enabled';
+    private const BRIDGE_ENABLED_KEY = 'scoped_deps_bridge_enabled';
 
-    private const INSTRUMENTATION_SCOPE_NAME = 'test.custom.instrumentation';
-    private const CUSTOM_SPAN_NAME = 'test.custom.instrumentation.span';
+    private const INSTRUMENTATION_SCOPE_NAME = 'test.scoped_deps_bridge';
+    private const CUSTOM_SPAN_NAME = 'test.scoped_deps_bridge.span';
 
     // -------------------------------------------------------------------------
     // App code — runs in the spawned PHP process
     // -------------------------------------------------------------------------
 
     /**
-     * Mimics an application's own (unscoped) OpenTelemetry instrumentation.
+     * Mimics the app's own (unscoped) OpenTelemetry usage - either instrumentation the app writes
+     * itself, or an officially published auto-instrumentation package it installs on its own.
      *
-     * Uses the same probe classes CustomInstrumentationBridge checks (Globals, Context): when the
-     * bridge is enabled these are aliased onto the distro's scoped runtime, so the span shares the
-     * active root span's trace/context; when disabled they resolve to the app's own vendor copy and
-     * its own separately auto-configured TracerProvider, so the span is exported as its own root.
+     * Uses the same probe classes ScopedDepsBridge checks (Globals, Context): when the bridge is
+     * enabled these are aliased onto the distro's scoped runtime, so the span shares the active root
+     * span's trace/context; when disabled they resolve to the app's own vendor copy and its own
+     * separately auto-configured TracerProvider, so the span is exported as its own root.
      */
     public static function appCode(MixedMap $appCodeRequestArgs): void
     {
@@ -60,7 +61,7 @@ final class CustomInstrumentationBridgeTest extends ComponentTestCaseBase
     /**
      * @return iterable<string, array{MixedMap}>
      */
-    public static function dataProviderForTestCustomInstrumentationBridge(): iterable
+    public static function dataProviderForTestScopedDepsBridge(): iterable
     {
         return self::adaptDataProviderForTestBuilderToSmokeToDescToMixedMap(
             (new DataProviderForTestBuilder())
@@ -72,7 +73,7 @@ final class CustomInstrumentationBridgeTest extends ComponentTestCaseBase
     // Test implementation
     // -------------------------------------------------------------------------
 
-    private function implTestCustomInstrumentationBridge(MixedMap $testArgs): void
+    private function implTestScopedDepsBridge(MixedMap $testArgs): void
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
 
@@ -86,7 +87,7 @@ final class CustomInstrumentationBridgeTest extends ComponentTestCaseBase
                 self::ensureTransactionSpanEnabled($appCodeHostParams);
                 // The bridge only does anything for scoped builds - force it regardless of the matrix row.
                 $appCodeHostParams->setProdOption(OptionForProdName::scoped_deps_enabled, true);
-                $appCodeHostParams->setAdditionalEnvVar('OTEL_PHP_CUSTOM_INSTRUMENTATION_ENABLED', $bridgeEnabled ? 'true' : 'false');
+                $appCodeHostParams->setAdditionalEnvVar('OTEL_PHP_SCOPED_DEPS_BRIDGE_ENABLED', $bridgeEnabled ? 'true' : 'false');
             }
         );
 
@@ -124,14 +125,14 @@ final class CustomInstrumentationBridgeTest extends ComponentTestCaseBase
     }
 
     /**
-     * @dataProvider dataProviderForTestCustomInstrumentationBridge
+     * @dataProvider dataProviderForTestScopedDepsBridge
      */
-    public function testCustomInstrumentationBridge(MixedMap $testArgs): void
+    public function testScopedDepsBridge(MixedMap $testArgs): void
     {
         $this->runAndEscalateLogLevelOnFailure(
             self::buildDbgDescForTestWithArgs(__CLASS__, __FUNCTION__, $testArgs),
             function () use ($testArgs): void {
-                $this->implTestCustomInstrumentationBridge($testArgs);
+                $this->implTestScopedDepsBridge($testArgs);
             }
         );
     }

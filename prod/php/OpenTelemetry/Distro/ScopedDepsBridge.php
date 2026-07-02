@@ -8,13 +8,15 @@ use OpenTelemetry\Distro\Log\LogFeature;
 use OpenTelemetry\Distro\Log\LoggingClassTrait;
 
 /**
- * Bridges user (unscoped) OpenTelemetry instrumentation with the distro's scoped runtime.
+ * Bridges the app's own (unscoped) OpenTelemetry dependencies with the distro's scoped runtime -
+ * this covers both instrumentation the app writes itself and officially published
+ * open-telemetry-php auto-instrumentation packages the app installs on its own, outside the distro.
  *
- * When OTEL_PHP_CUSTOM_INSTRUMENTATION_ENABLED=true, {@see self::load()} requires the generated
+ * When OTEL_PHP_SCOPED_DEPS_BRIDGE_ENABLED=true, {@see self::load()} requires the generated
  * unscoped_api_aliases.php which registers class_alias() entries mapping the scoped
  * OpenTelemetry\* classes back to their unscoped FQCNs. Registered before the app's Composer
- * autoloader runs, user instrumentation transparently shares the distro's Globals / Context /
- * TracerProvider instead of its own installed copy.
+ * autoloader runs, the app's own OpenTelemetry usage transparently shares the distro's
+ * Globals / Context / TracerProvider instead of its own installed copy.
  *
  * At shutdown it warns if the app's installed open-telemetry/* versions differ from the versions
  * the distro bundles (which are the ones actually used at runtime). It only inspects
@@ -25,7 +27,7 @@ use OpenTelemetry\Distro\Log\LoggingClassTrait;
  *
  * @internal
  */
-final class CustomInstrumentationBridge
+final class ScopedDepsBridge
 {
     use LoggingClassTrait;
 
@@ -45,29 +47,29 @@ final class CustomInstrumentationBridge
 
     public static function load(?VendorCustomizationsInterface $vendorCustomizations): void
     {
-        $envValue = getenv('OTEL_PHP_CUSTOM_INSTRUMENTATION_ENABLED');
+        $envValue = getenv('OTEL_PHP_SCOPED_DEPS_BRIDGE_ENABLED');
         if ($envValue === false || strtolower($envValue) !== 'true') {
             return;
         }
 
         // The bridge only applies to scoped builds. Without scoping the distro already uses the
-        // unscoped OpenTelemetry\* classes that user instrumentation uses, so no alias is needed
-        // (custom instrumentation shares the runtime natively) and there is no scoped/unscoped
-        // version split to check.
+        // unscoped OpenTelemetry\* classes that the app's own OpenTelemetry usage uses, so no alias
+        // is needed (the runtime is shared natively) and there is no scoped/unscoped version split
+        // to check.
         // @noinspection PhpUnnecessaryFullyQualifiedNameInspection
         if (!\OpenTelemetry\Distro\get_config_option_by_name('scoped_deps_enabled')) {
-            self::logDebug(__FUNCTION__)?->with(__LINE__, 'Scoping disabled; custom instrumentation bridge not needed');
+            self::logDebug(__FUNCTION__)?->with(__LINE__, 'Scoping disabled; scoped deps bridge not needed');
             return;
         }
 
         $aliasFile = ProdPhpDir::$fullPath . 'unscoped_api_aliases.php';
         if (!file_exists($aliasFile)) {
-            self::logError(__FUNCTION__)?->with(__LINE__, 'OTEL_PHP_CUSTOM_INSTRUMENTATION_ENABLED=true but alias file not found (non-scoped build?)', compact('aliasFile'));
+            self::logError(__FUNCTION__)?->with(__LINE__, 'OTEL_PHP_SCOPED_DEPS_BRIDGE_ENABLED=true but alias file not found (non-scoped build?)', compact('aliasFile'));
             return;
         }
 
         $logDebug = self::logDebug(__FUNCTION__);
-        $logDebug?->with(__LINE__, 'Loading custom instrumentation bridge', compact('aliasFile'));
+        $logDebug?->with(__LINE__, 'Loading scoped deps bridge', compact('aliasFile'));
 
         /** @var array<string,string> $_otelBundledVersions default overridden by the required file */
         $_otelBundledVersions = [];
@@ -75,7 +77,7 @@ final class CustomInstrumentationBridge
         $bundledVersions = $_otelBundledVersions;
         unset($_otelBundledVersions);
 
-        $logDebug?->with(__LINE__, 'Custom instrumentation bridge loaded');
+        $logDebug?->with(__LINE__, 'Scoped deps bridge loaded');
 
         $distroName = $vendorCustomizations?->getDistributionName() ?? self::DEFAULT_DISTRO_NAME;
         register_shutdown_function(static function () use ($bundledVersions, $distroName): void {
@@ -106,9 +108,9 @@ final class CustomInstrumentationBridge
                 if (!str_starts_with($resolvedName, $scopedPrefix)) {
                     self::logWarning(__FUNCTION__)?->with(
                         __LINE__,
-                        'OTEL_PHP_CUSTOM_INSTRUMENTATION_ENABLED: the app loaded its own '
+                        'OTEL_PHP_SCOPED_DEPS_BRIDGE_ENABLED: the app loaded its own '
                         . $probeClass . ' before the bridge alias was applied - '
-                        . 'custom instrumentation will not share the ' . $distroName . ' runtime (separate Globals/Context). '
+                        . 'the app\'s OpenTelemetry usage will not share the ' . $distroName . ' runtime (separate Globals/Context). '
                         . 'Ensure the ' . $distroName . ' bootstrap runs before the app\'s Composer autoloader.',
                         ['package' => $package, 'distro_bundled_version' => $distroVersion, 'app_version' => self::appInstalledVersion($package) ?? 'unknown']
                     );
@@ -126,7 +128,7 @@ final class CustomInstrumentationBridge
             if ($appVersion !== $distroVersion) {
                 self::logWarning(__FUNCTION__)?->with(
                     __LINE__,
-                    'OTEL_PHP_CUSTOM_INSTRUMENTATION_ENABLED: version mismatch for ' . $package . '. '
+                    'OTEL_PHP_SCOPED_DEPS_BRIDGE_ENABLED: version mismatch for ' . $package . '. '
                     . $distroName . ' bundles a different version than the app has installed. '
                     . 'This may cause incompatibilities.',
                     ['package' => $package, 'distro_bundled_version' => $distroVersion, 'app_version' => $appVersion]
