@@ -11,6 +11,7 @@ use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanKind;
 use OpenTelemetry\API\Trace\StatusCode;
 use OpenTelemetry\Context\Context;
+use OpenTelemetry\Context\ContextStorageScopeInterface;
 use OpenTelemetry\Distro\HttpTransport\NativeHttpTransportFactory;
 use OpenTelemetry\Distro\InferredSpans\InferredSpans;
 use OpenTelemetry\Distro\Log\LogBackend;
@@ -43,6 +44,8 @@ final class PhpPartFacade
 
     private static ?self $singletonInstance = null;
     private static bool $rootSpanEnded = false;
+    /** @var ContextStorageScopeInterface[] LIFO stack of scopes pushed by debugPreHook, popped by debugPostHook */
+    private static array $debugHookScopeStack = [];
     private static ?VendorCustomizationsInterface $vendorCustomizations = null;
     /** @var RemoteConfigConsumerInterface[] */
     private static array $remoteConfigConsumers = [];
@@ -331,7 +334,10 @@ final class PhpPartFacade
                        ->startSpan();
 
         $context = $span->storeInContext($parent);
-        Context::storage()->attach($context);
+        // Push our own scope reference instead of relying on Context::storage()->scope() in the post-hook -
+        // that would read whatever is currently on top, which may belong to code that ran during this call
+        // (e.g. user instrumentation bridged via OTEL_PHP_CUSTOM_INSTRUMENTATION_ENABLED) rather than this hook.
+        self::$debugHookScopeStack[] = Context::storage()->attach($context);
     }
 
     /**
@@ -347,7 +353,7 @@ final class PhpPartFacade
             return;
         }
 
-        $scope = Context::storage()->scope();
+        $scope = array_pop(self::$debugHookScopeStack);
         if (!$scope) {
             return;
         }

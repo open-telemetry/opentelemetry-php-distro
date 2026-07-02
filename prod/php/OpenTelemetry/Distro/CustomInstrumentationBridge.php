@@ -32,16 +32,15 @@ final class CustomInstrumentationBridge
     private const DEFAULT_DISTRO_NAME = 'OpenTelemetry PHP Distro';
 
     /**
-     * Key packages to check. Aliased packages (api, context) have a probe class used to detect
-     * whether the app loaded its own copy before the bridge alias was applied. SDK is aliased too
-     * but has no single probe class, so it gets a version check only.
+     * Key packages to check. Each has a probe class used to detect whether the app loaded its own
+     * copy before the bridge alias was applied.
      *
-     * @var array<string, ?string>  package name => probe class (null = version check only)
+     * @var array<string, string>  package name => probe class
      */
     private const CHECK_PACKAGES = [
         'open-telemetry/api'     => 'OpenTelemetry\\API\\Globals',
         'open-telemetry/context' => 'OpenTelemetry\\Context\\Context',
-        'open-telemetry/sdk'     => null,
+        'open-telemetry/sdk'     => 'OpenTelemetry\\SDK\\Sdk',
     ];
 
     public static function load(?VendorCustomizationsInterface $vendorCustomizations): void
@@ -101,8 +100,8 @@ final class CustomInstrumentationBridge
                 continue;
             }
 
-            // Check bridge alias validity for aliased packages (api, context).
-            if ($probeClass !== null && (class_exists($probeClass, false) || interface_exists($probeClass, false))) {
+            // Check bridge alias validity: did the app's own copy of the probe class win over the alias?
+            if (class_exists($probeClass, false) || interface_exists($probeClass, false)) {
                 $resolvedName = (new \ReflectionClass($probeClass))->getName();
                 if (!str_starts_with($resolvedName, $scopedPrefix)) {
                     self::logWarning(__FUNCTION__)?->with(
