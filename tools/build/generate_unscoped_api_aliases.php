@@ -11,7 +11,7 @@
  * transparently uses the scoped runtime without requiring a separate SDK installation.
  *
  * This solves the interoperability issue described in elastic/elastic-otel-php#386:
- *   - EDOT PHP scopes its bundled dependencies under OTelDistroScoped\ to avoid conflicts
+ *   - OpenTelemetry PHP Distro scopes its bundled dependencies under OTelDistroScoped\ to avoid conflicts
  *   - User instrumentation uses the public unscoped OpenTelemetry\API\* / OpenTelemetry\Context\* API
  *   - Without aliases, both sides have separate Globals / Context storage → spans not connected
  *   - With aliases registered before user's autoloader, both sides use the same PHP class → shared state
@@ -54,11 +54,12 @@ if (!is_dir($vendorDir)) {
     exit(1);
 }
 
-// Packages whose public API/Context classes need unscoped aliases.
+// Packages whose public classes need unscoped aliases.
 // SemConv is excluded — it only contains string constants, no type system impact.
 $targetPackages = [
     'open-telemetry/api',
     'open-telemetry/context',
+    'open-telemetry/sdk',
 ];
 
 /**
@@ -161,6 +162,40 @@ function readInstalledVersion(string $vendorDir, string $packageName): string
     return 'unknown';
 }
 
+/**
+ * Read all installed open-telemetry/* package versions from vendor/composer/installed.json.
+ *
+ * @return array<string, string>  package-name => version
+ */
+function readAllOTelInstalledVersions(string $vendorDir): array
+{
+    $installedJson = $vendorDir . '/composer/installed.json';
+    if (!is_file($installedJson)) {
+        return [];
+    }
+    $data = json_decode((string) file_get_contents($installedJson), true);
+    if (!is_array($data)) {
+        return [];
+    }
+    $packages = isset($data['packages']) && is_array($data['packages']) ? $data['packages'] : $data;
+    $result = [];
+    foreach ($packages as $pkg) {
+        if (!is_array($pkg) || !isset($pkg['name'])) {
+            continue;
+        }
+        /** @var string $name */
+        $name = $pkg['name'];
+        if (!str_starts_with($name, 'open-telemetry/')) {
+            continue;
+        }
+        /** @var string $version */
+        $version = $pkg['version'] ?? 'unknown';
+        $result[$name] = $version;
+    }
+    ksort($result);
+    return $result;
+}
+
 // --- Scan packages ---
 
 /** @var array<string, string> $aliases Maps scoped FQCN => unscoped FQCN */
@@ -204,10 +239,11 @@ foreach ($targetPackages as $package) {
         }
         $unscopedFqcn = substr($scopedFqcn, strlen($prefixedNamespace));
 
-        // Only alias OpenTelemetry\API\* and OpenTelemetry\Context\*
+        // Only alias OpenTelemetry\API\*, OpenTelemetry\Context\*, and OpenTelemetry\SDK\*
         if (
             !str_starts_with($unscopedFqcn, 'OpenTelemetry\\API\\')
             && !str_starts_with($unscopedFqcn, 'OpenTelemetry\\Context\\')
+            && !str_starts_with($unscopedFqcn, 'OpenTelemetry\\SDK\\')
         ) {
             continue;
         }
@@ -220,6 +256,7 @@ ksort($aliases);
 
 $apiVersion = readInstalledVersion($vendorDir, 'open-telemetry/api');
 $contextVersion = readInstalledVersion($vendorDir, 'open-telemetry/context');
+$allOTelVersions = readAllOTelInstalledVersions($vendorDir);
 
 // --- Generate output file ---
 
@@ -251,6 +288,15 @@ $lines[] = '        class_alias($_otelScoped, $_otelUnscoped);';
 $lines[] = '    }';
 $lines[] = '}';
 $lines[] = 'unset($_otelAliases, $_otelScoped, $_otelUnscoped);';
+$lines[] = '';
+$lines[] = '// Bundled package versions — read by PhpPartFacade for version mismatch detection.';
+$lines[] = '// Not intended for use by application code.';
+$lines[] = '/** @var array<string,string> $_otelBundledVersions Maps open-telemetry/* package name => version */';
+$lines[] = '$_otelBundledVersions = [';
+foreach ($allOTelVersions as $pkgName => $pkgVersion) {
+    $lines[] = "    '{$pkgName}' => '{$pkgVersion}',";
+}
+$lines[] = '];';
 $lines[] = '';
 
 if (file_put_contents($outputFile, implode("\n", $lines)) === false) {
