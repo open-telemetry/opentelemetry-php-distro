@@ -1,5 +1,5 @@
 --TEST--
-instrumentation - user method - hook placed before class is declared fires on first call
+instrumentation - user method - mixed case hook placed before class is declared fires on first call
 --ENV--
 OTEL_PHP_LOG_LEVEL_STDERR=INFO
 --INI--
@@ -9,9 +9,7 @@ opentelemetry_distro.bootstrap_php_part_file={PWD}/includes/bootstrap_mock.inc
 <?php
 declare(strict_types=1);
 
-echo "Hooking class doesn't exist yet:".PHP_EOL;
-
-var_dump(\OpenTelemetry\Distro\hook("testclass", "userspace", function () {
+var_dump(\OpenTelemetry\Distro\hook("TESTCLASS", "USERSPACE", function () {
 	echo "*** prehook userspace()\n";
  }, function () {
 	echo "*** posthook userspace()\n";
@@ -26,7 +24,6 @@ var_dump($obj->userspace("first", 2, 3));
 echo "Test completed\n";
 ?>
 --EXPECTF--
-Hooking class doesn't exist yet:
 bool(true)
 *** prehook userspace()
 * userspace() body start.

@@ -3,6 +3,8 @@
 #include "AutoZval.h"
 #include "PhpBridge.h"
 #include "WithSpanAttributes.h"
+#include "Helpers.h"
+#include <Zend/zend_string.h>
 
 #include <main/php.h>
 #include <Zend/zend_API.h>
@@ -468,6 +470,76 @@ PHP_FUNCTION(getWithSpanMetadata) {
     RETURN_COPY(result.get());
 }
 
+// Exposes opentelemetry::php::hashClassAndFunctionNameLowercase() directly so phpt tests can
+// verify it against the hash zend_observer actually computes for a real call
+// (see getCurrentCallHash below) without needing to resolve the class/function at all.
+PHP_FUNCTION(hashClassAndFunctionNameLowercase) {
+    char *className = nullptr;
+    size_t classNameLen = 0;
+    char *functionName = nullptr;
+    size_t functionNameLen = 0;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+    Z_PARAM_STRING(className, classNameLen)
+    Z_PARAM_STRING(functionName, functionNameLen)
+    ZEND_PARSE_PARAMETERS_END();
+
+    zend_ulong hash = opentelemetry::php::hashClassAndFunctionNameLowercase(std::string_view(className, classNameLen), std::string_view(functionName, functionNameLen));
+    RETURN_LONG(static_cast<zend_long>(hash));
+}
+
+// Exposes opentelemetry::php::getClassAndFunctionHashFromExecuteData() for a real call frame -
+// i.e. the hash the observer dispatch path (registerObserverHandlers/observerFcallBeginHandler/
+// observerFcallEndHandler) would compute for that call. framesBack follows the same convention
+// as getFunctionName() above: 0 is this internal function's own frame, 1 is its immediate caller.
+PHP_FUNCTION(getCurrentCallHash) {
+    long framesBack = 0;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(framesBack)
+    ZEND_PARSE_PARAMETERS_END();
+
+    auto execData = EG(current_execute_data);
+    for (auto frame = 0; frame < framesBack; ++frame) {
+        execData = execData->prev_execute_data;
+        if (!execData) {
+            BRIDGE_G(globals)->logger->printf(LogLevel::logLevel_error, "test failure, can't go %d frames back", framesBack);
+            RETURN_NULL();
+            return;
+        }
+    }
+
+    zend_ulong hash = opentelemetry::php::getClassAndFunctionHashFromExecuteData(execData);
+    RETURN_LONG(static_cast<zend_long>(hash));
+}
+
+// Exposes opentelemetry::php::lowercaseHash() - our own DJBX33A-with-inline-tolower reimplementation - so it can be compared directly against PHP's actual built-in hash
+// function (zendBuiltinStringHash below) for the same (already-lowercased) bytes.
+PHP_FUNCTION(lowercaseHash) {
+    char *str = nullptr;
+    size_t strLen = 0;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STRING(str, strLen)
+    ZEND_PARSE_PARAMETERS_END();
+
+    zend_ulong hash = opentelemetry::php::lowercaseHash(std::string_view(str, strLen));
+    RETURN_LONG(static_cast<zend_long>(hash));
+}
+
+// Exposes PHP's actual built-in string hash function (zend_inline_hash_func, the same recurrence ZSTR_HASH() uses) directly, with no lowering
+PHP_FUNCTION(zendBuiltinStringHash) {
+    char *str = nullptr;
+    size_t strLen = 0;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STRING(str, strLen)
+    ZEND_PARSE_PARAMETERS_END();
+
+    zend_ulong hash = zend_inline_hash_func(str, strLen);
+    RETURN_LONG(static_cast<zend_long>(hash));
+}
+
 ZEND_BEGIN_ARG_INFO(no_paramters_arginfo, 0)
 ZEND_END_ARG_INFO()
 
@@ -500,6 +572,11 @@ const zend_function_entry phpbridge_functions[] = {
     PHP_FE( getPhpVersionMajorMinor, no_paramters_arginfo )
 
     PHP_FE( getWithSpanMetadata, no_paramters_arginfo )
+
+    PHP_FE( hashClassAndFunctionNameLowercase, no_paramters_arginfo )
+    PHP_FE( getCurrentCallHash, no_paramters_arginfo )
+    PHP_FE( lowercaseHash, no_paramters_arginfo )
+    PHP_FE( zendBuiltinStringHash, no_paramters_arginfo )
 
     PHP_FE_END
 };

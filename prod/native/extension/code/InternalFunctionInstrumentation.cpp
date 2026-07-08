@@ -5,6 +5,7 @@
 #include "WithSpanAttributes.h"
 #include "AttrHooksStorage.h"
 #include "LoggerInterface.h"
+#include "Helpers.h"
 
 #include "Zend/zend.h"
 #include "Zend/zend_exceptions.h"
@@ -427,62 +428,34 @@ bool instrumentFunction(LoggerInterface *log, std::string_view cName, std::strin
     std::transform(className.begin(), className.end(), className.begin(), [](unsigned char c){ return std::tolower(c); });
     std::transform(functionName.begin(), functionName.end(), functionName.begin(), [](unsigned char c){ return std::tolower(c); });
 
-    HashTable *table = nullptr;
-    zend_ulong classHash = 0;
-
-    if (className.empty()) { // looking for function
-        table = EG(function_table);
-    } else {
-        if (!EG(class_table)) {
-            ELOGF_DEBUG(log, INSTRUMENTATION, "instrumentFunction Class table is empty. Function " PRsv "::" PRsv " not found and cannot be instrumented.", PRsvArg(className), PRsvArg(functionName));
-            return false;
-        }
-
-        auto ce = static_cast<zend_class_entry *>(zend_hash_str_find_ptr(EG(class_table), className.data(), className.length()));
-        if (!ce) {
-            ELOGF_DEBUG(log, INSTRUMENTATION, "instrumentFunction Class not found. Function " PRsv "::" PRsv " not found and cannot be instrumented.", PRsvArg(className), PRsvArg(functionName));
-
-            if (log->doesMeetsLevelCondition(logLevel_trace)) {
-                zend_string *argStrKey = nullptr;
-                ZEND_HASH_FOREACH_STR_KEY(EG(class_table), argStrKey) {
-                    if (argStrKey) {
-                        ELOGF_DEBUG(log, INSTRUMENTATION, "instrumentFunction Class not found. Function " PRsv "::" PRsv " not found and cannot be instrumented. %s", PRsvArg(className), PRsvArg(functionName), ZSTR_VAL(argStrKey));
-                    }
-                }
-                ZEND_HASH_FOREACH_END();
-            }
-
-            return false;
-        }
-
-        table = &ce->function_table;
-        classHash = ZSTR_HASH(ce->name);
-    }
-
-    if (!table) {
-        return false;
-    }
-
-   	zend_function *func = reinterpret_cast<zend_function *>(zend_hash_str_find_ptr(table, functionName.data(), functionName.length()));
-    if (!func) {
-        ELOGF_DEBUG(log, INSTRUMENTATION, "instrumentFunction " PRsv "::" PRsv " not found and cannot be instrumented.", PRsvArg(className), PRsvArg(functionName));
-        return false;
-    }
-
-    zend_ulong funcHash = ZSTR_HASH(func->common.function_name);
-    zend_ulong hash = classHash ^ (funcHash << 1);
-
-    ELOGF_DEBUG(log, INSTRUMENTATION, "instrumentFunction 0x%X " PRsv "::" PRsv " type: %s is marked to be instrumented", hash, PRsvArg(className), PRsvArg(functionName), func->common.type == ZEND_INTERNAL_FUNCTION ? "internal" : "user");
+    zend_ulong hash = hashClassAndFunctionNameLowercase(className, functionName);
 
     reinterpret_cast<InstrumentedFunctionHooksStorage_t *>(OTEL_GL(hooksStorage_).get())->store(hash, AutoZval{callableOnEntry}, AutoZval{callableOnExit});
 
-    // we only keep original handler for internal (native) functions
-    if (func->common.type == ZEND_INTERNAL_FUNCTION) {
+    ELOGF_DEBUG(log, INSTRUMENTATION, "instrumentFunction 0x%X " PRsv "::" PRsv " hook stored", hash, PRsvArg(className), PRsvArg(functionName));
+
+    // Internal (native) functions don't go through zend_observer here (not supported on PHP 8.1), so their zif_handler must be patched eagerly. This requires the function to already be resolvable.
+    HashTable *table = nullptr;
+    if (className.empty()) {
+        table = EG(function_table);
+    } else if (EG(class_table)) {
+        auto ce = static_cast<zend_class_entry *>(zend_hash_str_find_ptr(EG(class_table), className.data(), className.length()));
+        if (ce) {
+            table = &ce->function_table;
+        }
+    }
+
+    zend_function *func = table ? reinterpret_cast<zend_function *>(zend_hash_str_find_ptr(table, functionName.data(), functionName.length())) : nullptr;
+    if (!func) {
+        ELOGF_DEBUG(log, INSTRUMENTATION, "instrumentFunction " PRsv "::" PRsv " not resolvable yet - hook left for lazy zend_observer resolution.", PRsvArg(className), PRsvArg(functionName));
+    } else if (func->common.type == ZEND_INTERNAL_FUNCTION) {
         if (func->internal_function.handler != internal_function_handler) {
             InternalStorage_t::getInstance().store(hash, func->internal_function.handler);
             func->internal_function.handler = internal_function_handler;
         }
-        ELOGF_DEBUG(log, INSTRUMENTATION, PRsv "::" PRsv " instrumented, key: 0x%X", PRsvArg(className), PRsvArg(functionName), hash);
+        ELOGF_DEBUG(log, INSTRUMENTATION, "instrumentFunction " PRsv "::" PRsv " instrumented as internal function, key: 0x%X", PRsvArg(className), PRsvArg(functionName), hash);
+    } else {
+        ELOGF_DEBUG(log, INSTRUMENTATION, "instrumentFunction " PRsv "::" PRsv " already declared as a user-space function - will be instrumented on first call, key: 0x%X", PRsvArg(className), PRsvArg(functionName), hash);
     }
 
     return true;
@@ -569,9 +542,9 @@ zend_observer_fcall_handlers registerObserverHandlers(zend_execute_data *execute
         auto ce = execute_data->func->common.scope;
         if (ce) {
             for (uint32_t i = 0; i < ce->num_interfaces; ++i) {
-                auto classHash = ZSTR_HASH(ce->interfaces[i]->name);
-                zend_ulong funcHash = ZSTR_HASH(execute_data->func->common.function_name);
-                zend_ulong ifaceHash = classHash ^ (funcHash << 1);
+                std::string_view ifaceName{ZSTR_VAL(ce->interfaces[i]->name), ZSTR_LEN(ce->interfaces[i]->name)};
+                std::string_view funcName{ZSTR_VAL(execute_data->func->common.function_name), ZSTR_LEN(execute_data->func->common.function_name)};
+                zend_ulong ifaceHash = hashClassAndFunctionNameLowercase(ifaceName, funcName);
 
                 callbacks = reinterpret_cast<InstrumentedFunctionHooksStorage_t *>(OTEL_GL(hooksStorage_).get())->find(ifaceHash);
                 if (callbacks) {
