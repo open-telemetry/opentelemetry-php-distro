@@ -226,6 +226,30 @@ function build_command_to_derive_for_test() {
     echo "composer --no-scripts --no-update --quiet remove ${not_dev_deps_to_remove}"
 }
 
+function add_provide_entries_for_bundled_framework_deps() {
+    local composer_json_full_path="${1:?}"
+
+    # opentelemetry-auto-slim's/-laravel's own `require: slim/slim` / `require:
+    # laravel/framework` must be satisfied without actually bundling those
+    # frameworks into the shipped package - `provide` tells Composer "the root
+    # package itself satisfies this package name" without a real install.
+    #
+    # This can NOT live in the root composer.json: dev/test envs need a REAL
+    # install of slim/slim and laravel/framework (component tests exercise real
+    # Slim/Laravel code) via require-dev entries for the same package names,
+    # and Composer treats the root's own `provide` claim as already satisfying
+    # those require-dev constraints, silently skipping the real install. It
+    # also can't live in root because verifyGeneratedComposerLockFiles asserts
+    # dev.json is byte-identical to composer.json. So `provide` is injected
+    # here, only for the prod/prod_static_check derivations, which drop
+    # require-dev (`--no-dev`) and would otherwise try to install the real
+    # frameworks to satisfy the auto-instrumentation packages' inner require.
+    local tmp_file
+    tmp_file="$(mktemp)"
+    jq '.provide = {"slim/slim": "*", "laravel/framework": "*"}' "${composer_json_full_path}" >"${tmp_file}"
+    mv "${tmp_file}" "${composer_json_full_path}"
+}
+
 function build_generated_composer_json_full_path() {
     local _STAGE_DIR="${1:?}"
     local _ENV_KIND="${2:?}"
@@ -420,6 +444,15 @@ function main() {
 
     for env_kind in "prod" "prod_static_check" "test"; do
         derive_composer_json_for_env_kind "${GENERATED_COMPOSER_LOCK_FILES_STAGE_DIR}" "${env_kind}"
+    done
+
+    # prod and prod_static_check drop require-dev (--no-dev / most dev deps
+    # removed) and need `provide` added back so opentelemetry-auto-slim's/
+    # -laravel's own inner requirement is satisfied without bundling those
+    # frameworks. dev and test keep the real require-dev entries as-is (no
+    # provide) so component tests get a real Slim/Laravel install.
+    for env_kind in "prod" "prod_static_check"; do
+        add_provide_entries_for_bundled_framework_deps "$(build_generated_composer_json_full_path "${GENERATED_COMPOSER_LOCK_FILES_STAGE_DIR}" "${env_kind}")"
     done
 
     for env_kind in "dev" "prod" "prod_static_check" "test"; do

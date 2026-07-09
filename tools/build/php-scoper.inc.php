@@ -141,6 +141,22 @@ return [
         'Psr\\Http\\Message',
         'Http\\Client',
         'Http\\Promise',
+        // Anchored regexes (not plain namespace strings): a plain 'Slim' or
+        // 'Illuminate' string matches anywhere in the FQCN, not just as the
+        // leading segment — it would also swallow the distro's own internal
+        // OpenTelemetry\Contrib\Instrumentation\Laravel\Hooks\Illuminate\...
+        // namespace, leaving it unprefixed and breaking autoloading.
+        // The optional (\\.*)? group also covers single-segment namespaces
+        // like Slim\App, where the "namespace" part is bare "Slim" with no
+        // trailing backslash.
+        '~^Slim(\\\\.*)?$~',
+        '~^Illuminate(\\\\.*)?$~',
+        // Illuminate\Http\Response (real, unscoped) extends the real
+        // Symfony\Component\HttpFoundation\Response. The Laravel hooks
+        // type-hint their $response param against this Symfony class, so it
+        // must stay unscoped too or the real Illuminate\Http\Response object
+        // fails the (scoped) type check with a TypeError at hook-call time.
+        '~^Symfony\\\\Component\\\\HttpFoundation(\\\\.*)?$~',
     ],
     'exclude-functions' => [
         'OpenTelemetry\\Distro\\log_feature',
