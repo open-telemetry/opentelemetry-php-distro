@@ -171,6 +171,7 @@ function should_remove_not_dev_dep_for_test() {
     local package_prefixes_to_remove_if_present=("open-telemetry/opentelemetry-auto-")
     local packages_to_remove_if_present=("php-http/guzzle7-adapter")
     packages_to_remove_if_present+=("nyholm/psr7-server")
+    packages_to_remove_if_present+=("open-telemetry/opentelemetry-metrics-runtime")
 
     for package_prefix_to_remove_if_present in "${package_prefixes_to_remove_if_present[@]}" ; do
         if [[ "${dep_name}" == "${package_prefix_to_remove_if_present}"* ]]; then

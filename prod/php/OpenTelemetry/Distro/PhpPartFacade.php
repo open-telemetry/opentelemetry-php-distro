@@ -49,6 +49,11 @@ final class PhpPartFacade
     private static ?VendorCustomizationsInterface $vendorCustomizations = null;
     /** @var RemoteConfigConsumerInterface[] */
     private static array $remoteConfigConsumers = [];
+    /**
+     * Set at the very start of bootstrap(), before registerAutoloaderForVendorDir() runs, so that
+     * earlySetup() (invoked as a Composer "files" autoload entry during that require) can read it.
+     */
+    private static ?string $nativePartVersion = null;
     private ?InferredSpans $inferredSpans = null;
 
     public const ENABLED_OPT_NAME = 'enabled';
@@ -66,6 +71,8 @@ final class PhpPartFacade
     public static function bootstrap(string $nativePartVersion, int $maxEnabledLogLevel, float $requestInitStartTime): bool
     {
         self::$wasBootstrapCalled = true;
+        // Must be set before registerAutoloaderForVendorDir() below so that earlySetup() can read it.
+        self::$nativePartVersion = $nativePartVersion;
 
         LogBackend::initSingletonInstance(new LogBackend(maxEnabledLevel: $maxEnabledLogLevel, sourceCodeRootDirs: [ProdPhpDir::$fullPath]));
         $logDebug = self::logDebug(__FUNCTION__);
@@ -99,7 +106,10 @@ final class PhpPartFacade
                 // RemoteConfigHandler::fetchAndApply depends on OTel SDK so it has to be called after autoloader for OTel SDK is registered
                 RemoteConfigHandler::fetchAndApply();
             }
-            // OverrideOTelSdkResourceAttributes::register depends on OTel SDK so it has to be called after autoloader for OTel SDK is registered
+            // These are also called (earlier) by earlySetup() in scoped builds, where earlySetup.php is wired
+            // into the Composer "files" autoload so registration happens before an eagerly-initializing
+            // auto-instrumentation can build the SDK. In non-scoped builds earlySetup() is not wired, so these
+            // calls here are the ones that take effect. All are idempotent, so the double call is harmless.
             OverrideOTelSdkResourceAttributes::register($nativePartVersion, self::$vendorCustomizations);
             // For file-based config, also register as SPI ComponentProvider so it can be referenced in YAML detectors
             DistroDetectorComponentProvider::registerSpi();
@@ -243,6 +253,8 @@ final class PhpPartFacade
 
     public static function earlySetup(): void
     {
+        OverrideOTelSdkResourceAttributes::register(self::$nativePartVersion ?? PhpPartVersion::VALUE, self::$vendorCustomizations);
+        DistroDetectorComponentProvider::registerSpi();
         self::registerNativeOtlpSerializer();
         self::registerAsyncTransportFactory();
     }

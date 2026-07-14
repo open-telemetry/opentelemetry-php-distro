@@ -57,6 +57,12 @@ Supported PHP versions: `8.1` to `8.5`.
 | psr18 | 0.5 | [open-telemetry/opentelemetry-auto-psr18](https://packagist.org/packages/open-telemetry/opentelemetry-auto-psr18) |
 | slim | 1.0 | [open-telemetry/opentelemetry-auto-slim](https://packagist.org/packages/open-telemetry/opentelemetry-auto-slim) |
 
+## Included metrics packages
+
+| Included from distro version | Package                                                                                                                     | Emitted metrics                          |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| 0.6.0                        | [open-telemetry/opentelemetry-metrics-runtime](https://packagist.org/packages/open-telemetry/opentelemetry-metrics-runtime) | PHP memory usage, GC cycles, peak memory |
+
 ## Additional runtime features
 
 - Automatic root span creation
@@ -64,5 +70,6 @@ Supported PHP versions: `8.1` to `8.5`.
 - Inferred spans
 - [Attribute-based instrumentation](attribute-instrumentation.md) (`#[WithSpan]`, `#[SpanAttribute]`)
 - Background telemetry sending
+- PHP runtime metrics (memory, GC - exported automatically via the native async transport)
 
 Background sending (non-blocking export) works with OTLP `http/protobuf` (default). If exporter/protocol changes to unsupported transport (for example gRPC), export becomes synchronous.

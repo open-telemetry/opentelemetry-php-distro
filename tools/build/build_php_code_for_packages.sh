@@ -374,6 +374,7 @@ main() {
                 && rm -rf ${_NOT_SCOPED_VENDOR_PHP_VERSION_IN_DOCKER_DIR} \
                 && mkdir -p ${_NOT_SCOPED_VENDOR_PHP_VERSION_IN_DOCKER_DIR} \
                 && cp -r /tmp/repo/vendor/. ${_NOT_SCOPED_VENDOR_PHP_VERSION_IN_DOCKER_DIR}/ \
+                && php /tmp/repo/tools/build/fix_composer_autoload_order.php ${_NOT_SCOPED_VENDOR_PHP_VERSION_IN_DOCKER_DIR} \
                 \
                 && chown -R ${current_user_id}:${current_user_group_id} ${_NOT_SCOPED_VENDOR_PHP_VERSION_IN_DOCKER_DIR}/ \
                 && chmod -R +r,u+w ${_NOT_SCOPED_VENDOR_PHP_VERSION_IN_DOCKER_DIR}/ \
@@ -385,6 +386,7 @@ main() {
                 && cd /tmp/repo \
                 && rm -rf /tmp/repo/vendor \
                 && php ./tools/build/fix_scoped_composer_autoload.php '${_SCOPER_PREFIX}' /tmp/repo/vendor-scoped \
+                && php ./tools/build/fix_composer_autoload_order.php /tmp/repo/vendor-scoped \
                 && mv /tmp/repo/vendor-scoped /tmp/repo/vendor \
                 && rm -rf ${_SCOPED_PHP_VERSION_IN_DOCKER_DIR}/vendor \
                 && mkdir -p ${_SCOPED_PHP_VERSION_IN_DOCKER_DIR}/vendor \

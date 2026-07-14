@@ -34,6 +34,14 @@ final class MockOTelCollector extends TestInfraHttpServerProcessBase
 {
     public const MOCK_API_URI_PREFIX = '/mock_OTel_Collector_API/';
     private const INTAKE_TRACE_DATA_URI_PATH = '/v1/traces';
+    /**
+     * Metrics/logs are not deserialized/accumulated by AgentBackendCommsAccumulator (trace-only) - these
+     * paths exist so intake requests for signals the distro emits incidentally (e.g. runtime metrics
+     * flushed on request shutdown) are acknowledged instead of falling through and crashing on the
+     * missing spawnedProcessInternalId header that only real telemetry intake requests are exempt from.
+     */
+    private const INTAKE_METRICS_DATA_URI_PATH = '/v1/metrics';
+    private const INTAKE_LOGS_DATA_URI_PATH = '/v1/logs';
     public const GET_AGENT_BACKEND_COMM_EVENTS_URI_SUBPATH = 'get_Agent_Backend_comm_events';
     public const FROM_INDEX_HEADER_NAME = RequestHeadersRawSnapshotSource::HEADER_NAMES_PREFIX . 'FROM_INDEX';
     public const SHOULD_WAIT_HEADER_NAME = RequestHeadersRawSnapshotSource::HEADER_NAMES_PREFIX . 'SHOULD_WAIT';
@@ -100,6 +108,13 @@ final class MockOTelCollector extends TestInfraHttpServerProcessBase
             return $this->processIntakeDataRequest($request, OTelSignalType::trace);
         }
 
+        if (
+            $request->getUri()->getPath() === self::INTAKE_METRICS_DATA_URI_PATH
+            || $request->getUri()->getPath() === self::INTAKE_LOGS_DATA_URI_PATH
+        ) {
+            return new Response(/* status: */ 202);
+        }
+
         if (TextUtil::isPrefixOf(self::MOCK_API_URI_PREFIX, $request->getUri()->getPath())) {
             return $this->processMockApiRequest($request);
         }
@@ -115,7 +130,7 @@ final class MockOTelCollector extends TestInfraHttpServerProcessBase
     #[Override]
     protected function shouldRequestHaveSpawnedProcessInternalId(ServerRequestInterface $request): bool
     {
-        return $request->getUri()->getPath() !== self::INTAKE_TRACE_DATA_URI_PATH;
+        return !in_array($request->getUri()->getPath(), [self::INTAKE_TRACE_DATA_URI_PATH, self::INTAKE_METRICS_DATA_URI_PATH, self::INTAKE_LOGS_DATA_URI_PATH], true);
     }
 
     /**
