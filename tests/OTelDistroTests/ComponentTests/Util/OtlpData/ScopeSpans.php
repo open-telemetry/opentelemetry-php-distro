@@ -35,6 +35,7 @@ class ScopeSpans
         $spans = [];
         /** @var array<string, true> $discardedTraceIds */
         $discardedTraceIds = [];
+        /** @var OTelProtoSpan $protoSpan */
         foreach ($source->getSpans() as $protoSpan) {
             $span = self::deserializeSpanFromOTelProto($protoSpan, $scopeName, /* ref */ $discardedTraceIds);
             if ($span !== null) {
