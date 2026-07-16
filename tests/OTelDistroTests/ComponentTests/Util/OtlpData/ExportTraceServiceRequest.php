@@ -32,10 +32,26 @@ class ExportTraceServiceRequest
      */
     public function spans(): iterable
     {
-        $discardedTraceIds = $this->collectDiscardedTraceIds();
+        // Collect span IDs of directly discarded spans (those with infra URL attributes).
+        // Then expand transitively: spans whose parent was discarded are also discarded.
+        // This correctly handles inferred child spans of infra requests (different trace from
+        // real test spans) without affecting spans that merely share a trace with a discarded span.
+        $discardedSpanIds = $this->collectDiscardedSpanIds();
+        do {
+            $changed = false;
+            foreach ($this->resourceSpans as $resourceSpans) {
+                foreach ($resourceSpans->spans() as $span) {
+                    if (!isset($discardedSpanIds[$span->id]) && $span->parentId !== null && isset($discardedSpanIds[$span->parentId])) {
+                        $discardedSpanIds[$span->id] = true;
+                        $changed = true;
+                    }
+                }
+            }
+        } while ($changed);
+
         foreach ($this->resourceSpans as $resourceSpans) {
             foreach ($resourceSpans->spans() as $span) {
-                if (!isset($discardedTraceIds[$span->traceId])) {
+                if (!isset($discardedSpanIds[$span->id])) {
                     yield $span;
                 }
             }
@@ -45,17 +61,17 @@ class ExportTraceServiceRequest
     /**
      * @return array<string, true>
      */
-    private function collectDiscardedTraceIds(): array
+    private function collectDiscardedSpanIds(): array
     {
-        $discardedTraceIds = [];
+        $discardedSpanIds = [];
         foreach ($this->resourceSpans as $resourceSpans) {
             foreach ($resourceSpans->scopeSpans as $scopeSpans) {
-                foreach ($scopeSpans->discardedTraceIds as $traceId) {
-                    $discardedTraceIds[$traceId] = true;
+                foreach ($scopeSpans->discardedSpanIds as $spanId) {
+                    $discardedSpanIds[$spanId] = true;
                 }
             }
         }
-        return $discardedTraceIds;
+        return $discardedSpanIds;
     }
 
     public function isEmptyAfterDeserialization(): bool
