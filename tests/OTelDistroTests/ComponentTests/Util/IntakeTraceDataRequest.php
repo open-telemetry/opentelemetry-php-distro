@@ -49,6 +49,14 @@ final class IntakeTraceDataRequest extends IntakeDataRequestDeserialized
     }
 
     /**
+     * @return iterable<string>
+     */
+    public function directlyDiscardedSpanIds(): iterable
+    {
+        yield from $this->deserialized->directlyDiscardedSpanIds();
+    }
+
+    /**
      * @return iterable<OTelResource>
      */
     public function resources(): iterable

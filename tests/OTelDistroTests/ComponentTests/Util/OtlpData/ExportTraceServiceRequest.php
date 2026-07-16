@@ -32,46 +32,24 @@ class ExportTraceServiceRequest
      */
     public function spans(): iterable
     {
-        // Collect span IDs of directly discarded spans (those with infra URL attributes).
-        // Then expand transitively: spans whose parent was discarded are also discarded.
-        // This correctly handles inferred child spans of infra requests (different trace from
-        // real test spans) without affecting spans that merely share a trace with a discarded span.
-        $discardedSpanIds = $this->collectDiscardedSpanIds();
-        do {
-            $changed = false;
-            foreach ($this->resourceSpans as $resourceSpans) {
-                foreach ($resourceSpans->spans() as $span) {
-                    if (!isset($discardedSpanIds[$span->id]) && $span->parentId !== null && isset($discardedSpanIds[$span->parentId])) {
-                        $discardedSpanIds[$span->id] = true;
-                        $changed = true;
-                    }
-                }
-            }
-        } while ($changed);
-
         foreach ($this->resourceSpans as $resourceSpans) {
-            foreach ($resourceSpans->spans() as $span) {
-                if (!isset($discardedSpanIds[$span->id])) {
-                    yield $span;
-                }
-            }
+            yield from $resourceSpans->spans();
         }
     }
 
     /**
-     * @return array<string, true>
+     * Span IDs of spans discarded during deserialization (matched infra URL filter).
+     * Used by AgentBackendComms to build the cross-batch transitive discard set.
+     *
+     * @return iterable<string>
      */
-    private function collectDiscardedSpanIds(): array
+    public function directlyDiscardedSpanIds(): iterable
     {
-        $discardedSpanIds = [];
         foreach ($this->resourceSpans as $resourceSpans) {
             foreach ($resourceSpans->scopeSpans as $scopeSpans) {
-                foreach ($scopeSpans->discardedSpanIds as $spanId) {
-                    $discardedSpanIds[$spanId] = true;
-                }
+                yield from $scopeSpans->discardedSpanIds;
             }
         }
-        return $discardedSpanIds;
     }
 
     public function isEmptyAfterDeserialization(): bool

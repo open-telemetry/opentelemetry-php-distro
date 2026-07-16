@@ -62,8 +62,34 @@ final class AgentBackendComms
      */
     public function spans(): iterable
     {
+        // Build the discard set across ALL batches so that cross-batch parent→child
+        // relationships are handled: a child span exported before its parent still gets
+        // discarded once the parent is seen in a later batch.
+        /** @var array<string, true> $discardedSpanIds */
+        $discardedSpanIds = [];
         foreach ($this->intakeTraceDataRequests() as $request) {
-            yield from $request->spans();
+            foreach ($request->directlyDiscardedSpanIds() as $spanId) {
+                $discardedSpanIds[$spanId] = true;
+            }
+        }
+        do {
+            $changed = false;
+            foreach ($this->intakeTraceDataRequests() as $request) {
+                foreach ($request->spans() as $span) {
+                    if (!isset($discardedSpanIds[$span->id]) && $span->parentId !== null && isset($discardedSpanIds[$span->parentId])) {
+                        $discardedSpanIds[$span->id] = true;
+                        $changed = true;
+                    }
+                }
+            }
+        } while ($changed);
+
+        foreach ($this->intakeTraceDataRequests() as $request) {
+            foreach ($request->spans() as $span) {
+                if (!isset($discardedSpanIds[$span->id])) {
+                    yield $span;
+                }
+            }
         }
     }
 
