@@ -16,12 +16,14 @@ use Opentelemetry\Proto\Trace\V1\Span as OTelProtoSpan;
 class ScopeSpans
 {
     /**
-     * @param Span[] $spans
+     * @param Span[]   $spans
+     * @param string[] $discardedTraceIds trace IDs of spans that were discarded from this scope
      */
     public function __construct(
         public readonly ?InstrumentationScope $scope,
         public readonly array $spans,
         public readonly string $schemaUrl,
+        public readonly array $discardedTraceIds = [],
     ) {
     }
 
@@ -30,17 +32,28 @@ class ScopeSpans
         $scope = DeserializationUtil::deserializeNullableFromOTelProto($source->getScope(), InstrumentationScope::deserializeFromOTelProto(...));
         $scopeName = $scope?->name;
 
+        $spans = [];
+        /** @var array<string, true> $discardedTraceIds */
+        $discardedTraceIds = [];
+        foreach ($source->getSpans() as $protoSpan) {
+            $span = self::deserializeSpanFromOTelProto($protoSpan, $scopeName, /* ref */ $discardedTraceIds);
+            if ($span !== null) {
+                $spans[] = $span;
+            }
+        }
+
         return new self(
             scope: $scope,
-            spans: DeserializationUtil::deserializeArrayFromOTelProto(
-                $source->getSpans(),
-                fn(OTelProtoSpan $protoSpan) => self::deserializeSpanFromOTelProto($protoSpan, $scopeName)
-            ),
+            spans: $spans,
             schemaUrl: $source->getSchemaUrl(),
+            discardedTraceIds: array_keys($discardedTraceIds),
         );
     }
 
-    private static function deserializeSpanFromOTelProto(OTelProtoSpan $source, ?string $scopeName): ?Span
+    /**
+     * @param array<string, true> $discardedTraceIds
+     */
+    private static function deserializeSpanFromOTelProto(OTelProtoSpan $source, ?string $scopeName, array &$discardedTraceIds): ?Span
     {
         DebugContext::getCurrentScope(/* out */ $dbgCtx);
         $dbgCtx->add(compact('source'));
@@ -49,6 +62,7 @@ class ScopeSpans
         if (($reason = Span::reasonToDiscard($span)) !== null) {
             AmbientContextForTests::loggerFactory()->loggerForClass(LogCategoryForTests::TEST_INFRA, __NAMESPACE__, __CLASS__, __FILE__)->addAllContext(compact('source'))
                 ->logDebug(__FUNCTION__)?->with(__LINE__, 'Span discarded', compact('reason', 'span'));
+            $discardedTraceIds[$span->traceId] = true;
             return null;
         }
 

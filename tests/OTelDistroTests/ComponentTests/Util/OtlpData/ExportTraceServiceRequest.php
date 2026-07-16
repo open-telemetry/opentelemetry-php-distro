@@ -32,9 +32,30 @@ class ExportTraceServiceRequest
      */
     public function spans(): iterable
     {
+        $discardedTraceIds = $this->collectDiscardedTraceIds();
         foreach ($this->resourceSpans as $resourceSpans) {
-            yield from $resourceSpans->spans();
+            foreach ($resourceSpans->spans() as $span) {
+                if (!isset($discardedTraceIds[$span->traceId])) {
+                    yield $span;
+                }
+            }
         }
+    }
+
+    /**
+     * @return array<string, true>
+     */
+    private function collectDiscardedTraceIds(): array
+    {
+        $discardedTraceIds = [];
+        foreach ($this->resourceSpans as $resourceSpans) {
+            foreach ($resourceSpans->scopeSpans as $scopeSpans) {
+                foreach ($scopeSpans->discardedTraceIds as $traceId) {
+                    $discardedTraceIds[$traceId] = true;
+                }
+            }
+        }
+        return $discardedTraceIds;
     }
 
     public function isEmptyAfterDeserialization(): bool
