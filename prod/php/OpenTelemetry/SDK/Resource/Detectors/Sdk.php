@@ -10,6 +10,7 @@ use OpenTelemetry\SDK\Resource\ResourceDetectorInterface;
 use OpenTelemetry\SDK\Resource\ResourceInfo;
 use OpenTelemetry\SemConv\Attributes\TelemetryAttributes;
 use OpenTelemetry\SemConv\Version;
+
 use function class_exists;
 
 /**
