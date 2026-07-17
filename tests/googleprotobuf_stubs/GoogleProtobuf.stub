@@ -1,0 +1,56 @@
+<?php
+
+// PHPStan stubs for google/protobuf v5 compatibility.
+//
+// open-telemetry/gen-otlp-protobuf was generated against google/protobuf v4 where
+// \Google\Protobuf\Internal\RepeatedField was the real class. In v5 it became a
+// runtime class_alias() of \Google\Protobuf\RepeatedField. PHPStan cannot statically
+// resolve class_alias(), so these stubs provide explicit definitions to replace
+// the vendor class definitions for static analysis.
+
+declare(strict_types=1);
+
+namespace Google\Protobuf;
+
+/**
+ * @template T
+ * @implements \ArrayAccess<int, T>
+ * @implements \IteratorAggregate<int, T>
+ */
+class RepeatedField implements \ArrayAccess, \IteratorAggregate, \Countable
+{
+    /** @return \Traversable<int, T> */
+    public function getIterator(): \Traversable
+    {
+    }
+
+    /** @return T */
+    public function offsetGet(mixed $offset): mixed
+    {
+    }
+
+    public function offsetSet(mixed $offset, mixed $value): void
+    {
+    }
+
+    public function offsetUnset(mixed $offset): void
+    {
+    }
+
+    public function offsetExists(mixed $offset): bool
+    {
+    }
+
+    public function count(): int
+    {
+    }
+}
+
+namespace Google\Protobuf\Internal;
+
+/**
+ * @extends \Google\Protobuf\RepeatedField<mixed>
+ */
+class RepeatedField extends \Google\Protobuf\RepeatedField
+{
+}

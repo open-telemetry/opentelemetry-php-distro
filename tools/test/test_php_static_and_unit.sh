@@ -112,6 +112,7 @@ main() {
                 && mv /tmp/repo/tests /tmp/repo/tests_original \
                 && mkdir /tmp/repo/tests \
                 && mv /tmp/repo/tests_original/otel_distro_extension_stubs /tmp/repo/tests/otel_distro_extension_stubs \
+                && mv /tmp/repo/tests_original/googleprotobuf_stubs /tmp/repo/tests/googleprotobuf_stubs \
                 && mv /tmp/repo/tests_original/bootstrapProdStaticCheck.php /tmp/repo/tests/bootstrapProdStaticCheck.php \
                 && rm -rf /tmp/repo/tests_original/ \
                 && ${replace_PhpStan_neon_bootstrapFiles_for_prod} /tmp/repo/phpstan.dist.neon \
