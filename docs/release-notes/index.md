@@ -1,3 +1,20 @@
+## 0.6.0
+
+### This release is based on the following OpenTelemetry PHP packages:
+
+- [open-telemetry/api 1.10.0](https://github.com/opentelemetry-php/api/releases/tag/1.10.0)
+- [open-telemetry/sdk 1.15.0](https://github.com/opentelemetry-php/sdk/releases/tag/1.15.0)
+- [open-telemetry/context 1.5.0](https://github.com/opentelemetry-php/context/releases/tag/1.5.0)
+
+### What's changed
+
+- feat: add opentelemetry/opentelemetry-metrics-runtime to the distro (PR [#131](https://github.com/open-telemetry/opentelemetry-php-distro/pull/131))
+- feat: bridge app-owned OpenTelemetry usage into the distro's scoped runtime (PR [#126](https://github.com/open-telemetry/opentelemetry-php-distro/pull/126))
+- fix: hook() no longer requires the target class/function to already be declared (PR [#127](https://github.com/open-telemetry/opentelemetry-php-distro/pull/127))
+- update open-telemetry/sdk package to 1.15.0 (PR [#133](https://github.com/open-telemetry/opentelemetry-php-distro/pull/133))
+- feat: add Slim and Laravel auto-instrumentation component tests (PR [#128](https://github.com/open-telemetry/opentelemetry-php-distro/pull/128))
+- feat: support local Composer package overrides for development (PR [#125](https://github.com/open-telemetry/opentelemetry-php-distro/pull/125))
+
 ## 0.5.1
 
 - fix: bump guzzlehttp/guzzle to fix security vulnerability (PR [#123](https://github.com/open-telemetry/opentelemetry-php-distro/pull/123))
