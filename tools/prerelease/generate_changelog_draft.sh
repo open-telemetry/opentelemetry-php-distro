@@ -84,37 +84,88 @@ fetch_pr_for_commit() {
 }
 
 generate_otel_packages_section() {
-    local max_php_version
-    max_php_version=$(get_array_max_value ${_PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS})
+    local packages=('open-telemetry/api' 'open-telemetry/sdk' 'open-telemetry/context')
 
-    local lock_file="$REPO_ROOT/generated_composer_lock_files/prod_${max_php_version}.lock"
-    if [[ ! -f "$lock_file" ]]; then
-        echo "_Could not find $lock_file — OTel package versions unavailable._"
-        echo
-        return
-    fi
+    # Get sorted PHP versions
+    local php_versions_raw=()
+    read -ra php_versions_raw <<< "$(get_array ${_PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS})"
+    readarray -t php_versions < <(printf '%s\n' "${php_versions_raw[@]}" | sort -n)
 
-    local packages=('open-telemetry/api' 'open-telemetry/context' 'open-telemetry/sdk')
-
-    local links=()
-    for pkg in "${packages[@]}"; do
-        local pkg_version source_url release_url
-        pkg_version=$(jq -r --arg name "$pkg" 'first(.packages[] | select(.name==$name)) | .version // empty' "$lock_file")
-        source_url=$(jq -r --arg name "$pkg" 'first(.packages[] | select(.name==$name)) | .source.url // empty' "$lock_file")
-        if [[ -z "$pkg_version" || -z "$source_url" ]]; then
-            echo "Warning: package $pkg not found in $lock_file" >&2
+    # Compute per-version fingerprint (concatenated package versions for tracked packages)
+    local -a fingerprints=()
+    for v in "${php_versions[@]}"; do
+        local lock_file="$REPO_ROOT/generated_composer_lock_files/prod_${v}.lock"
+        if [[ ! -f "$lock_file" ]]; then
+            fingerprints+=("MISSING:${v}")
             continue
         fi
-        release_url="${source_url%.git}/releases/tag/${pkg_version}"
-        links+=("[${pkg} ${pkg_version}](${release_url})")
+        local fp=""
+        for pkg in "${packages[@]}"; do
+            local ver
+            ver=$(jq -r --arg n "$pkg" 'first(.packages[] | select(.name==$n)) | .version // "?"' "$lock_file")
+            fp="${fp}:${ver}"
+        done
+        fingerprints+=("$fp")
     done
+
+    # Group consecutive PHP versions that share the same fingerprint
+    local -a group_starts=()
+    local -a group_ends=()
+    local cur_fp="${fingerprints[0]}"
+    local cur_start=0
+
+    for (( i=1; i<${#php_versions[@]}; i++ )); do
+        if [[ "${fingerprints[$i]}" != "$cur_fp" ]]; then
+            group_starts+=($cur_start)
+            group_ends+=($((i-1)))
+            cur_start=$i
+            cur_fp="${fingerprints[$i]}"
+        fi
+    done
+    group_starts+=($cur_start)
+    group_ends+=($((${#php_versions[@]}-1)))
 
     echo "### This release is based on the following OpenTelemetry PHP packages:"
     echo
-    for link in "${links[@]}"; do
-        echo "- ${link}"
+
+    local num_groups=${#group_starts[@]}
+
+    for (( g=0; g<num_groups; g++ )); do
+        local si=${group_starts[$g]}
+        local ei=${group_ends[$g]}
+        local start_v="${php_versions[$si]}"
+        local end_v="${php_versions[$ei]}"
+        local lock_file="$REPO_ROOT/generated_composer_lock_files/prod_${start_v}.lock"
+
+        # Show PHP version range header only when versions differ across PHP releases
+        if [[ $num_groups -gt 1 ]]; then
+            local start_fmt="${start_v:0:1}.${start_v:1}"
+            local end_fmt="${end_v:0:1}.${end_v:1}"
+            if [[ "$start_v" == "$end_v" ]]; then
+                echo "**PHP ${start_fmt}:**"
+            else
+                echo "**PHP ${start_fmt} - PHP ${end_fmt}:**"
+            fi
+            echo
+        fi
+
+        if [[ ! -f "$lock_file" ]]; then
+            echo "_Could not find $lock_file — OTel package versions unavailable._"
+            echo
+            continue
+        fi
+
+        for pkg in "${packages[@]}"; do
+            local ver
+            ver=$(jq -r --arg n "$pkg" 'first(.packages[] | select(.name==$n)) | .version // empty' "$lock_file")
+            if [[ -z "$ver" ]]; then
+                echo "Warning: package $pkg not found in $lock_file" >&2
+                continue
+            fi
+            echo "- [${pkg} ${ver}](https://packagist.org/packages/${pkg}#${ver})"
+        done
+        echo
     done
-    echo
 }
 
 generate_changelog() {
