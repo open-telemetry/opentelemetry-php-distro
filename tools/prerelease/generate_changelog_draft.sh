@@ -80,14 +80,56 @@ fetch_pr_for_commit() {
     pr_response=$(curl -s -H "Accept: application/vnd.github+json" $auth_header \
                         "https://api.github.com/repos/open-telemetry/opentelemetry-php-distro/commits/$commit_hash/pulls")
 
-    echo "$pr_response" | jq -r '.[0] | if .html_url then "(PR [#\(.number)](\(.html_url)))" else "" end'
+    echo "$pr_response" | jq -r 'if type == "array" then .[0] | if .html_url then "(PR [#\(.number)](\(.html_url)))" else "" end else "" end'
+}
+
+generate_otel_packages_section() {
+    local max_php_version
+    max_php_version=$(get_array_max_value ${_PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS})
+
+    local lock_file="$REPO_ROOT/generated_composer_lock_files/prod_${max_php_version}.lock"
+    if [[ ! -f "$lock_file" ]]; then
+        echo "_Could not find $lock_file — OTel package versions unavailable._"
+        echo
+        return
+    fi
+
+    local packages=('open-telemetry/api' 'open-telemetry/context' 'open-telemetry/sdk')
+
+    local links=()
+    for pkg in "${packages[@]}"; do
+        local pkg_version source_url release_url
+        pkg_version=$(jq -r --arg name "$pkg" 'first(.packages[] | select(.name==$name)) | .version // empty' "$lock_file")
+        source_url=$(jq -r --arg name "$pkg" 'first(.packages[] | select(.name==$name)) | .source.url // empty' "$lock_file")
+        if [[ -z "$pkg_version" || -z "$source_url" ]]; then
+            echo "Warning: package $pkg not found in $lock_file" >&2
+            continue
+        fi
+        release_url="${source_url%.git}/releases/tag/${pkg_version}"
+        links+=("[${pkg} ${pkg_version}](${release_url})")
+    done
+
+    echo "### This release is based on the following OpenTelemetry PHP packages:"
+    echo
+    for link in "${links[@]}"; do
+        echo "- ${link}"
+    done
+    echo
 }
 
 generate_changelog() {
     local previous_tag="$1"
     local target_branch_or_tag="$2"
 
-    echo "## v[PUT VERSION TAG HERE]"
+    if [[ -z "$_PROJECT_PROPERTIES_VERSION" ]]; then
+        echo "Error: could not read version from project.properties" >&2
+        return 1
+    fi
+
+    echo "## ${_PROJECT_PROPERTIES_VERSION}"
+    echo
+    generate_otel_packages_section
+    echo "### What's changed"
     echo
 
     git log "${previous_tag}..${target_branch_or_tag}" --oneline | while read -r line; do
@@ -105,6 +147,10 @@ generate_changelog() {
         pr_link=$(fetch_pr_for_commit "$commit_hash")
 
         if [[ -n "$pr_link" ]]; then
+            pr_number=$(echo "$pr_link" | grep -oE '[0-9]+' | head -1)
+            commit_message_with_links=$(echo "$commit_message_with_links" | \
+                sed "s|(\[#${pr_number}\]([^)]*issues/${pr_number}))||g" | \
+                sed 's/  */ /g;s/ $//')
             commit_message_with_links="$commit_message_with_links $pr_link"
         fi
 
@@ -114,6 +160,12 @@ generate_changelog() {
 
 main() {
     parse_args "$@"
+
+    REPO_ROOT=$(git rev-parse --show-toplevel)
+    source "$REPO_ROOT/tools/read_properties.sh"
+    source "$REPO_ROOT/tools/helpers/array_helpers.sh"
+    read_properties "$REPO_ROOT/project.properties" _PROJECT_PROPERTIES
+
     generate_changelog "$PREVIOUS_TAG" "$TARGET"
 }
 
