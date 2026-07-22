@@ -64,3 +64,4 @@ After installation and configuration, restart PHP processes (for example `php-fp
 
 - Verify configuration options in [Configuration](../reference/configuration.md).
 - Check known constraints in [Limitations](limitations.md).
+- If using Laravel Octane (Swoole or RoadRunner), see [Long-running PHP servers](../reference/long-running-server.md).
