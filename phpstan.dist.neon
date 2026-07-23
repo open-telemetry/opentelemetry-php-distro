@@ -5,6 +5,10 @@ parameters:
     bootstrapFiles:
         - ./tests/bootstrap.php
 
+    stubFiles:
+        - ./tests/googleprotobuf_stubs/GoogleProtobuf.stub
+        - ./tests/googleprotobuf_stubs/OtelProtoRepeatedField.stub
+
     level: max
 
     reportUnmatchedIgnoredErrors: true

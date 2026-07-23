@@ -115,6 +115,7 @@ final class PhpPartFacade
             DistroDetectorComponentProvider::registerSpi();
             self::registerNativeOtlpSerializer();
             self::registerAsyncTransportFactory();
+            self::registerSdkDetectorOverride();
             self::registerOtelLogWriter();
 
             /** @noinspection PhpInternalEntityUsedInspection */
@@ -257,6 +258,7 @@ final class PhpPartFacade
         DistroDetectorComponentProvider::registerSpi();
         self::registerNativeOtlpSerializer();
         self::registerAsyncTransportFactory();
+        self::registerSdkDetectorOverride();
     }
 
     private static function registerAsyncTransportFactory(): void
@@ -276,6 +278,13 @@ final class PhpPartFacade
     private static function registerOtelLogWriter(): void
     {
         NativeLogWriter::enableLogWriter();
+    }
+
+    private static function registerSdkDetectorOverride(): void
+    {
+        $sdkDetectorsDir = ProdPhpDir::$fullPath . DIRECTORY_SEPARATOR . 'OpenTelemetry' . DIRECTORY_SEPARATOR . 'SDK'
+            . DIRECTORY_SEPARATOR . 'Resource' . DIRECTORY_SEPARATOR . 'Detectors';
+        require_once $sdkDetectorsDir . DIRECTORY_SEPARATOR . 'Sdk.php';
     }
 
     private static function registerNativeOtlpSerializer(): void

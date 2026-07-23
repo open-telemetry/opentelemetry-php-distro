@@ -40,7 +40,7 @@ final class Attributes implements ArrayReadInterface, Countable, LoggableInterfa
     }
 
     /**
-     * @param ProtobufRepeatedField<OTelProtoKeyValue> $source
+     * @param ProtobufRepeatedField<mixed> $source
      */
     public static function deserializeFromOTelProto(ProtobufRepeatedField $source): self
     {
@@ -49,7 +49,7 @@ final class Attributes implements ArrayReadInterface, Countable, LoggableInterfa
         $keyToValueMap = [];
         foreach ($source as $keyValue) {
             $dbgCtx->add(compact('keyValue'));
-            Assert::assertInstanceOf(OTelProtoKeyValue::class, $keyValue); // @phpstan-ignore staticMethod.alreadyNarrowedType
+            Assert::assertInstanceOf(OTelProtoKeyValue::class, $keyValue);
             Assert::assertArrayNotHasKey($keyValue->getKey(), $keyToValueMap);
             $keyToValueMap[$keyValue->getKey()] = self::extractValue($keyValue);
         }
@@ -77,7 +77,8 @@ final class Attributes implements ArrayReadInterface, Countable, LoggableInterfa
                 return null;
             }
             $result = [];
-            foreach ($arrayValue->getValues() as $repeatedFieldSubValue) {
+            $arrayValues = $arrayValue->getValues();
+            foreach ($arrayValues as $repeatedFieldSubValue) {
                 $result[] = $repeatedFieldSubValue;
             }
             return $result;
@@ -109,8 +110,8 @@ final class Attributes implements ArrayReadInterface, Countable, LoggableInterfa
                 return null;
             }
             $result = [];
-            foreach ($kvListValue->getValues() as $repeatedFieldSubKey => $repeatedFieldSubValue) {
-                Assert::assertTrue(is_int($repeatedFieldSubKey) || is_string($repeatedFieldSubKey));
+            $kvListValues = $kvListValue->getValues();
+            foreach ($kvListValues as $repeatedFieldSubKey => $repeatedFieldSubValue) {
                 Assert::assertArrayNotHasKey($repeatedFieldSubKey, $result);
                 $result[$repeatedFieldSubKey] = $repeatedFieldSubValue;
             }

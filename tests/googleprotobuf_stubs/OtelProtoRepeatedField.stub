@@ -1,0 +1,88 @@
+<?php
+
+// PHPStan stubs that override specific proto getter return types.
+//
+// open-telemetry/gen-otlp-protobuf was generated against google/protobuf v4, so its
+// generated getters return @return \Google\Protobuf\Internal\RepeatedField. In v5,
+// that class became a runtime class_alias() which PHPStan cannot resolve statically.
+//
+// PHPStan stub files support partial class overrides: only the declared methods are
+// overridden; all other methods still use the vendor definition. These stubs rewrite
+// only the affected getter return types to \Google\Protobuf\RepeatedField<mixed> so
+// that callers passing the result to RepeatedField<mixed> parameters pass PHPStan's
+// argument.type check, and foreach loops over the returned value no longer trigger
+// the class.notFound rule.
+
+declare(strict_types=1);
+
+namespace Opentelemetry\Proto\Common\V1;
+
+class ArrayValue
+{
+    /** @return \Google\Protobuf\RepeatedField<mixed> */
+    public function getValues(): \Google\Protobuf\RepeatedField
+    {
+    }
+}
+
+class KeyValueList
+{
+    /** @return \Google\Protobuf\RepeatedField<mixed> */
+    public function getValues(): \Google\Protobuf\RepeatedField
+    {
+    }
+}
+
+class InstrumentationScope
+{
+    /** @return \Google\Protobuf\RepeatedField<mixed> */
+    public function getAttributes(): \Google\Protobuf\RepeatedField
+    {
+    }
+}
+
+namespace Opentelemetry\Proto\Resource\V1;
+
+class Resource
+{
+    /** @return \Google\Protobuf\RepeatedField<mixed> */
+    public function getAttributes(): \Google\Protobuf\RepeatedField
+    {
+    }
+}
+
+namespace Opentelemetry\Proto\Trace\V1;
+
+class Span
+{
+    /** @return \Google\Protobuf\RepeatedField<mixed> */
+    public function getAttributes(): \Google\Protobuf\RepeatedField
+    {
+    }
+}
+
+class ScopeSpans
+{
+    /** @return \Google\Protobuf\RepeatedField<mixed> */
+    public function getSpans(): \Google\Protobuf\RepeatedField
+    {
+    }
+}
+
+class ResourceSpans
+{
+    /** @return \Google\Protobuf\RepeatedField<mixed> */
+    public function getScopeSpans(): \Google\Protobuf\RepeatedField
+    {
+    }
+}
+
+namespace Opentelemetry\Proto\Collector\Trace\V1;
+
+class ExportTraceServiceRequest
+{
+    /** @return \Google\Protobuf\RepeatedField<mixed> */
+    public function getResourceSpans(): \Google\Protobuf\RepeatedField
+    {
+    }
+}
