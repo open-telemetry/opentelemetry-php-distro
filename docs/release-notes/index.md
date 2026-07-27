@@ -1,3 +1,17 @@
+## 0.6.1
+
+### This release is based on the following OpenTelemetry PHP packages:
+
+- [open-telemetry/api 1.10.0](https://packagist.org/packages/open-telemetry/api#1.10.0)
+- [open-telemetry/sdk 1.15.0](https://packagist.org/packages/open-telemetry/sdk#1.15.0)
+- [open-telemetry/context 1.5.0](https://packagist.org/packages/open-telemetry/context#1.5.0)
+
+### What's changed
+
+- fix: bump guzzlehttp/guzzle to fix security vulnerability (PR [#140](https://github.com/open-telemetry/opentelemetry-php-distro/pull/140))
+- fix: reenabled Inferred Spans component test (PR [#132](https://github.com/open-telemetry/opentelemetry-php-distro/pull/132))
+- docs: long-running PHP server support ([#137](https://github.com/open-telemetry/opentelemetry-php-distro/issues/137)) (PR [#138](https://github.com/open-telemetry/opentelemetry-php-distro/pull/138))
+
 ## 0.6.0
 
 ### This release is based on the following OpenTelemetry PHP packages:
