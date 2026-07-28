@@ -26,6 +26,9 @@ jobs:
   test-php-static-and-unit:
     uses: ./.github/workflows/test-php-static-and-unit.yml
 
+  audit-php-deps:
+    uses: ./.github/workflows/audit-php-deps.yml
+
   build-compiler:
     uses: ./.github/workflows/native-dev-tools-build.yml
     secrets: inherit
@@ -73,6 +76,7 @@ jobs:
     needs:
       - tests-phpt
       - test-php-static-and-unit
+      - audit-php-deps
       - build-packages
       - test-otel-unit
       - test-packages-component-tests
