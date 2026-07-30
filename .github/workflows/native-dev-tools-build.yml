@@ -53,7 +53,7 @@ jobs:
             network=host
 
       - name: Set up Docker Compose
-        uses: docker/setup-compose-action@v1
+        uses: docker/setup-compose-action@2fe291b7677a45ee1269ec56a42604c143505e7e # v1.3.0
 
       - name: Log into Docker.io
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
