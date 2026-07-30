@@ -464,6 +464,10 @@ bool instrumentFunction(LoggerInterface *log, std::string_view cName, std::strin
 
 
 void observerFcallBeginHandler(zend_execute_data *execute_data) {
+    if (!OTEL_G(globals)) {
+        return;
+    }
+
     auto hash = getClassAndFunctionHashFromExecuteData(execute_data);
     ELOGF_TRACE(OTEL_GL(logger_), INSTRUMENTATION, "observerFcallBeginHandler hash 0x%X", hash);
 
@@ -492,6 +496,10 @@ void observerFcallBeginHandler(zend_execute_data *execute_data) {
 }
 
 void observerFcallEndHandler(zend_execute_data *execute_data, zval *retval) {
+    if (!OTEL_G(globals)) {
+        return;
+    }
+
     auto hash = getClassAndFunctionHashFromExecuteData(execute_data);
     ELOGF_TRACE(OTEL_GL(logger_), INSTRUMENTATION, "observerFcallEndHandler hash 0x%X", hash);
 
@@ -521,6 +529,10 @@ void observerFcallEndHandler(zend_execute_data *execute_data, zval *retval) {
 }
 
 zend_observer_fcall_handlers registerObserverHandlers(zend_execute_data *execute_data) {
+    if (!OTEL_G(globals)) {
+        return {nullptr, nullptr};
+    }
+
     if (execute_data->func->common.type == ZEND_INTERNAL_FUNCTION) {
         return {nullptr, nullptr};
     }

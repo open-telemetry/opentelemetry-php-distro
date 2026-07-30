@@ -158,6 +158,7 @@ PHP_GSHUTDOWN_FUNCTION(opentelemetry_distro) {
     if (opentelemetry_distro_globals->globals) {
         ELOGF_DEBUG(opentelemetry_distro_globals->globals->logger_, MODULE, "%s: GSHUTDOWN called; parent PID: %d", __FUNCTION__, static_cast<int>(opentelemetry::osutils::getParentProcessId()));
         delete opentelemetry_distro_globals->globals;
+        opentelemetry_distro_globals->globals = nullptr;
     }
 }
 
