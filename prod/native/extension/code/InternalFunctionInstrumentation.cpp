@@ -222,29 +222,24 @@ void argsPostProcessing(AutoZval &functionArgs, AutoZval &returnValue) {
     ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing highestArgIdx: %d vm_stack free: %d", highestArgIdx, EG(vm_stack_end) - EG(vm_stack_top));
 
     // extending stack and undefining potential gaps
-    if (highestArgIdx + 1 > initalCallNumArgs) {
-        uint32_t howManyArgsToAdd = highestArgIdx + 1 - initalCallNumArgs;
+    // For PHP functions, requiredArgsCount == last_var: all declared CV slots
+    // (including optional params) are already pre-allocated in the frame by
+    // i_init_func_execute_data.  We only extend when the hook adds args *beyond*
+    // last_var.  Using requiredArgsCount as the threshold guarantees that
+    // ZEND_CALL_NUM_ARGS > func->num_args after the increment (since
+    // last_var >= num_args), so ZEND_CALL_FREE_EXTRA_ARGS is always valid here.
+    if (highestArgIdx + 1 > requiredArgsCount) {
+        uint32_t howManyArgsToAdd = highestArgIdx + 1 - requiredArgsCount;
         ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "postProcessing trying extend stack frame with %d arguments", howManyArgsToAdd);
 
         zend_vm_stack_extend_call_frame(&execute_data, initalCallNumArgs, howManyArgsToAdd);
 
         for (uint32_t idx = 0; idx < howManyArgsToAdd; ++idx) {
-            zval *target = ZEND_CALL_ARG(execute_data, execute_data->func->type == ZEND_INTERNAL_FUNCTION ? initalCallNumArgs + idx + 1 :  initalCallNumArgs + idx + 1 + execute_data->func->op_array.T);
+            zval *target = ZEND_CALL_ARG(execute_data, execute_data->func->type == ZEND_INTERNAL_FUNCTION ? initalCallNumArgs + idx + 1 : requiredArgsCount + idx + 1 + execute_data->func->op_array.T);
             ZVAL_UNDEF(target);
         }
         ZEND_CALL_NUM_ARGS(execute_data) += howManyArgsToAdd;
-        // ZEND_CALL_FREE_EXTRA_ARGS must only be set when ZEND_CALL_NUM_ARGS strictly
-        // exceeds func->num_args.  When the hook fills in declared-but-omitted optional
-        // parameters, NUM_ARGS ends up equal to num_args - not greater.  Setting the
-        // flag in that case makes ZEND_RETURN compute counter = NUM_ARGS - num_args = 0;
-        // the decrement-before-check cleanup loop then runs indefinitely through
-        // unallocated VM stack memory → GC_DELREF(NULL) → SIGSEGV
-        uint32_t declaredNumArgs = execute_data->func->type == ZEND_INTERNAL_FUNCTION
-            ? execute_data->func->internal_function.num_args
-            : execute_data->func->op_array.num_args;
-        if (ZEND_CALL_NUM_ARGS(execute_data) > declaredNumArgs) {
-            ZEND_ADD_CALL_FLAG(execute_data, ZEND_CALL_FREE_EXTRA_ARGS);
-        }
+        ZEND_ADD_CALL_FLAG(execute_data, ZEND_CALL_FREE_EXTRA_ARGS);
         ZEND_ADD_CALL_FLAG(execute_data, ZEND_CALL_MAY_HAVE_UNDEF);
     }
 
