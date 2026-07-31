@@ -233,7 +233,18 @@ void argsPostProcessing(AutoZval &functionArgs, AutoZval &returnValue) {
             ZVAL_UNDEF(target);
         }
         ZEND_CALL_NUM_ARGS(execute_data) += howManyArgsToAdd;
-        ZEND_ADD_CALL_FLAG(execute_data, ZEND_CALL_FREE_EXTRA_ARGS);
+        // ZEND_CALL_FREE_EXTRA_ARGS must only be set when ZEND_CALL_NUM_ARGS strictly
+        // exceeds func->num_args.  When the hook fills in declared-but-omitted optional
+        // parameters, NUM_ARGS ends up equal to num_args - not greater.  Setting the
+        // flag in that case makes ZEND_RETURN compute counter = NUM_ARGS - num_args = 0;
+        // the decrement-before-check cleanup loop then runs indefinitely through
+        // unallocated VM stack memory → GC_DELREF(NULL) → SIGSEGV
+        uint32_t declaredNumArgs = execute_data->func->type == ZEND_INTERNAL_FUNCTION
+            ? execute_data->func->internal_function.num_args
+            : execute_data->func->op_array.num_args;
+        if (ZEND_CALL_NUM_ARGS(execute_data) > declaredNumArgs) {
+            ZEND_ADD_CALL_FLAG(execute_data, ZEND_CALL_FREE_EXTRA_ARGS);
+        }
         ZEND_ADD_CALL_FLAG(execute_data, ZEND_CALL_MAY_HAVE_UNDEF);
     }
 
