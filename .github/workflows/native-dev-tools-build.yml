@@ -9,6 +9,9 @@ on:
         required: false
         type: string
         default: 'x86_64'
+    secrets:
+      DOCKER_TOKEN_PHP_DISTRO:
+        required: false
   workflow_dispatch:
     inputs:
       build_arch:
@@ -24,6 +27,9 @@ on:
       - 'prod/native/building/dockerized/**'
     branches:
         - main
+
+permissions:
+  contents: read
 
 jobs:
   setup-build-matrix:
@@ -41,7 +47,9 @@ jobs:
       matrix: ${{ fromJson(needs.setup-build-matrix.outputs.matrix-combinations) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         if: contains(matrix.arch, 'arm64')
@@ -53,7 +61,7 @@ jobs:
             network=host
 
       - name: Set up Docker Compose
-        uses: docker/setup-compose-action@v1
+        uses: docker/setup-compose-action@2fe291b7677a45ee1269ec56a42604c143505e7e # v1.3.0
 
       - name: Log into Docker.io
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
@@ -65,11 +73,13 @@ jobs:
       - name: Extract image names from docker-compose.yml
         id: images
         working-directory: prod/native/building/dockerized
+        env:
+          ARCH: ${{ matrix.arch }}
         run: |
-          echo "::group::Extracting image names for architecture: ${{ matrix.arch }}"
+          echo "::group::Extracting image names for architecture: $ARCH"
 
-          COMPILER_IMAGE=$(docker compose config --images | grep ${{ matrix.arch }} | grep -v conancache)
-          CONANCACHE_IMAGE=$(docker compose config --images | grep conancache | grep ${{ matrix.arch }})
+          COMPILER_IMAGE=$(docker compose config --images | grep "$ARCH" | grep -v conancache)
+          CONANCACHE_IMAGE=$(docker compose config --images | grep conancache | grep "$ARCH")
 
           echo "gcc_image=${COMPILER_IMAGE}" >> $GITHUB_OUTPUT
           echo "conan_cache_image=${CONANCACHE_IMAGE}" >> $GITHUB_OUTPUT
@@ -79,8 +89,10 @@ jobs:
 
       - name: Check if GCC base image exists
         id: check-gcc
+        env:
+          GCC_IMAGE: ${{ steps.images.outputs.gcc_image }}
         run: |
-          IMAGE_NAME="${{ steps.images.outputs.gcc_image }}"
+          IMAGE_NAME="$GCC_IMAGE"
           echo "Checking for image: ${IMAGE_NAME}"
 
           if docker manifest inspect ${IMAGE_NAME} > /dev/null 2>&1; then
@@ -96,29 +108,37 @@ jobs:
         working-directory: prod/native/building/dockerized
         env:
           BUILDX_BAKE_ENTITLEMENTS_FS: 0
+          ARCH: ${{ matrix.arch }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          THIS_REPO: ${{ github.repository }}
         run: |
-          echo "Building GCC base image for ${{ matrix.arch }}"
+          echo "Building GCC base image for $ARCH"
 
           # For fork PRs on ARM64, use --load to make image available locally
           # For same-repo or push to main, build normally (will be pushed later)
-          if [[ "${{ github.event_name }}" == "pull_request" ]] && [[ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]] && [[ "${{ matrix.arch }}" == *"arm64"* ]]; then
+          if [[ "$EVENT_NAME" == "pull_request" ]] && [[ "$HEAD_REPO" != "$THIS_REPO" ]] && [[ "$ARCH" == *"arm64"* ]]; then
             echo "Fork PR on ARM64: building with --load to make image available locally"
-            docker buildx bake --load build_${{ matrix.arch }}
+            docker buildx bake --load "build_$ARCH"
           else
-            docker compose build build_${{ matrix.arch }}
+            docker compose build "build_$ARCH"
           fi
 
       - name: Push GCC base image to Docker Hub
         if: steps.check-gcc.outputs.exists == 'false' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
         working-directory: prod/native/building/dockerized
+        env:
+          ARCH: ${{ matrix.arch }}
         run: |
-          echo "Pushing GCC base image for ${{ matrix.arch }}"
-          docker compose push build_${{ matrix.arch }}
+          echo "Pushing GCC base image for $ARCH"
+          docker compose push "build_$ARCH"
 
       - name: Check if Conan cache image exists
         id: check-conan
+        env:
+          CONAN_CACHE_IMAGE: ${{ steps.images.outputs.conan_cache_image }}
         run: |
-            IMAGE_NAME="${{ steps.images.outputs.conan_cache_image }}"
+            IMAGE_NAME="$CONAN_CACHE_IMAGE"
             echo "Checking for image: ${IMAGE_NAME}"
 
             if docker manifest inspect ${IMAGE_NAME} > /dev/null 2>&1; then
@@ -133,20 +153,26 @@ jobs:
         working-directory: prod/native/building/dockerized
         env:
           BUILDX_BAKE_ENTITLEMENTS_FS: 0
+          ARCH: ${{ matrix.arch }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          THIS_REPO: ${{ github.repository }}
         run: |
-          echo "Building Conan cache image for ${{ matrix.arch }}"
+          echo "Building Conan cache image for $ARCH"
 
           # For fork PRs on ARM64, use --load to ensure image is available locally
-          if [[ "${{ github.event_name }}" == "pull_request" ]] && [[ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]] && [[ "${{ matrix.arch }}" == *"arm64"* ]]; then
+          if [[ "$EVENT_NAME" == "pull_request" ]] && [[ "$HEAD_REPO" != "$THIS_REPO" ]] && [[ "$ARCH" == *"arm64"* ]]; then
             echo "Fork PR on ARM64: building with --load"
-            docker buildx bake --load build_${{ matrix.arch }}_conan
+            docker buildx bake --load "build_${ARCH}_conan"
           else
-            docker compose build build_${{ matrix.arch }}_conan
+            docker compose build "build_${ARCH}_conan"
           fi
 
       - name: Push Conan cache image
         if: steps.check-conan.outputs.exists == 'false' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
         working-directory: prod/native/building/dockerized
+        env:
+          ARCH: ${{ matrix.arch }}
         run: |
-          echo "Pushing Conan cache image for ${{ matrix.arch }}"
-          docker compose push build_${{ matrix.arch }}_conan
+          echo "Pushing Conan cache image for $ARCH"
+          docker compose push "build_${ARCH}_conan"

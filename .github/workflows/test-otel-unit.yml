@@ -27,9 +27,11 @@ jobs:
     env:
       PHP_VERSION: ${{ matrix.php-version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
       - name: Download package artifacts for Debian AMD64
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: packages-linux-x86-64
           path: ${{ env.BUILT_PACKAGES_DIR }}
@@ -44,7 +46,7 @@ jobs:
         if: always()
         run: ./tools/build/junit_summary.py --path-to-test-results "${{ env.OTEL_UNIT_RESULTS_DIR }}/**/*.xml" --header "Test summary for PHP ${PHP_VERSION}" >> $GITHUB_STEP_SUMMARY
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         continue-on-error: true
         with:
