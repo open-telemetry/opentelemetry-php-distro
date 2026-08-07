@@ -48,7 +48,7 @@ services:
     ports:
       - "5672:5672/tcp"
   kafka:
-    image: confluentinc/cp-kafka:7.2.1
+    image: confluentinc/cp-kafka:7.9.9@sha256:50490d79766dd3a5680e22d4f0257619bb94314fecb01267e8c122214d1928de
     hostname: kafka
     ports:
       - "9092:9092/tcp"
