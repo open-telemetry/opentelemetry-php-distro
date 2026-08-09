@@ -30,7 +30,7 @@
       matchUpdateTypes: ['major'],
       matchManagers: ['docker-compose'],
       dependencyDashboardApproval: true,
-    },
+    }
   ],
   "labels": [
     "dependencies"
