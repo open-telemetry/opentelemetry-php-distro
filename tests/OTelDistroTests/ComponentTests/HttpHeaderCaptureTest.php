@@ -10,7 +10,6 @@ use OTelDistroTests\ComponentTests\Util\ComponentTestCaseBase;
 use OTelDistroTests\ComponentTests\Util\AppCodeRequestParams;
 use OTelDistroTests\ComponentTests\Util\HttpAppCodeRequestParams;
 use OTelDistroTests\ComponentTests\Util\WaitForOTelSignalCounts;
-use OTelDistroTests\Util\MixedMap;
 use PHPUnit\Framework\Assert;
 
 /**
@@ -27,7 +26,7 @@ final class HttpHeaderCaptureTest extends ComponentTestCaseBase
     private const RESPONSE_HEADER_NAME = 'x-custom-response';
     private const RESPONSE_HEADER_VALUE = 'custom-value-xyz';
 
-    public static function appCodeForTestHeaderCapture(MixedMap $_appCodeRequestArgs): void
+    public static function appCodeForTestHeaderCapture(): void
     {
         header('X-Custom-Response: ' . self::RESPONSE_HEADER_VALUE);
     }
