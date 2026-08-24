@@ -34,7 +34,7 @@ final class HttpHeaderCaptureTest extends ComponentTestCaseBase
 
     private function implTestHttpHeaderCapture(): void
     {
-        if (!self::isMainAppCodeHostHttp()) {
+        if ($this->skipIfMainAppCodeHostIsNotHttp()) {
             return;
         }
 
@@ -61,14 +61,14 @@ final class HttpHeaderCaptureTest extends ComponentTestCaseBase
 
         $rootSpan = $agentBackendComms->singleRootSpan();
 
-        Assert::assertTrue(
-            $rootSpan->attributes->keyExists('http.request.header.' . self::REQUEST_HEADER_NAME),
-            'Expected http.request.header.' . self::REQUEST_HEADER_NAME . ' attribute on root span'
+        Assert::assertSame(
+            [self::REQUEST_HEADER_VALUE],
+            $rootSpan->attributes->getValue('http.request.header.' . self::REQUEST_HEADER_NAME)
         );
 
-        Assert::assertTrue(
-            $rootSpan->attributes->keyExists('http.response.header.' . self::RESPONSE_HEADER_NAME),
-            'Expected http.response.header.' . self::RESPONSE_HEADER_NAME . ' attribute on root span'
+        Assert::assertSame(
+            [self::RESPONSE_HEADER_VALUE],
+            $rootSpan->attributes->getValue('http.response.header.' . self::RESPONSE_HEADER_NAME)
         );
     }
 
