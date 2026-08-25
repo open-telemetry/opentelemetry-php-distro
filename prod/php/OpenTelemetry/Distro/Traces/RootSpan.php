@@ -25,6 +25,7 @@ use OpenTelemetry\SemConv\Incubating\Attributes\HttpIncubatingAttributes;
 use OpenTelemetry\SemConv\Attributes\UserAgentAttributes;
 use OpenTelemetry\SemConv\Version;
 use Psr\Http\Message\ServerRequestInterface;
+use OpenTelemetry\Distro\InstrumentationBridge;
 use OpenTelemetry\Distro\Util\WildcardListMatcher;
 
 class RootSpan
@@ -221,7 +222,7 @@ class RootSpan
         self::$responseHeaderHookRegistered = true;
         $headerNamesLower = array_map('strtolower', $headerNamesToCapture);
         $capturedHeaders = &self::$capturedResponseHeaders;
-        \OpenTelemetry\Instrumentation\hook(
+        InstrumentationBridge::singletonInstance()->hook(
             null,
             'header',
             pre: static function (?object $thisObj, array $params) use ($headerNamesLower, &$capturedHeaders): void {

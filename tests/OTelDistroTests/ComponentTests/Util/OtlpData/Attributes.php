@@ -87,6 +87,7 @@ final class Attributes implements ArrayReadInterface, Countable, LoggableInterfa
             }
             $result = [];
             foreach ($arrayValue->getValues() as $element) {
+                Assert::assertInstanceOf(\Opentelemetry\Proto\Common\V1\AnyValue::class, $element);
                 $result[] = self::extractAnyValue($element, $dbgCtx);
             }
             return $result;
