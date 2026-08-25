@@ -27,10 +27,12 @@ jobs:
     env:
       PHP_VERSION: ${{ matrix.php-version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
       - name: Invoke test_php_static_and_unit.sh
         run: ./tools/test/test_php_static_and_unit.sh --php_versions "${PHP_VERSION}" --logs_dir "${PWD}/${{ env.UNIT_TESTS_LOGS_SUB_DIR }}"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         continue-on-error: false
         with:

@@ -27,9 +27,11 @@ jobs:
     env:
       MATRIX_ROW: ${{ matrix.row }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
       - name: Download built packages
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: packages-*
           path: ${{ env.BUILT_PACKAGES_SUB_DIR }}
@@ -40,7 +42,7 @@ jobs:
           mv "${PWD}/${{ env.BUILT_PACKAGES_SUB_DIR }}/"*/* "${PWD}/${{ env.BUILT_PACKAGES_SUB_DIR }}/"
           rm -rf "${PWD}/${{ env.BUILT_PACKAGES_SUB_DIR }}/packages-"*
           ./tools/test/component/test_packages_one_matrix_row_in_docker.sh --matrix_row "${MATRIX_ROW}" --packages_dir "${PWD}/${{ env.BUILT_PACKAGES_SUB_DIR }}" --logs_dir "${PWD}/${{ env.COMPONENT_TESTS_LOGS_SUB_DIR }}"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         continue-on-error: false
         with:
