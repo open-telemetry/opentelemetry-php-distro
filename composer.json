@@ -48,7 +48,7 @@
         "phpstan/phpstan-phpunit": "2.0.16",
         "phpunit/phpunit": "10.5.63",
         "react/http": "^1.11",
-        "slevomat/coding-standard": "8.29.0",
+        "slevomat/coding-standard": "8.31.1",
         "slim/psr7": "^1.7",
         "slim/slim": "^4.14",
         "squizlabs/php_codesniffer": "4.0.1"
