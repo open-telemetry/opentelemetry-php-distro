@@ -221,15 +221,18 @@ void argsPostProcessing(AutoZval &functionArgs, AutoZval &returnValue) {
 
     ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing highestArgIdx: %d vm_stack free: %d", highestArgIdx, EG(vm_stack_end) - EG(vm_stack_top));
 
-    // extending stack and undefining potential gaps
-    if (highestArgIdx + 1 > initalCallNumArgs) {
+    /* Extend only for slots beyond the existing frame. effectiveBase = max(initalCallNumArgs, last_var):
+     * CV slots for declared params are pre-allocated even when fewer args are passed; existing extra-arg
+     * slots already hold valid zvals. Only the truly new slots need UNDEF-init. */
+    uint32_t effectiveBase = std::max(initalCallNumArgs, requiredArgsCount);
+    if (highestArgIdx + 1 > effectiveBase) {
         uint32_t howManyArgsToAdd = highestArgIdx + 1 - initalCallNumArgs;
         ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "postProcessing trying extend stack frame with %d arguments", howManyArgsToAdd);
 
         zend_vm_stack_extend_call_frame(&execute_data, initalCallNumArgs, howManyArgsToAdd);
 
         for (uint32_t idx = 0; idx < howManyArgsToAdd; ++idx) {
-            zval *target = ZEND_CALL_ARG(execute_data, execute_data->func->type == ZEND_INTERNAL_FUNCTION ? initalCallNumArgs + idx + 1 :  initalCallNumArgs + idx + 1 + execute_data->func->op_array.T);
+            zval *target = ZEND_CALL_ARG(execute_data, execute_data->func->type == ZEND_INTERNAL_FUNCTION ? initalCallNumArgs + idx + 1 : initalCallNumArgs + idx + 1 + execute_data->func->op_array.T);
             ZVAL_UNDEF(target);
         }
         ZEND_CALL_NUM_ARGS(execute_data) += howManyArgsToAdd;
@@ -464,6 +467,10 @@ bool instrumentFunction(LoggerInterface *log, std::string_view cName, std::strin
 
 
 void observerFcallBeginHandler(zend_execute_data *execute_data) {
+    if (!OTEL_G(globals)) {
+        return;
+    }
+
     auto hash = getClassAndFunctionHashFromExecuteData(execute_data);
     ELOGF_TRACE(OTEL_GL(logger_), INSTRUMENTATION, "observerFcallBeginHandler hash 0x%X", hash);
 
@@ -492,6 +499,10 @@ void observerFcallBeginHandler(zend_execute_data *execute_data) {
 }
 
 void observerFcallEndHandler(zend_execute_data *execute_data, zval *retval) {
+    if (!OTEL_G(globals)) {
+        return;
+    }
+
     auto hash = getClassAndFunctionHashFromExecuteData(execute_data);
     ELOGF_TRACE(OTEL_GL(logger_), INSTRUMENTATION, "observerFcallEndHandler hash 0x%X", hash);
 
@@ -521,6 +532,10 @@ void observerFcallEndHandler(zend_execute_data *execute_data, zval *retval) {
 }
 
 zend_observer_fcall_handlers registerObserverHandlers(zend_execute_data *execute_data) {
+    if (!OTEL_G(globals)) {
+        return {nullptr, nullptr};
+    }
+
     if (execute_data->func->common.type == ZEND_INTERNAL_FUNCTION) {
         return {nullptr, nullptr};
     }
