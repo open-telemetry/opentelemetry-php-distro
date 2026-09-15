@@ -29,6 +29,7 @@ use OTelDistroTests\Util\GlobalUnderscoreServer;
 use OTelDistroTests\Util\HttpMethods;
 use OTelDistroTests\Util\IterableUtil;
 use OTelDistroTests\Util\MixedMap;
+use PHPUnit\Framework\Assert;
 use OpenTelemetry\SemConv\Attributes\HttpAttributes;
 use OpenTelemetry\SemConv\Attributes\ServerAttributes;
 use OpenTelemetry\SemConv\Attributes\UrlAttributes;
@@ -47,6 +48,46 @@ final class Psr18AutoInstrumentationTest extends ComponentTestCaseBase
     private const SERVER_RESPONSE_HTTP_STATUS = 234;
 
     private const ENABLE_PSR18_INSTRUMENTATION_FOR_CLIENT_KEY = 'enable_psr18_instrumentation_for_client';
+
+    private const CAPTURE_REQUEST_HEADER_NAME = 'x-psr18-capture-req';
+    private const CAPTURE_REQUEST_HEADER_VALUE = 'psr18-req-value-test';
+    private const CAPTURE_RESPONSE_HEADER_NAME = 'x-psr18-capture-resp';
+    private const CAPTURE_RESPONSE_HEADER_VALUE = 'psr18-resp-value-test';
+    private const CAPTURE_REQUEST_HEADERS_ENV = 'OTEL_INSTRUMENTATION_HTTP_CLIENT_CAPTURE_REQUEST_HEADERS';
+    private const CAPTURE_RESPONSE_HEADERS_ENV = 'OTEL_INSTRUMENTATION_HTTP_CLIENT_CAPTURE_RESPONSE_HEADERS';
+
+    public static function appCodeServerForHeaderCapture(): void
+    {
+        header('X-Psr18-Capture-Resp: ' . self::CAPTURE_RESPONSE_HEADER_VALUE);
+        http_response_code(self::SERVER_RESPONSE_HTTP_STATUS);
+        echo self::SERVER_RESPONSE_BODY;
+    }
+
+    public static function appCodeClientForHeaderCapture(MixedMap $appCodeRequestArgs): void
+    {
+        $requestParams = $appCodeRequestArgs->getObject(self::HTTP_APP_CODE_REQUEST_PARAMS_FOR_SERVER_KEY, HttpAppCodeRequestParams::class);
+
+        $dataPerRequestHeaderName = RequestHeadersRawSnapshotSource::optionNameToHeaderName(OptionForTestsName::data_per_request->name);
+        $dataPerRequestHeaderValue = PhpSerializationUtil::serializeToString($requestParams->dataPerRequest);
+
+        $client = new GuzzleClient([
+            'connect_timeout' => HttpClientUtilForTests::CONNECT_TIMEOUT_SECONDS,
+            'timeout' => HttpClientUtilForTests::TIMEOUT_SECONDS,
+            'http_errors' => false,
+        ]);
+        $request = new GuzzlePsr7Request(
+            HttpMethods::GET,
+            UrlUtil::buildFullUrl($requestParams->urlParts),
+            [
+                $dataPerRequestHeaderName => $dataPerRequestHeaderValue,
+                self::CAPTURE_REQUEST_HEADER_NAME => self::CAPTURE_REQUEST_HEADER_VALUE,
+            ],
+        );
+
+        $response = $client->sendRequest($request);
+        self::assertSame(self::SERVER_RESPONSE_HTTP_STATUS, $response->getStatusCode());
+        self::assertSame(self::SERVER_RESPONSE_BODY, (string) $response->getBody());
+    }
 
     public static function appCodeServer(): void
     {
@@ -200,6 +241,62 @@ final class Psr18AutoInstrumentationTest extends ComponentTestCaseBase
             function () use ($testArgs): void {
                 $this->implTestLocalClientServer($testArgs);
             }
+        );
+    }
+
+    private function implTestHeaderCapture(): void
+    {
+        DebugContext::getCurrentScope(/* out */ $dbgCtx);
+
+        $testCaseHandle = $this->getTestCaseHandle();
+
+        $serverAppCode = $testCaseHandle->ensureAdditionalHttpAppCodeHost(
+            dbgInstanceName: 'server for PSR-18 header capture',
+            setParamsFunc: function (AppCodeHostParams $appCodeHostParams): void {
+                self::disableTimingDependentFeatures($appCodeHostParams);
+            }
+        );
+        $appCodeRequestParamsForServer = $serverAppCode->buildRequestParams(AppCodeTarget::asRouted([__CLASS__, 'appCodeServerForHeaderCapture']));
+
+        $clientAppCode = $testCaseHandle->ensureMainAppCodeHost(
+            setParamsFunc: function (AppCodeHostParams $appCodeHostParams): void {
+                self::disableTimingDependentFeatures($appCodeHostParams);
+                $appCodeHostParams->setAdditionalEnvVar(self::CAPTURE_REQUEST_HEADERS_ENV, self::CAPTURE_REQUEST_HEADER_NAME);
+                $appCodeHostParams->setAdditionalEnvVar(self::CAPTURE_RESPONSE_HEADERS_ENV, self::CAPTURE_RESPONSE_HEADER_NAME);
+            },
+            dbgInstanceName: 'client for PSR-18 header capture',
+        );
+
+        $clientAppCode->execAppCode(
+            AppCodeTarget::asRouted([__CLASS__, 'appCodeClientForHeaderCapture']),
+            function (AppCodeRequestParams $clientAppCodeReqParams) use ($appCodeRequestParamsForServer): void {
+                $clientAppCodeReqParams->setAppCodeRequestArgs([
+                    self::HTTP_APP_CODE_REQUEST_PARAMS_FOR_SERVER_KEY => $appCodeRequestParamsForServer,
+                ]);
+            }
+        );
+
+        // +1 client root span, +1 PSR-18 client span (server spans are separate, not counted)
+        $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(WaitForOTelSignalCounts::spansAtLeast(2));
+        $dbgCtx->add(compact('agentBackendComms'));
+
+        $psr18ClientSpan = IterableUtil::singleValue($agentBackendComms->findSpansByInstrumentationScope(self::PSR18_INSTRUMENTATION_SCOPE_NAME));
+
+        Assert::assertSame(
+            [self::CAPTURE_REQUEST_HEADER_VALUE],
+            $psr18ClientSpan->attributes->getValue('http.request.header.' . self::CAPTURE_REQUEST_HEADER_NAME)
+        );
+        Assert::assertSame(
+            [self::CAPTURE_RESPONSE_HEADER_VALUE],
+            $psr18ClientSpan->attributes->getValue('http.response.header.' . self::CAPTURE_RESPONSE_HEADER_NAME)
+        );
+    }
+
+    public function testHeaderCapture(): void
+    {
+        self::runAndEscalateLogLevelOnFailure(
+            self::buildDbgDescForTest(__CLASS__, __FUNCTION__),
+            fn() => $this->implTestHeaderCapture()
         );
     }
 }
