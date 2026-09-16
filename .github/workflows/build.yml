@@ -7,6 +7,9 @@ on:
         required: true
         type: string
         default: 'all'
+    secrets:
+      DOCKER_TOKEN_PHP_DISTRO:
+        required: false
   pull_request: ~
   push:
     branches:
@@ -31,7 +34,8 @@ jobs:
 
   build-compiler:
     uses: ./.github/workflows/native-dev-tools-build.yml
-    secrets: inherit
+    secrets:
+      DOCKER_TOKEN_PHP_DISTRO: ${{ secrets.DOCKER_TOKEN_PHP_DISTRO }}
     with:
       build_arch: all
   build-native:

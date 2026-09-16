@@ -47,7 +47,7 @@ final class HttpClientUtilForTests
 
         $logDebug?->with(__LINE__, 'Sending HTTP request to app code...');
 
-        $response = HttpClientUtilForTests::sendRequest($requestParams->httpRequestMethod, $requestParams->urlParts, $requestParams->dataPerRequest);
+        $response = HttpClientUtilForTests::sendRequest($requestParams->httpRequestMethod, $requestParams->urlParts, $requestParams->dataPerRequest, $requestParams->extraHeaders);
         $actualResponseStatusCode = $response->getStatusCode();
         $localLogger->addAllContext(compact('actualResponseStatusCode'));
         $dbgCtx->add(compact('actualResponseStatusCode'));

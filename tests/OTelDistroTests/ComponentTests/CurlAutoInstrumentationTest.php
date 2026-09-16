@@ -33,6 +33,7 @@ use OTelDistroTests\Util\Log\LoggableToString;
 use OTelDistroTests\Util\MixedMap;
 use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\RangeUtil;
+use PHPUnit\Framework\Assert;
 use OpenTelemetry\SemConv\Attributes\CodeAttributes;
 use OpenTelemetry\SemConv\Attributes\HttpAttributes;
 use OpenTelemetry\SemConv\Attributes\ServerAttributes;
@@ -54,6 +55,13 @@ final class CurlAutoInstrumentationTest extends ComponentTestCaseBase
 
     private const ENABLE_CURL_INSTRUMENTATION_FOR_CLIENT_KEY = 'enable_curl_instrumentation_for_client';
     private const ENABLE_CURL_INSTRUMENTATION_FOR_SERVER_KEY = 'enable_curl_instrumentation_for_server';
+
+    private const CAPTURE_REQUEST_HEADER_NAME = 'x-curl-capture-req';
+    private const CAPTURE_REQUEST_HEADER_VALUE = 'curl-req-value-test';
+    private const CAPTURE_RESPONSE_HEADER_NAME = 'x-curl-capture-resp';
+    private const CAPTURE_RESPONSE_HEADER_VALUE = 'curl-resp-value-test';
+    private const CAPTURE_REQUEST_HEADERS_ENV = 'OTEL_PHP_INSTRUMENTATION_HTTP_REQUEST_HEADERS';
+    private const CAPTURE_RESPONSE_HEADERS_ENV = 'OTEL_PHP_INSTRUMENTATION_HTTP_RESPONSE_HEADERS';
 
     /**
      * @param iterable<int> $suffixes
@@ -82,6 +90,41 @@ final class CurlAutoInstrumentationTest extends ComponentTestCaseBase
             $result[] = $headerName . ': ' . $headerValue;
         }
         return $result;
+    }
+
+    public static function appCodeServerForHeaderCapture(): void
+    {
+        header('X-Curl-Capture-Resp: ' . self::CAPTURE_RESPONSE_HEADER_VALUE);
+        http_response_code(self::SERVER_RESPONSE_HTTP_STATUS);
+        echo self::SERVER_RESPONSE_BODY;
+    }
+
+    public static function appCodeClientForHeaderCapture(MixedMap $appCodeRequestArgs): void
+    {
+        self::assertTrue(extension_loaded('curl'));
+
+        $requestParams = $appCodeRequestArgs->getObject(self::HTTP_APP_CODE_REQUEST_PARAMS_FOR_SERVER_KEY, HttpAppCodeRequestParams::class);
+
+        $dataPerRequestHeaderName = RequestHeadersRawSnapshotSource::optionNameToHeaderName(OptionForTestsName::data_per_request->name);
+        $dataPerRequestHeaderValue = PhpSerializationUtil::serializeToString($requestParams->dataPerRequest);
+
+        $ch = curl_init(UrlUtil::buildFullUrl($requestParams->urlParts));
+        self::assertInstanceOf(CurlHandle::class, $ch);
+        curl_setopt_array($ch, [
+            CURLOPT_HTTPHEADER => [
+                $dataPerRequestHeaderName . ': ' . $dataPerRequestHeaderValue,
+                self::CAPTURE_REQUEST_HEADER_NAME . ': ' . self::CAPTURE_REQUEST_HEADER_VALUE,
+            ],
+            CURLOPT_HTTPGET        => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => HttpClientUtilForTests::CONNECT_TIMEOUT_SECONDS,
+            CURLOPT_TIMEOUT        => HttpClientUtilForTests::TIMEOUT_SECONDS,
+        ]);
+
+        $body = curl_exec($ch);
+        self::assertSame(self::SERVER_RESPONSE_HTTP_STATUS, curl_getinfo($ch, CURLINFO_RESPONSE_CODE));
+        self::assertSame(self::SERVER_RESPONSE_BODY, $body);
+        curl_close($ch);
     }
 
     public static function appCodeServer(): void
@@ -274,6 +317,63 @@ final class CurlAutoInstrumentationTest extends ComponentTestCaseBase
             function () use ($testArgs): void {
                 $this->implTestLocalClientServer($testArgs);
             }
+        );
+    }
+
+    private function implTestHeaderCapture(): void
+    {
+        DebugContext::getCurrentScope(/* out */ $dbgCtx);
+
+        $testCaseHandle = $this->getTestCaseHandle();
+
+        $serverAppCode = $testCaseHandle->ensureAdditionalHttpAppCodeHost(
+            dbgInstanceName: 'server for curl header capture',
+            setParamsFunc: function (AppCodeHostParams $appCodeHostParams): void {
+                self::disableTimingDependentFeatures($appCodeHostParams);
+            }
+        );
+        $appCodeRequestParamsForServer = $serverAppCode->buildRequestParams(AppCodeTarget::asRouted([__CLASS__, 'appCodeServerForHeaderCapture']));
+
+        $clientAppCode = $testCaseHandle->ensureMainAppCodeHost(
+            setParamsFunc: function (AppCodeHostParams $appCodeHostParams): void {
+                self::disableTimingDependentFeatures($appCodeHostParams);
+                $appCodeHostParams->setAdditionalEnvVar(self::CAPTURE_REQUEST_HEADERS_ENV, self::CAPTURE_REQUEST_HEADER_NAME);
+                $appCodeHostParams->setAdditionalEnvVar(self::CAPTURE_RESPONSE_HEADERS_ENV, self::CAPTURE_RESPONSE_HEADER_NAME);
+            },
+            dbgInstanceName: 'client for curl header capture',
+        );
+
+        $clientAppCode->execAppCode(
+            AppCodeTarget::asRouted([__CLASS__, 'appCodeClientForHeaderCapture']),
+            function (AppCodeRequestParams $clientAppCodeReqParams) use ($appCodeRequestParamsForServer): void {
+                $clientAppCodeReqParams->setAppCodeRequestArgs([
+                    self::HTTP_APP_CODE_REQUEST_PARAMS_FOR_SERVER_KEY => $appCodeRequestParamsForServer,
+                ]);
+            }
+        );
+
+        // +1 client root span, +1 curl client span, +1 server root span
+        $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(WaitForOTelSignalCounts::spans(3));
+        $dbgCtx->add(compact('agentBackendComms'));
+
+        $rootSpan = $agentBackendComms->singleRootSpan();
+        $curlClientSpan = $agentBackendComms->singleChildSpan($rootSpan->id);
+
+        Assert::assertSame(
+            self::CAPTURE_REQUEST_HEADER_VALUE,
+            $curlClientSpan->attributes->getValue('http.request.header.' . self::CAPTURE_REQUEST_HEADER_NAME)
+        );
+        Assert::assertSame(
+            self::CAPTURE_RESPONSE_HEADER_VALUE,
+            $curlClientSpan->attributes->getValue('http.response.header.' . self::CAPTURE_RESPONSE_HEADER_NAME)
+        );
+    }
+
+    public function testHeaderCapture(): void
+    {
+        $this->runAndEscalateLogLevelOnFailure(
+            self::buildDbgDescForTest(__CLASS__, __FUNCTION__),
+            fn() => $this->implTestHeaderCapture()
         );
     }
 }

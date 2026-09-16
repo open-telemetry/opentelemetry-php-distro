@@ -1,3 +1,41 @@
+## 0.7.0
+
+### This release is based on the following OpenTelemetry PHP packages:
+
+- [open-telemetry/api 1.10.0](https://packagist.org/packages/open-telemetry/api#1.10.0)
+- [open-telemetry/sdk 1.15.0](https://packagist.org/packages/open-telemetry/sdk#1.15.0)
+- [open-telemetry/context 1.5.0](https://packagist.org/packages/open-telemetry/context#1.5.0)
+
+### What's changed
+
+- feat: update instrumentation packages and add header capture tests (PR [#155](https://github.com/open-telemetry/opentelemetry-php-distro/pull/155))
+- feat: capture HTTP request/response headers as span attributes (PR [#151](https://github.com/open-telemetry/opentelemetry-php-distro/pull/151))
+- ci: add shared security scanning workflow (PR [#145](https://github.com/open-telemetry/opentelemetry-php-distro/pull/145))
+- chore: Increase renovate rules to reduce volume (PR [#147](https://github.com/open-telemetry/opentelemetry-php-distro/pull/147))
+- chore: Docker images housekeeping (PR [#134](https://github.com/open-telemetry/opentelemetry-php-distro/pull/134))
+- feat: add composer audit for PHP production dependencies (PR [#142](https://github.com/open-telemetry/opentelemetry-php-distro/pull/142))
+
+### Upstream package highlights
+
+- **opentelemetry-auto-laravel 1.9.0** (from 1.7.0):
+  - fix: set `STATUS_ERROR` for non-zero exit codes in console `Command::execute`
+  - fix: prevent span leak in Worker processes by ending spans on empty receive
+  - fix: correct span kind to `KIND_SERVER` for Artisan `Kernel::handle`
+  - fix: URL path construction in `httpTarget()` and queue name parameter index in `hookLater()`
+  - feat: opt-in context flattening for improved faceted log search
+- **opentelemetry-auto-curl 0.4.0** (from 0.2.0):
+  - fix: deduplicate propagation headers on outgoing curl requests
+  - feat: standardized header capture config option names (aligned with SDK-standard keys)
+- **opentelemetry-auto-http-async 1.4.0** (from 1.2.0):
+  - feat: standardized header capture config option names
+- **opentelemetry-auto-psr18 1.4.0** (from 1.2.0):
+  - feat: standardized header capture config option names; add PHP 8.5 support
+- **opentelemetry-auto-postgresql 0.4.0** (stabilized from dev-main):
+  - feat: SQLcommenter support for PostgreSQL (`pdo_pgsql`)
+- **sdk-configuration 0.9.0** (from 0.8.0):
+  - feat: OTel SDK self-observability metrics
+  - feat: span suppression strategy now configurable via file-based config
+
 ## 0.6.1
 
 ### This release is based on the following OpenTelemetry PHP packages:

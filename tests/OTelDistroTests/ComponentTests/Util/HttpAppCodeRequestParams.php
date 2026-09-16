@@ -16,6 +16,8 @@ final class HttpAppCodeRequestParams extends AppCodeRequestParams
     public string $httpRequestMethod = self::DEFAULT_HTTP_REQUEST_METHOD;
     public UrlParts $urlParts;
     public ?int $expectedHttpResponseStatusCode = HttpStatusCodes::OK;
+    /** @var array<string, string> */
+    public array $extraHeaders = [];
 
     public function __construct(HttpServerHandle $httpServerHandle, AppCodeTarget $appCodeTarget)
     {

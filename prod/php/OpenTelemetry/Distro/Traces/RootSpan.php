@@ -25,6 +25,7 @@ use OpenTelemetry\SemConv\Incubating\Attributes\HttpIncubatingAttributes;
 use OpenTelemetry\SemConv\Attributes\UserAgentAttributes;
 use OpenTelemetry\SemConv\Version;
 use Psr\Http\Message\ServerRequestInterface;
+use OpenTelemetry\Distro\InstrumentationBridge;
 use OpenTelemetry\Distro\Util\WildcardListMatcher;
 
 class RootSpan
@@ -34,6 +35,11 @@ class RootSpan
     private const DEFAULT_SPAN_NAME_FOR_SCRIPT = '<script>';
 
     private static ?ContextStorageScopeInterface $rootScope = null;
+
+    /** @var array<string, string[]> Response headers captured via header() hook, reset each request */
+    private static array $capturedResponseHeaders = [];
+
+    private static bool $responseHeaderHookRegistered = false;
 
     private static function isCliSapi(): bool
     {
@@ -105,6 +111,11 @@ class RootSpan
             );
         }
         $span = $spanBuilder->startSpan();
+        if (!self::isCliSapi()) {
+            self::captureRequestHeaders($request, $span);
+            self::$capturedResponseHeaders = [];
+            self::registerResponseHeaderHookIfNeeded();
+        }
         self::$rootScope = Context::storage()->attach($span->storeInContext($parent));
     }
 
@@ -169,7 +180,73 @@ class RootSpan
             }
         }
 
+        self::captureResponseHeaders($span);
         $span->end();
+    }
+
+    /**
+     * @param \OpenTelemetry\API\Trace\SpanInterface $span
+     */
+    private static function captureRequestHeaders(ServerRequestInterface $request, \OpenTelemetry\API\Trace\SpanInterface $span): void
+    {
+        /** @var string[] $headerNames */
+        $headerNames = Configuration::getList('OTEL_INSTRUMENTATION_HTTP_SERVER_CAPTURE_REQUEST_HEADERS', []);
+        foreach ($headerNames as $name) {
+            $values = $request->getHeader($name);
+            if ($values !== []) {
+                $span->setAttribute('http.request.header.' . strtolower($name), $values);
+            }
+        }
+    }
+
+    /**
+     * @param \OpenTelemetry\API\Trace\SpanInterface $span
+     */
+    private static function captureResponseHeaders(\OpenTelemetry\API\Trace\SpanInterface $span): void
+    {
+        foreach (self::$capturedResponseHeaders as $name => $values) {
+            $span->setAttribute('http.response.header.' . $name, $values);
+        }
+    }
+
+    private static function registerResponseHeaderHookIfNeeded(): void
+    {
+        if (self::$responseHeaderHookRegistered) {
+            return;
+        }
+        /** @var string[] $headerNamesToCapture */
+        $headerNamesToCapture = Configuration::getList('OTEL_INSTRUMENTATION_HTTP_SERVER_CAPTURE_RESPONSE_HEADERS', []);
+        if ($headerNamesToCapture === []) {
+            return;
+        }
+        self::$responseHeaderHookRegistered = true;
+        $headerNamesLower = array_map('strtolower', $headerNamesToCapture);
+        $capturedHeaders = &self::$capturedResponseHeaders;
+        InstrumentationBridge::singletonInstance()->hook(
+            null,
+            'header',
+            pre: static function (?object $thisObj, array $params) use ($headerNamesLower, &$capturedHeaders): void {
+                $headerStr = $params[0] ?? null;
+                $replace = $params[1] ?? true;
+                if (!is_string($headerStr)) {
+                    return;
+                }
+                $colonPos = strpos($headerStr, ':');
+                if ($colonPos === false) {
+                    return;
+                }
+                $name = strtolower(trim(substr($headerStr, 0, $colonPos)));
+                $value = trim(substr($headerStr, $colonPos + 1));
+                if (!in_array($name, $headerNamesLower, true)) {
+                    return;
+                }
+                if ($replace !== false) {
+                    $capturedHeaders[$name] = [$value];
+                } else {
+                    $capturedHeaders[$name][] = $value;
+                }
+            }
+        );
     }
 
     private static function getOptionalServerVarElement(string $key): mixed

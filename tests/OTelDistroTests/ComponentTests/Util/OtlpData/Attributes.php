@@ -71,15 +71,24 @@ final class Attributes implements ArrayReadInterface, Countable, LoggableInterfa
             return null;
         }
 
+        return self::extractAnyValue($anyValue, compact('keyValue'));
+    }
+
+    /**
+     * @param array<string, mixed> $dbgCtx
+     * @return AttributeValue
+     */
+    private static function extractAnyValue(\Opentelemetry\Proto\Common\V1\AnyValue $anyValue, array $dbgCtx = []): array|bool|float|int|null|string
+    {
         if ($anyValue->hasArrayValue()) {
             $arrayValue = $anyValue->getArrayValue();
             if ($arrayValue === null) {
                 return null;
             }
             $result = [];
-            $arrayValues = $arrayValue->getValues();
-            foreach ($arrayValues as $repeatedFieldSubValue) {
-                $result[] = $repeatedFieldSubValue;
+            foreach ($arrayValue->getValues() as $element) {
+                Assert::assertInstanceOf(\Opentelemetry\Proto\Common\V1\AnyValue::class, $element);
+                $result[] = self::extractAnyValue($element, $dbgCtx);
             }
             return $result;
         }
@@ -122,7 +131,7 @@ final class Attributes implements ArrayReadInterface, Countable, LoggableInterfa
             return $anyValue->getStringValue();
         }
 
-        Assert::fail('Unknown value type; ' . LoggableToString::convert(compact('keyValue')));
+        Assert::fail('Unknown value type; ' . LoggableToString::convert($dbgCtx));
     }
 
     #[Override]

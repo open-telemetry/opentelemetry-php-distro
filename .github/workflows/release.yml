@@ -22,7 +22,9 @@ jobs:
     outputs:
       tag_name: ${{ steps.get_tag.outputs.tag_name }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
       - id: get_tag
         run: |
           source ./tools/read_properties.sh
@@ -42,7 +44,8 @@ jobs:
     needs:
       - verify-tag
     uses: ./.github/workflows/build.yml
-    secrets: inherit
+    secrets:
+      DOCKER_TOKEN_PHP_DISTRO: ${{ secrets.DOCKER_TOKEN_PHP_DISTRO }}
     with:
       build_arch: 'all'
 
@@ -63,9 +66,11 @@ jobs:
             echo "Please set GITHUB_TOKEN in the environment to perform a release"
             exit 1
           fi
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
       - name: Download package artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: packages-*
           path: ${{ env.BUILT_PACKAGES_DIR }}
