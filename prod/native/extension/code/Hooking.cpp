@@ -29,6 +29,10 @@ void otel_observer_error_cb(int type, zend_string *error_filename, uint32_t erro
 #endif
     std::string_view msg = message && ZSTR_VAL(message) ? std::string_view{ZSTR_VAL(message), ZSTR_LEN(message)} : std::string_view{};
 
+    if (!OTEL_G(globals)) {
+        return;
+    }
+
     ELOGF_DEBUG(OTEL_G(globals)->logger_, HOOKS, "otel_observer_error_cb type: %d, fn: " PRsv ":%d, msg: " PRsv " ED: %p", type, PRsvArg(fileName), error_lineno, PRsvArg(msg), EG(current_execute_data));
     static bool errorHandling = false;
     if (errorHandling) {
