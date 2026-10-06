@@ -46,7 +46,7 @@
         "php-parallel-lint/php-parallel-lint": "1.4.0",
         "phpstan/phpstan": "2.1.55",
         "phpstan/phpstan-phpunit": "2.0.16",
-        "phpunit/phpunit": "10.5.63",
+        "phpunit/phpunit": "10.5.66",
         "react/http": "^1.11",
         "slevomat/coding-standard": "8.29.0",
         "slim/psr7": "^1.7",
