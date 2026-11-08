@@ -12,6 +12,12 @@ set_target_properties(${_DetectionTarget}
 target_include_directories(${_DetectionTarget}
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+# phpdetection.cpp calls dlsym(). On glibc that lives in libdl and has to be linked explicitly; on
+# musl it is part of libc and CMAKE_DL_LIBS is empty. PUBLIC so that both the loader and the test
+# executable inherit it -- an executable, unlike a shared library, cannot leave it undefined.
+target_link_libraries(${_DetectionTarget}
+    PUBLIC ${CMAKE_DL_LIBS})
+
 set (_Target opentelemetry_php_distro_loader)
 
 add_library (${_Target} SHARED loader.cpp)
