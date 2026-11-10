@@ -32,6 +32,9 @@ jobs:
   audit-php-deps:
     uses: ./.github/workflows/audit-php-deps.yml
 
+  verify-composer-version-is-pinned:
+    uses: ./.github/workflows/verify-composer-version-is-pinned.yml
+
   build-compiler:
     uses: ./.github/workflows/native-dev-tools-build.yml
     secrets:
@@ -81,6 +84,7 @@ jobs:
       - tests-phpt
       - test-php-static-and-unit
       - audit-php-deps
+      - verify-composer-version-is-pinned
       - build-packages
       - test-otel-unit
       - test-packages-component-tests
