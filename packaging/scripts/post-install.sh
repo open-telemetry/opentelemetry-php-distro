@@ -195,15 +195,14 @@ function is_php_supported() {
     echo "Detected PHP version '${PHP_MAJOR_MINOR}'"
     # Make sure list of PHP versions supported by the OpenTelemetry PHP Distro is in sync.
     # See the comment in .ci/shared.sh
-    if  [ "${PHP_MAJOR_MINOR}" == "8.1" ] || \
-        [ "${PHP_MAJOR_MINOR}" == "8.2" ] || \
+    if  [ "${PHP_MAJOR_MINOR}" == "8.2" ] || \
         [ "${PHP_MAJOR_MINOR}" == "8.3" ] || \
         [ "${PHP_MAJOR_MINOR}" == "8.4" ] || \
         [ "${PHP_MAJOR_MINOR}" == "8.5" ]
     then
         return 0
     else
-        echo 'Failed. The supported PHP versions are 8.1-8.5.'
+        echo 'Failed. The supported PHP versions are 8.2-8.5.'
         return 1
     fi
 }

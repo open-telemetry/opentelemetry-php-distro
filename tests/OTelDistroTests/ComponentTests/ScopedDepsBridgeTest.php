@@ -84,7 +84,10 @@ final class ScopedDepsBridgeTest extends ComponentTestCaseBase
         $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
             function (AppCodeHostParams $appCodeHostParams) use ($bridgeEnabled): void {
                 self::disableTimingDependentFeatures($appCodeHostParams);
-                self::ensureTransactionSpanEnabled($appCodeHostParams);
+                // The root span is NOT enabled explicitly here, the distro enables it by default. Setting
+                // OTEL_PHP_TRANSACTION_SPAN_ENABLED would also reach the application's own copy of the SDK (a known
+                // limitation, see "Scoped dependencies bridge interop" in docs/reference/configuration.md), and this test
+                // checks the default configuration.
                 // The bridge only does anything for scoped builds - force it regardless of the matrix row.
                 $appCodeHostParams->setProdOption(OptionForProdName::scoped_deps_enabled, true);
                 $appCodeHostParams->setAdditionalEnvVar('OTEL_PHP_SCOPED_DEPS_BRIDGE_ENABLED', $bridgeEnabled ? 'true' : 'false');

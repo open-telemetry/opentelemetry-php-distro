@@ -16,25 +16,27 @@ use Throwable;
 /**
  * @see https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/stdout.md#opentelemetry-metrics-exporter---standard-output
  * @see https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/file-exporter.md#json-file-serialization
- * @psalm-import-type SUPPORTED_CONTENT_TYPES from ProtobufSerializer
  */
 final class MetricExporter implements PushMetricExporterInterface, AggregationTemporalitySelectorInterface
 {
     use LogsMessagesTrait;
 
     /**
-     * @psalm-param TransportInterface<SUPPORTED_CONTENT_TYPES> $transport
+     * @param TransportInterface<ContentTypes::*> $transport
      */
     public function __construct(
         private readonly TransportInterface $transport,
-        private readonly string|Temporality|null $temporality = null,
+        private readonly string|Temporality|AggregationTemporalitySelectorInterface|null $temporality = null,
     ) {
     }
 
-    /** @phpstan-ignore-next-line */
     #[\Override]
     public function temporality(MetricMetadataInterface $metric): Temporality|string|null
     {
+        if ($this->temporality instanceof AggregationTemporalitySelectorInterface) {
+            return $this->temporality->temporality($metric);
+        }
+
         return $this->temporality ?? $metric->temporality();
     }
 

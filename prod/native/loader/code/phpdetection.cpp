@@ -64,7 +64,7 @@ std::tuple<std::string_view, int, int, bool> getZendModuleApiVersion(std::string
         {"4.4"sv, 84, 20240924, true},  // PHP 8.4
         {"4.3"sv, 83, 20230831, true},  // PHP 8.3
         {"4.2"sv, 82, 20220829, true},  // PHP 8.2
-        {"4.1"sv, 81, 20210902, true},  // PHP 8.1
+        {"4.1"sv, 81, 20210902, false}, // PHP 8.1
         {"4.0"sv, 80, 20200930, false}, // PHP 8.0
         {"3.4"sv, 74, 20190902, false}, // PHP 7.4
         {"3.3"sv, 73, 20180731, false}, // PHP 7.3

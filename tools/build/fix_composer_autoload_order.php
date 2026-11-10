@@ -18,6 +18,13 @@
  *    factories are not yet registered and initialization fails with "Span exporter factory not
  *    defined for: otlp".
  *
+ * The script fails (exit code 1) instead of silently doing nothing when what it relies on is not
+ * there: a missing composer/autoload_files.php, or an autoload file that does not list
+ * open-telemetry/exporter-otlp/_register.php or open-telemetry/sdk/_autoload.php. Every vendor of the
+ * distro contains both packages, so a missing marker means that upstream renamed or moved one of these
+ * files. Without this failure the build would stay green while the OTLP exporter factories are again
+ * registered too late.
+ *
  * Needed for BOTH scoped and not_scoped vendors - the relative path from a vendor's composer/
  * directory up to OpenTelemetry/Distro/earlySetup.php is identical in both layouts (vendor is
  * always a sibling of OpenTelemetry/), and the exporter-otlp/sdk ordering problem is not
@@ -48,9 +55,14 @@ $composerDir = rtrim($vendorDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'c
 $prependEarlySetupEntry = static function (
     string $filePath,
     string $entry,
-    string $insertAfterPattern
+    string $insertAfterPattern,
+    bool $required
 ): void {
     if (!is_file($filePath)) {
+        if ($required) {
+            fwrite(STDERR, "Required file does not exist (cannot prepend early setup): $filePath\n");
+            exit(1);
+        }
         fwrite(STDERR, "File does not exist (skipping early setup prepend): $filePath\n");
         return;
     }
@@ -85,12 +97,14 @@ $earlySetupHash = md5('otel-distro:OpenTelemetry/Distro/earlySetup.php');
 $prependEarlySetupEntry(
     $composerDir . 'autoload_files.php',
     "'" . $earlySetupHash . "' => \$baseDir . '/OpenTelemetry/Distro/earlySetup.php', ",
-    "return array\\s*\\("
+    "return array\\s*\\(",
+    true
 );
 $prependEarlySetupEntry(
     $composerDir . 'autoload_static.php',
     "'" . $earlySetupHash . "' => __DIR__ . '/../../OpenTelemetry/Distro/earlySetup.php', ",
-    "public static \\\$files = array\\s*\\("
+    "public static \\\$files = array\\s*\\(",
+    false
 );
 
 // --- Fix 2: Reorder exporter-otlp/_register.php before sdk/_autoload.php ---
@@ -131,8 +145,18 @@ $findEntryContaining = static function (string $content, string $marker): ?array
     return [$entryStart, substr($content, $entryStart, $entryEnd - $entryStart)];
 };
 
-$reorderAutoloadEntries = static function (string $filePath, string $pathToMove, string $insertBefore) use ($findEntryContaining): void {
+$registeredThroughSpi = static function (string $autoloadFilePath): bool {
+    $spiData = dirname($autoloadFilePath) . DIRECTORY_SEPARATOR . 'GeneratedServiceProviderData.php';
+    $content = is_file($spiData) ? file_get_contents($spiData) : false;
+    return is_string($content) && str_contains($content, '\\OpenTelemetry\\Contrib\\Otlp\\Registrar::class');
+};
+
+$reorderAutoloadEntries = static function (string $filePath, string $pathToMove, string $insertBefore, bool $required) use ($findEntryContaining, $registeredThroughSpi): void {
     if (!is_file($filePath)) {
+        if ($required) {
+            fwrite(STDERR, "Required file does not exist (cannot reorder): $filePath\n");
+            exit(1);
+        }
         fwrite(STDERR, "File does not exist (skipping reorder): $filePath\n");
         return;
     }
@@ -149,9 +173,29 @@ $reorderAutoloadEntries = static function (string $filePath, string $pathToMove,
     $pathToMovePos = strpos($content, $pathToMoveMarker);
     $insertBeforePos = strpos($content, $insertBeforeMarker);
 
-    if ($pathToMovePos === false || $insertBeforePos === false) {
-        fwrite(STDOUT, "Skipping reorder (markers not found) in: $filePath\n");
+    // Newer exporter-otlp registers its factories through SPI (a Registrar listed in Composer's
+    // GeneratedServiceProviderData.php, loaded lazily on first lookup) and no longer has a files-autoload
+    // entry, so there is nothing to reorder. The SPI registration is checked, so that a renamed file still fails.
+    if ($pathToMovePos === false && $insertBeforePos !== false && $registeredThroughSpi($filePath)) {
+        fwrite(STDOUT, "No reorder needed in $filePath: '$pathToMove' is not a files-autoload entry, the exporter is registered through SPI\n");
         return;
+    }
+
+    if ($pathToMovePos === false || $insertBeforePos === false) {
+        $missingMarkers = [];
+        if ($pathToMovePos === false) {
+            $missingMarkers[] = $pathToMove;
+        }
+        if ($insertBeforePos === false) {
+            $missingMarkers[] = $insertBefore;
+        }
+        fwrite(
+            STDERR,
+            "Cannot reorder, not listed in $filePath: " . implode(', ', $missingMarkers) . "\n"
+            . "Every vendor of the distro contains both packages, so one of these files was probably renamed or moved upstream."
+            . " Update this script, otherwise the OTLP exporter factories are registered after the SDK autoloads (see the comment at the top).\n"
+        );
+        exit(1);
     }
 
     if ($pathToMovePos < $insertBeforePos) {
@@ -193,10 +237,12 @@ $reorderAutoloadEntries = static function (string $filePath, string $pathToMove,
 $reorderAutoloadEntries(
     $composerDir . 'autoload_files.php',
     '/open-telemetry/exporter-otlp/_register.php',
-    '/open-telemetry/sdk/_autoload.php'
+    '/open-telemetry/sdk/_autoload.php',
+    true
 );
 $reorderAutoloadEntries(
     $composerDir . 'autoload_static.php',
     '/open-telemetry/exporter-otlp/_register.php',
-    '/open-telemetry/sdk/_autoload.php'
+    '/open-telemetry/sdk/_autoload.php',
+    false
 );
