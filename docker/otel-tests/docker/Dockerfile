@@ -6,9 +6,11 @@ USER root
 RUN apt-get update && apt-get install -y \
         jq git unzip tar libpq-dev
 
+ARG COMPOSER_VERSION
+
 ADD https://getcomposer.org/installer composer-setup.php
 
-RUN php composer-setup.php --quiet --install-dir="/usr/local/bin" --filename="composer" \
+RUN php composer-setup.php --quiet --install-dir="/usr/local/bin" --filename="composer" --version="${COMPOSER_VERSION:?}" \
         && chmod +x /usr/local/bin/composer \
         && rm composer-setup.php
 

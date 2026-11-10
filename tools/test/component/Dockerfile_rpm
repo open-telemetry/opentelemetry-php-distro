@@ -25,7 +25,6 @@ RUN dnf -y module reset php \
 
 RUN dnf -y update \
     && dnf -y install \
-        composer \
         git \
         php-cli \
         php-curl \
@@ -37,6 +36,15 @@ RUN dnf -y update \
         procps \
         which \
         zip
+
+# Composer comes from the official installer rather than the distribution package, because the
+# packaged one tracks the newest release and the committed lock files are only valid for the
+# pinned one. The version is required and has no default, so that composer_version in
+# project.properties stays the single place it is specified.
+ARG COMPOSER_VERSION
+RUN curl -sS https://getcomposer.org/installer \
+    | php -- --filename=composer --install-dir=/usr/local/bin --version="${COMPOSER_VERSION:?}" \
+    && composer --version
 
 # OPcache is built into PHP core since 8.5
 RUN if [[ "${PHP_VERSION}" < "8.5" ]]; then dnf -y install php-opcache; fi

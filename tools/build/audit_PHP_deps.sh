@@ -94,7 +94,7 @@ main() {
             -w "/audit_workdir" \
             "${PHP_docker_image}" \
             sh -c "\
-                curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin \
+                curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin --version=${_PROJECT_PROPERTIES_COMPOSER_VERSION:?} \
                 && composer audit --no-dev --locked \
             "
 

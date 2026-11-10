@@ -307,7 +307,7 @@ function derive_composer_json_for_env_kind() {
         -w "/repo_root" \
         "${PHP_docker_image}" \
         sh -c "\
-            curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin \
+            curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin --version=${_PROJECT_PROPERTIES_COMPOSER_VERSION:?} \
             && ${command_to_derive} \
             && chown ${current_user_id}:${current_user_group_id} composer.json \
             && chmod +r,u+w composer.json \
@@ -367,7 +367,7 @@ function generate_composer_lock_for_PHP_version() {
         -w "/repo_root" \
         "${PHP_docker_image}" \
         sh -c "\
-            curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin \
+            curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin --version=${_PROJECT_PROPERTIES_COMPOSER_VERSION:?} \
             ${docker_cmds_for_PHP_81[*]} \
             && composer run-script -- generate_lock_use_current_json \
             && cp -f /repo_root/composer.lock /from_docker_host/generated_composer_lock_files_stage_dir/${composer_lock_file_name} \
@@ -425,7 +425,7 @@ function main() {
         -w "/repo_temp_copy_dir" \
         "${_PHP_docker_image_for_tools}" \
         sh -c "\
-            curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin \
+            curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin --version=${_PROJECT_PROPERTIES_COMPOSER_VERSION:?} \
             && php /read_only_repo_root/tools/build/download_adapt_packages_to_PHP_81_and_gen_config.php \
             && chown -R ${current_user_id}:${current_user_group_id} /repo_temp_copy_dir \
             && chmod -R +r,u+w /repo_temp_copy_dir \
