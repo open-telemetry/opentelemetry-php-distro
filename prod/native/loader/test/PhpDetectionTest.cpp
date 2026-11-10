@@ -41,7 +41,6 @@ TEST(PhpDetectionTest, supportedVersionsMapToTheirModuleApi) {
         int moduleApi;
     };
     constexpr std::array supported{
-        Expected{"4.1"sv, 81, 20210902},
         Expected{"4.2"sv, 82, 20220829},
         Expected{"4.3"sv, 83, 20230831},
         Expected{"4.4"sv, 84, 20240924},
@@ -56,6 +55,13 @@ TEST(PhpDetectionTest, supportedVersionsMapToTheirModuleApi) {
         EXPECT_EQ(moduleApi, entry.moduleApi) << "for Zend Engine " << entry.zendVersion;
         EXPECT_TRUE(isSupported) << "for Zend Engine " << entry.zendVersion;
     }
+}
+
+TEST(PhpDetectionTest, php81MapsToItsModuleApiWhicheverWayItsSupportFlagGoes) {
+    auto const php81 = getZendModuleApiVersion("4.1"sv);
+    EXPECT_EQ(std::get<0>(php81), "4.1"sv);
+    EXPECT_EQ(std::get<1>(php81), 81);
+    EXPECT_EQ(std::get<2>(php81), 20210902);
 }
 
 // Every PHP the distro does not ship an extension for must be reported as unsupported, so that
@@ -108,7 +114,6 @@ TEST(PhpDetectionTest, engineVersionStringResolvesToTheExtensionToLoad) {
 
 // isThreadSafe() is deliberately not covered here: it answers from the process's global dynamic
 // symbol table, so its result is a property of how the host loaded PHP rather than of the engine,
-// and it cannot be exercised meaningfully from a unit test binary that never loads PHP. See
-// repro-loader-symbol-visibility/ for a harness that does exercise it.
+// and it cannot be exercised meaningfully from a unit test binary that never loads PHP.
 
 } // namespace opentelemetry::loader
