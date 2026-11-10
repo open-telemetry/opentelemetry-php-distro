@@ -40,7 +40,7 @@ function install_package_file() {
             dpkg -i "${package_file_full_path}"
             ;;
         rpm)
-            rpm -ivh "${package_file_full_path}"
+            rpm -ivh --nosignature "${package_file_full_path}"
             ;;
         *)
             echo "Unknown package file extension: ${package_file_extension}, package_file_full_path: ${package_file_full_path}"
