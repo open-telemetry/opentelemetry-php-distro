@@ -169,7 +169,7 @@ zend_module_entry opentelemetry_distro_fake = {STANDARD_MODULE_HEADER,
                                        nullptr,         /* PHP_RINIT - Request initialization */
                                        nullptr,         /* PHP_RSHUTDOWN - Request shutdown */
                                        nullptr,         /* PHP_MINFO - Module info */
-                                       "2.0",           /* Version */
+                                       "1.4.2",         /* Version */
                                        0,               /* globals size */
                                        nullptr,         /* PHP_MODULE_GLOBALS */
                                        nullptr,         /* PHP_GINIT */

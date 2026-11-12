@@ -1,7 +1,7 @@
 #pragma once
 
 // Native reimplementation of OpenTelemetry\Contrib\Otlp\MetricConverter
-// Compatible with open-telemetry/exporter-otlp 1.4.0
+// Compatible with open-telemetry/exporter-otlp 1.5.0
 // When updating, also update native_otlp_exporters_based_on_php_impl_version in project.properties
 
 #include "opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h"
@@ -17,6 +17,7 @@
 
 #include <boost/algorithm/hex.hpp>
 
+#include <cmath>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -162,8 +163,13 @@ void convertMetricData(AutoZval const &data, opentelemetry::proto::metrics::v1::
         out->set_time_unix_nano(point.readProperty("timestamp").getLong());
         out->set_count(point.readProperty("count").getLong());
         out->set_sum(point.readProperty("sum").getNumberAsDouble());
-        out->set_min(point.readProperty("min").getNumberAsDouble());
-        out->set_max(point.readProperty("max").getNumberAsDouble());
+        // exporter-otlp 1.5.0: min/max are not exported when they are NaN (e.g. record_min_max: false)
+        if (auto const min = point.readProperty("min").getNumberAsDouble(); !std::isnan(min)) {
+            out->set_min(min);
+        }
+        if (auto const max = point.readProperty("max").getNumberAsDouble(); !std::isnan(max)) {
+            out->set_max(max);
+        }
 
         for (auto const &val : point.readProperty("bucketCounts")) {
             out->add_bucket_counts(val.getLong());

@@ -326,8 +326,6 @@ function generate_composer_lock_for_PHP_version() {
     local _STAGE_DIR="${1:?}"
     local _ENV_KIND="${2:?}"
     local PHP_version_no_dot="${3:?}"
-    local _PHP_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH="${4:?}"
-    local _COMPOSER_HOME_FOR_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH="${5:?}"
 
     local composer_json_full_path
     composer_json_full_path="$(build_generated_composer_json_full_path "${_STAGE_DIR}" "${_ENV_KIND}")"
@@ -343,17 +341,6 @@ function generate_composer_lock_for_PHP_version() {
     echo "composer_json_full_path: ${composer_json_full_path} ..."
     echo "composer_lock_file_name: ${composer_lock_file_name} ..."
 
-    local docker_args_for_PHP_81=()
-    local docker_cmds_for_PHP_81=()
-    if [ "${PHP_version_no_dot}" = "81" ]; then
-        docker_args_for_PHP_81+=(-v "${_REPO_TEMP_COPY_DIR}/${_PHP_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH:?}:/repo_root/${_PHP_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH:?}:ro")
-        docker_args_for_PHP_81+=(-v "${_REPO_TEMP_COPY_DIR}/${_COMPOSER_HOME_FOR_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH:?}:/from_docker_host/${_COMPOSER_HOME_FOR_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH:?}:ro")
-        docker_args_for_PHP_81+=(-e "COMPOSER_HOME=/repo_root/${_COMPOSER_HOME_FOR_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH:?}")
-
-        docker_cmds_for_PHP_81+=("&&" mkdir -p "/repo_root/${_COMPOSER_HOME_FOR_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH:?}/")
-        docker_cmds_for_PHP_81+=("&&" cp "/from_docker_host/${_COMPOSER_HOME_FOR_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH:?}/"* "/repo_root/${_COMPOSER_HOME_FOR_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH:?}/")
-    fi
-
     local docker_local_repos_mounts=()
     if [ "${#LOCAL_REPOS_EXTRA_MOUNTS[@]}" -gt 0 ]; then
         docker_local_repos_mounts=("${LOCAL_REPOS_EXTRA_MOUNTS[@]}")
@@ -362,13 +349,11 @@ function generate_composer_lock_for_PHP_version() {
     docker run --rm \
         -v "${composer_json_full_path}:/repo_root/composer.json:ro" \
         -v "${_STAGE_DIR}:/from_docker_host/generated_composer_lock_files_stage_dir" \
-        "${docker_args_for_PHP_81[@]}" \
         "${docker_local_repos_mounts[@]+"${docker_local_repos_mounts[@]}"}" \
         -w "/repo_root" \
         "${PHP_docker_image}" \
         sh -c "\
             curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin \
-            ${docker_cmds_for_PHP_81[*]} \
             && composer run-script -- generate_lock_use_current_json \
             && cp -f /repo_root/composer.lock /from_docker_host/generated_composer_lock_files_stage_dir/${composer_lock_file_name} \
             && chown -R ${current_user_id}:${current_user_group_id} /from_docker_host/generated_composer_lock_files_stage_dir/${composer_lock_file_name} \
@@ -413,24 +398,6 @@ function main() {
     local -r _lowest_supported_php_version_no_dot=$(get_array_min_value ${_PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS})
     local -r _PHP_docker_image_for_tools=$(build_light_PHP_docker_image_name_for_version_no_dot "${_lowest_supported_php_version_no_dot}")
 
-    # composer run-script -- download_and_adapt_packages_to_PHP_81 "${_REPO_TEMP_COPY_DIR}"
-    #   expects
-    #       - "./composer.json"
-    #   creates
-    #       - "./${_PHP_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH:?}/"
-    #       - "./${_COMPOSER_HOME_FOR_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH:?}/config.json"
-    docker run --rm \
-        -v "${repo_root_dir}:/read_only_repo_root:ro" \
-        -v "${_REPO_TEMP_COPY_DIR}:/repo_temp_copy_dir" \
-        -w "/repo_temp_copy_dir" \
-        "${_PHP_docker_image_for_tools}" \
-        sh -c "\
-            curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin \
-            && php /read_only_repo_root/tools/build/download_adapt_packages_to_PHP_81_and_gen_config.php \
-            && chown -R ${current_user_id}:${current_user_group_id} /repo_temp_copy_dir \
-            && chmod -R +r,u+w /repo_temp_copy_dir \
-        "
-
     local GENERATED_COMPOSER_LOCK_FILES_STAGE_DIR="${_REPO_TEMP_COPY_DIR}/${_PROJECT_PROPERTIES_GENERATED_LOCK_FILES_FOLDER:?}"
     mkdir -p "${GENERATED_COMPOSER_LOCK_FILES_STAGE_DIR}"
 
@@ -464,7 +431,7 @@ function main() {
     # shellcheck disable=SC2086
     for PHP_version_no_dot in $(get_array $_PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS) ; do
         for env_kind in "dev" "prod" "prod_static_check" "test"; do
-            generate_composer_lock_for_PHP_version "${GENERATED_COMPOSER_LOCK_FILES_STAGE_DIR}" "${env_kind}" "${PHP_version_no_dot}" "${_PROJECT_PROPERTIES_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH}" "${_PROJECT_PROPERTIES_COMPOSER_HOME_FOR_PACKAGES_ADAPTED_TO_PHP_81_REL_PATH}"
+            generate_composer_lock_for_PHP_version "${GENERATED_COMPOSER_LOCK_FILES_STAGE_DIR}" "${env_kind}" "${PHP_version_no_dot}"
         done
     done
 

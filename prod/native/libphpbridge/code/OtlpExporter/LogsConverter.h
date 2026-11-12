@@ -1,7 +1,7 @@
 #pragma once
 
 // Native reimplementation of OpenTelemetry\Contrib\Otlp\LogsConverter
-// Compatible with open-telemetry/exporter-otlp 1.4.0
+// Compatible with open-telemetry/exporter-otlp 1.5.0
 // When updating, also update native_otlp_exporters_based_on_php_impl_version in project.properties
 
 #include "opentelemetry/proto/collector/logs/v1/logs_service.pb.h"

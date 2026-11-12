@@ -6,11 +6,11 @@ show_help() {
     echo "Usage: $0 --php_versions <versions>"
     echo
     echo "Arguments:"
-    echo "  --php_versions      Required. List of PHP versions separated by spaces (e.g., '81 82 83 84')."
+    echo "  --php_versions      Required. List of PHP versions separated by spaces (e.g., '82 83 84 85')."
     echo "  --logs_dir          Required. Full path to the directory where generated logs will be stored. NOTE: All existing files in this directory will be deleted"
     echo
     echo "Example:"
-    echo "  $0 --php_versions '81 82 83 84' --logs_dir '/directory/to/store/logs'"
+    echo "  $0 --php_versions '82 83 84 85' --logs_dir '/directory/to/store/logs'"
 }
 
 # Function to parse arguments

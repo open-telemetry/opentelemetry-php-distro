@@ -47,7 +47,13 @@ final class HttpClientUtilForTests
 
         $logDebug?->with(__LINE__, 'Sending HTTP request to app code...');
 
-        $response = HttpClientUtilForTests::sendRequest($requestParams->httpRequestMethod, $requestParams->urlParts, $requestParams->dataPerRequest, $requestParams->extraHeaders);
+        $response = HttpClientUtilForTests::sendRequest(
+            $requestParams->httpRequestMethod,
+            $requestParams->urlParts,
+            $requestParams->dataPerRequest,
+            $requestParams->extraHeaders,
+            $requestParams->body
+        );
         $actualResponseStatusCode = $response->getStatusCode();
         $localLogger->addAllContext(compact('actualResponseStatusCode'));
         $dbgCtx->add(compact('actualResponseStatusCode'));
@@ -65,7 +71,7 @@ final class HttpClientUtilForTests
      *
      * @noinspection PhpDocMissingThrowsInspection
      */
-    public static function sendRequest(string $httpMethod, UrlParts $urlParts, TestInfraDataPerRequest $dataPerRequest, array $headers = []): ResponseInterface
+    public static function sendRequest(string $httpMethod, UrlParts $urlParts, TestInfraDataPerRequest $dataPerRequest, array $headers = [], ?string $body = null): ResponseInterface
     {
         $localLogger = self::getLogger()->inherit()->addAllContext(compact('httpMethod', 'urlParts', 'dataPerRequest', 'headers'));
         $logDebug = $localLogger->logDebug(__FUNCTION__);
@@ -110,7 +116,7 @@ final class HttpClientUtilForTests
                  * Use 0 to wait indefinitely (the default behavior).
                  */
                 RequestOptions::TIMEOUT => self::TIMEOUT_SECONDS,
-            ]
+            ] + ($body !== null ? [RequestOptions::BODY => $body] : [])
         );
 
         $logDebug?->with(__LINE__, 'Sent HTTP request', ['response status code' => $response->getStatusCode()]);

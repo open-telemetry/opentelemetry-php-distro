@@ -86,6 +86,17 @@ opentelemetry_distro.enabled=true
 | `OTEL_PHP_TRANSACTION_SPAN_ENABLED_CLI` | `true` | `true` or `false` | Auto root span for CLI |
 | `OTEL_PHP_TRANSACTION_URL_GROUPS` | (empty) | Comma-separated wildcards | URL grouping patterns |
 
+### HTTP capture
+
+These options are read by the root span (transaction span). They are standard OpenTelemetry-style settings and can be set as environment variables or in `php.ini`.
+
+| Option | Default | Accepted values | Description |
+| --- | --- | --- | --- |
+| `OTEL_INSTRUMENTATION_HTTP_SERVER_CAPTURE_REQUEST_HEADERS` | (empty) | Comma-separated header names | Request headers recorded as `http.request.header.<name>` |
+| `OTEL_INSTRUMENTATION_HTTP_SERVER_CAPTURE_RESPONSE_HEADERS` | (empty) | Comma-separated header names | Response headers recorded as `http.response.header.<name>` |
+| `OTEL_PHP_INSTRUMENTATION_HTTP_SERVER_CAPTURE_REQUEST_BODY` | `false` | `true` or `false` | Records the request body as `http.request.body.content`. Only textual bodies are recorded (by `Content-Type`); binary and compressed bodies are skipped. The body may contain sensitive data. |
+| `OTEL_PHP_INSTRUMENTATION_HTTP_SERVER_CAPTURE_REQUEST_BODY_MAX_SIZE` | `1024` | Number of bytes | Maximum recorded body size, cut on a UTF-8 character boundary |
+
 ### Attribute-based instrumentation
 
 | Option | Default | Accepted values | Description |
@@ -139,13 +150,15 @@ opentelemetry_distro.enabled=true
 
 ### Scoped dependencies bridge interop
 
-By default the distro's OpenTelemetry runtime is **scoped** (see the note above): its classes live under a unique namespace prefix, separate from the standard `OpenTelemetry\*` classes an application would install via Composer. As a result, the application's own OpenTelemetry usage — instrumentation it writes itself, or officially published auto-instrumentation packages it installs on its own (for example `open-telemetry/opentelemetry-auto-pdo`), using the public `OpenTelemetry\API\*` / `OpenTelemetry\Context\*` / `OpenTelemetry\SDK\*` API and the `OpenTelemetry\Instrumentation\hook()` function — runs against a **separate** runtime: its spans use a no-op tracer provider and an empty context, so they are neither exported nor connected to the distro's traces.
+By default the distro's OpenTelemetry runtime is **scoped** (see the note above): its classes live under a unique namespace prefix, separate from the standard `OpenTelemetry\*` classes an application would install via Composer. As a result, the application's own OpenTelemetry usage — instrumentation it writes itself, or officially published auto-instrumentation packages it installs on its own (for example `open-telemetry/opentelemetry-auto-pdo`), using the public `OpenTelemetry\API\*` / `OpenTelemetry\Context\*` / `OpenTelemetry\SDK\*` API and the `OpenTelemetry\Instrumentation\hook()` function — runs against a **separate** runtime with an empty context, so its spans are never connected to the distro's traces. If the application does not install `open-telemetry/sdk`, its spans use a no-op tracer provider and are not exported. If it does install the SDK, that SDK configures itself from the standard `OTEL_*` variables (the distro sets `OTEL_PHP_AUTOLOAD_ENABLED=true`), so its spans are exported, but as separate traces.
 
 Setting `OTEL_PHP_SCOPED_DEPS_BRIDGE_ENABLED=true` bridges the two: before the application's Composer autoloader runs, the distro registers class aliases mapping the unscoped `OpenTelemetry\*` API onto its scoped implementation. The application's own OpenTelemetry usage then transparently uses the distro's tracer provider and context, so its spans are exported and correctly parented within the distro's traces.
 
 Because the distro ships specific versions of the OpenTelemetry packages, when this option is enabled the distro checks at shutdown whether the application has installed different versions of `open-telemetry/api`, `open-telemetry/context`, or `open-telemetry/sdk`, and logs a warning for each mismatch (the distro's bundled version is the one actually used at runtime). If the versions differ significantly the shared runtime may behave unexpectedly; align the application's versions with the distro's to avoid this.
 
 This option has no effect when scoping is disabled (`OTEL_PHP_SCOPED_DEPS_ENABLED=false`): without scoping the distro already uses the unscoped `OpenTelemetry\*` classes that the application uses, so its OpenTelemetry usage shares the runtime without any bridging.
+
+**Known limitation: the application's own `open-telemetry/sdk` 1.16 or newer.** Since version 1.16 of `open-telemetry/sdk`, setting `OTEL_PHP_TRANSACTION_SPAN_ENABLED` (or `OTEL_PHP_TRANSACTION_SPAN_ENABLED_CLI`) to `true` makes every copy of the SDK in the process start a root span while Composer is still loading its files, which is before `open-telemetry/exporter-otlp` registers the `otlp` exporter. With the bridge disabled, the application's own SDK is then left without an exporter and its spans are lost, silently. The distro does not trigger this by itself: it enables the root span by default without exporting the variable to the process environment. Only a variable that you set yourself (in the environment or in `php.ini`) reaches the application's SDK. To avoid the problem, do not set these variables to `true` explicitly (`true` is already the default), enable the bridge (`OTEL_PHP_SCOPED_DEPS_BRIDGE_ENABLED=true`), or use an application SDK older than 1.16. The cause is the load order of the exporter registration in the application's own Composer autoloader, which the distro cannot change.
 
 ## File-based configuration (declarative)
 
@@ -161,13 +174,15 @@ When `OTEL_CONFIG_FILE` is set:
 - Environment variable substitution (`${MY_VAR:-default}`) is supported within the YAML file
 - Central configuration (OpAMP) is automatically disabled — file-based and remote configuration are mutually exclusive
 - Distro-specific options (`OTEL_PHP_*`) continue to work as they are native extension options, independent of the SDK
+- The file must declare `file_format: "1.0"`. The `1.0-rc.*` and `0.x` formats are rejected
+- `OTEL_CONFIG_FILE` names exactly one file (a comma-separated list is no longer split)
 
 ### Distro resource detector
 
 The distro provides a `distro` resource detector that adds `telemetry.distro.name` and `telemetry.distro.version` resource attributes. To activate it in file-based configuration, add it to the `resource.detection/development.detectors` section:
 
 ```yaml
-file_format: "1.0-rc.2"
+file_format: "1.0"
 
 resource:
   attributes:

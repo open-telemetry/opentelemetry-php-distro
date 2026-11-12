@@ -18,6 +18,8 @@ final class HttpAppCodeRequestParams extends AppCodeRequestParams
     public ?int $expectedHttpResponseStatusCode = HttpStatusCodes::OK;
     /** @var array<string, string> */
     public array $extraHeaders = [];
+    /** Raw request body sent to the app code */
+    public ?string $body = null;
 
     public function __construct(HttpServerHandle $httpServerHandle, AppCodeTarget $appCodeTarget)
     {

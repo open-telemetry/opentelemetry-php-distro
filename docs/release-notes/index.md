@@ -1,3 +1,64 @@
+## Unreleased
+
+### This release is based on the following OpenTelemetry PHP packages:
+
+- [open-telemetry/api 1.11.0](https://packagist.org/packages/open-telemetry/api#1.11.0)
+- [open-telemetry/sdk 1.16.1](https://packagist.org/packages/open-telemetry/sdk#1.16.1)
+- [open-telemetry/context 1.6.0](https://packagist.org/packages/open-telemetry/context#1.6.0)
+
+### Breaking changes
+
+- **PHP 8.1 is no longer supported.** Supported PHP versions are now 8.2 to 8.5. `open-telemetry/sdk` 1.16, `api` 1.11, `context` 1.6, `exporter-otlp` 1.5 and `sdk-configuration` 0.10 require PHP 8.2. Users on PHP 8.1 should stay on the 0.7.x release.
+- **Declarative configuration (`OTEL_CONFIG_FILE`)** follows `sdk-configuration` 0.10:
+  - the file must declare `file_format: "1.0"`; the `1.0-rc.*` and `0.x` formats are rejected (update files that use `1.0-rc.2`),
+  - `OTEL_CONFIG_FILE` names exactly one file,
+  - the schema changes of configuration 1.0 apply, for example `disabled` became `enabled` in the tracer, meter and logger configurators, OTLP TLS settings moved under `tls`, `lowmemory` became `low_memory`, the `zipkin` exporter was removed, and an omitted `tracer_provider`, `meter_provider` or `logger_provider` is now a noop provider.
+  - See the `sdk-configuration` 0.10.0 release notes for the full list.
+- **HTTP export retries** in the SDK transport now only cover 429, 502, 503 and 504 (it used to retry 408, 429 and every 5xx). The distro's native OTLP transport keeps its own retry policy.
+- `open-telemetry/exporter-otlp` 1.5.0 requires `gen-otlp-protobuf` 1.11.1 (OTLP proto v1.11.1, up from v1.8.0) and `google/protobuf` 4.31. If `ext-protobuf` is installed it must be 4.31 or newer.
+- Code that extends or replaces the OTLP exporters must follow `exporter-otlp` 1.5.0: `ProtobufSerializer` no longer defines the `SUPPORTED_CONTENT_TYPES` type alias (use `ContentTypes::*`), and `MetricExporter` accepts an `AggregationTemporalitySelectorInterface` as its temporality argument.
+
+### What's changed
+
+- chore: update open-telemetry packages (SDK 1.16.1, API 1.11.0, exporter-otlp 1.5.0, sdk-configuration 0.10.0, sem-conv 1.45.0 and the auto-instrumentation packages)
+- fix: the distro's OTLP exporters (`Contrib/Otlp`) are compatible with `exporter-otlp` 1.5.0; without this the OTLP metric exporter could not be created
+- feat: native OTLP exporters aligned with `exporter-otlp` 1.5.0 (histogram `min`/`max` are not exported when they were not recorded), native semantic conventions 1.45.0 and OTLP proto v1.11.1
+
+### Upstream package highlights
+
+- **opentelemetry-sdk 1.16.1** ([sdk 1.15.0→1.16.1](https://github.com/opentelemetry-php/sdk/compare/1.15.0...1.16.1)):
+  - fix (1.16.1): the host resource detector no longer runs `ioreg`, `kenv` and `powershell.exe` through a shell (they are called by absolute path, without a shell)
+  - feat: `AutoRootSpan::start()`, a root span that names spans `METHOD path` (grouped by `OTEL_PHP_TRANSACTION_URL_GROUPS`), captures the headers named in `OTEL_INSTRUMENTATION_HTTP_SERVER_CAPTURE_REQUEST_HEADERS` and `..._RESPONSE_HEADERS`, sets `http.response.status_code` and supports CLI scripts (`OTEL_PHP_TRANSACTION_SPAN_ENABLED`, `OTEL_PHP_TRANSACTION_SPAN_ENABLED_CLI`)
+  - feat: opt-in request body capturing as `http.request.body.content` (`OTEL_PHP_INSTRUMENTATION_HTTP_SERVER_CAPTURE_REQUEST_BODY`, `..._MAX_SIZE`, 1024 bytes by default); only textual bodies are recorded and they are not redacted
+  - feat: `OTEL_PHP_EXCLUDED_REQUEST_HEADERS` disables the SDK for web requests with a matching header
+  - feat: composable samplers (experimental), `OTEL_METRICS_EXEMPLAR_FILTER` accepts `always_on`, `always_off` and `trace_based` (default), per-instrument-kind temporality selection, new view options (`DropAggregation`, attribute key filters)
+  - fix: `OTEL_ATTRIBUTE_COUNT_LIMIT` and `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT` were ignored; the wildcard matcher behind `OTEL_PHP_TRANSACTION_URL_GROUPS` matched texts it should not; every export failed when the HTTP client decoded a gzip response itself
+  - an unparseable `OTEL_CONFIG_FILE` now logs a warning and leaves the SDK as noop instead of throwing
+- **opentelemetry-api 1.11.0** ([api 1.10.0→1.11.0](https://github.com/opentelemetry-php/api/compare/1.10.0...1.11.0)), **opentelemetry-context 1.6.0** ([context 1.5.0→1.6.0](https://github.com/opentelemetry-php/context/compare/1.5.0...1.6.0)):
+  - feat: `Logging::setLogLevel()`, `Severity::fromName()`, `Context::withLogger()`, tracecontext and baggage propagator providers for declarative configuration
+  - fix: baggage propagator no longer drops entries with percent-encoded values (1.10.1); `exception.escaped` is no longer set by `trace()` and `WithSpanHandler`
+  - change: the `Context` default logger writes to the internal logger (filtered by `OTEL_LOG_LEVEL`) instead of being a `NullLogger`
+  - context: `EnvironmentGetterSetter` normalizes keys to environment variable names
+- **opentelemetry-exporter-otlp 1.5.0** ([exporter-otlp 1.4.0→1.5.0](https://github.com/opentelemetry-php/exporter-otlp/compare/1.4.0...1.5.0)):
+  - feat: `OTEL_EXPORTER_OTLP_[SIGNAL_]CERTIFICATE`, `..._CLIENT_CERTIFICATE`, `..._CLIENT_KEY` and `..._INSECURE`
+  - change: the `User-Agent` header is `OTel-OTLP-Exporter-PHP/<version>`; histogram data points without min and max are exported without them
+  - fix: gRPC default endpoint and per-signal gRPC endpoints, `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` is applied per instrument kind
+- **sdk-configuration 0.10.0** ([config-sdk 0.9.0→0.10.0](https://github.com/opentelemetry-php/config-sdk/compare/0.9.0...0.10.0)):
+  - feat: configuration file format 1.0, composable samplers, `log_level`, `compression: none`, view aggregations and attribute key patterns
+  - fix: view `selector.unit`, `stream.aggregation` and `attribute_keys.excluded` were ignored; the OTLP client key was read from `client_certificate_file`
+  - see the breaking changes above
+- **sem-conv 1.45.0** ([sem-conv 1.38.0→1.45.0](https://github.com/opentelemetry-php/sem-conv/compare/1.38.0...1.45.0)): generated from semantic conventions 1.45.0
+- **opentelemetry-auto-laravel 1.9.1** ([laravel 1.9.0→1.9.1](https://github.com/opentelemetry-php/contrib-auto-laravel/compare/1.9.0...1.9.1)):
+  - fix: `db.query.text` is not set on the `getModels` span (it made `toSql()` throw for MongoDB); the query string is no longer mixed into `url.path`
+  - `opentelemetry-auto-laravel` 1.10.0 is not included yet: it moves to the class-based `Instrumentation` API (the `LaravelInstrumentation::NAME` constant is gone, the instrumentation is configured through `LaravelConfiguration`), which needs a separate change in the distro
+- **opentelemetry-auto-mysqli 0.5.0**, **opentelemetry-auto-pdo 0.6.0** (package changelogs: [mysqli 0.4.0→0.5.0](https://github.com/opentelemetry-php/contrib-auto-mysqli/compare/0.4.0...0.5.0), [pdo 0.5.0→0.6.0](https://github.com/opentelemetry-php/contrib-auto-pdo/compare/0.5.0...0.6.0)):
+  - feat: SQLcommenter 0.3 support, deprecated `TraceAttributes` replaced by the namespaced SemConv classes
+  - fix: binary SQL literals are preserved when SQLcommenter is installed
+- **opentelemetry-auto-postgresql 0.4.1**, **opentelemetry-auto-slim 1.5.1** (package changelogs: [postgresql 0.4.0→0.4.1](https://github.com/opentelemetry-php/contrib-auto-postgresql/compare/0.4.0...0.4.1), [slim 1.5.0→1.5.1](https://github.com/opentelemetry-php/contrib-auto-slim/compare/1.5.0...1.5.1)):
+  - deprecated `TraceAttributes` replaced by the namespaced SemConv classes
+- **opentelemetry-metrics-runtime 0.3.0** ([metrics-runtime 0.2.0→0.3.0](https://github.com/opentelemetry-php/contrib-metrics-runtime/compare/0.2.0...0.3.0)):
+  - feat: `process.paging.faults` and `process.uptime` runtime metrics
+
 ## 0.7.0
 
 ### This release is based on the following OpenTelemetry PHP packages:

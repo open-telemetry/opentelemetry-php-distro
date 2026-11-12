@@ -63,10 +63,6 @@ final class InstallPhpDeps
         ComposerUtil::verifyThatComposerJsonAndLockAreInSync();
 
         $withDev = ComposerUtil::convertEnvKindToWithDev($envKind);
-        if (AdaptPhpDepsTo81::isCurrentPhpVersion81() && ($envKind !== PhpDepsEnvKind::test)) {
-            AdaptPhpDepsTo81::downloadAdaptPackagesGenConfigAndInstall($withDev);
-        } else {
-            ComposerUtil::execComposerInstallShellCommand($withDev, envVars: [ComposerUtil::ALLOW_DIRECT_COMPOSER_COMMAND_ENV_VAR_NAME => BoolUtil::toString(true)]);
-        }
+        ComposerUtil::execComposerInstallShellCommand($withDev, envVars: [ComposerUtil::ALLOW_DIRECT_COMPOSER_COMMAND_ENV_VAR_NAME => BoolUtil::toString(true)]);
     }
 }

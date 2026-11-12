@@ -15,7 +15,7 @@ show_help() {
     echo "Usage: $0 --php_versions <versions>"
     echo
     echo "Arguments:"
-    echo "  --php_versions             Required. List of PHP versions separated by spaces (e.g., '81 82 83 84 85')."
+    echo "  --php_versions             Required. List of PHP versions separated by spaces (e.g., '82 83 84 85')."
     echo "  --skip_notice              Optional. Skip notice file generator. Default: false (i.e., NOTICE file is generated)."
     echo "  --skip_verify              Optional. Skip verify step. Default: false (i.e., verify step is executed)."
     echo "  --dev_only_rescope_distro  Optional. Only re-scope distro code (prod/php/OpenTelemetry). Skips composer install and notice."
@@ -24,7 +24,7 @@ show_help() {
     echo "                             See .local-repos.json.example. Default: none (packages installed from Packagist)."
     echo
     echo "Example:"
-    echo "  $0 --php_versions '81 82 83 84 85' --skip_notice"
+    echo "  $0 --php_versions '82 83 84 85' --skip_notice"
     echo "  $0 --php_versions '84' --dev_only_rescope_distro"
 }
 
@@ -262,9 +262,6 @@ main() {
         # --- Common scoper setup ---
         local _SCOPER_PREFIX="${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX:?}"
         local _PHP_SCOPER_VERSION="0.18.19"
-        if [ "${_PHP_VERSION_WITHOUT_DOT}" = "81" ]; then
-            _PHP_SCOPER_VERSION="0.17.7"
-        fi
 
         local PHP_docker_image
         PHP_docker_image=$(build_light_PHP_docker_image_name_for_version_no_dot "${_PHP_VERSION_WITHOUT_DOT}")

@@ -5,7 +5,6 @@ magic_enum/0.9.6
 boost/1.86.0
 gtest/1.15.0
 protobuf-custom/5.27.0
-php-headers-81/2.0
 php-headers-82/2.0
 php-headers-83/2.0
 php-headers-84/2.0
