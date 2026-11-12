@@ -1,4 +1,14 @@
+# Both ARGs must stay ahead of the first FROM: an ARG declared after one is scoped to that stage
+# and is no longer visible to later FROM lines.
+#
+# COMPOSER_VERSION is required and deliberately has no default: composer_version in
+# project.properties is the single place the pinned Composer release is specified.
+# Without it, the build fails on the FROM below.
+ARG COMPOSER_VERSION
 ARG PHP_VERSION
+
+FROM composer:${COMPOSER_VERSION} AS composer_bin
+
 FROM php:${PHP_VERSION}-cli
 
 RUN ls -1 /etc/*release | xargs -i sh -c 'echo {} && cat {}'
@@ -20,7 +30,7 @@ RUN docker-php-ext-install \
 # OPcache is built into PHP core since 8.5
 RUN if [ "$(php -r 'echo PHP_VERSION_ID;')" -lt 80500 ]; then docker-php-ext-install opcache; fi
 
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY --from=composer_bin /usr/bin/composer /usr/bin/composer
 
 WORKDIR /
 

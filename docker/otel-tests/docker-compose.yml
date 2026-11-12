@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
       args:
         - PHP_VERSION
+        - COMPOSER_VERSION
     volumes:
     - ./:/usr/src/myapp
     user: "${PHP_USER}:root"

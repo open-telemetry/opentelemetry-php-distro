@@ -142,7 +142,7 @@ verify_otlp_exporters() {
         "\
             mkdir /used_as_base && cd /used_as_base \
             && apk update && apk add bash git \
-            && curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin \
+            && curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin --version=${_PROJECT_PROPERTIES_COMPOSER_VERSION:?} \
             && composer require ${_PHP_IMPL_PACKAGE_NAME}:${_NATIVE_OTLP_EXPORTERS_PROTO_VERSION:?} \
             && composer --no-dev install \
             && diff -r /used_as_base/vendor/${_PHP_IMPL_PACKAGE_NAME} /new_vendor/${_PHP_IMPL_PACKAGE_NAME} \
@@ -365,7 +365,7 @@ main() {
 
             docker_sh_cmd="\
                 apk update && apk add ${_APK_EXTRA_PKGS} \
-                && curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin \
+                && curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin --version=${_PROJECT_PROPERTIES_COMPOSER_VERSION:?} \
                 && ${VERIFY_LOCK_FILES_CMD} \
                 && ${COPY_REPO_TO_TMP_CMD} \
                 && rm -rf composer.json composer.lock ./vendor/ \

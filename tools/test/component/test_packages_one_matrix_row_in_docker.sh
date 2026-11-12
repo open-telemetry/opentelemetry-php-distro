@@ -184,7 +184,7 @@ function main() {
     local current_github_workflow_log_group_name="Building docker image with tag ${docker_image_tag} using ${this_script_dir}/${dockerfile} with PHP_VERSION=${OTEL_PHP_TESTS_PHP_VERSION:?}"
     start_github_workflow_log_group "${current_github_workflow_log_group_name}"
 
-    docker build --file "${this_script_dir}/${dockerfile}" --build-arg "PHP_VERSION=${OTEL_PHP_TESTS_PHP_VERSION:?}" --tag "${docker_image_tag}" .
+    docker build --file "${this_script_dir}/${dockerfile}" --build-arg "PHP_VERSION=${OTEL_PHP_TESTS_PHP_VERSION:?}" --build-arg "COMPOSER_VERSION=${_PROJECT_PROPERTIES_COMPOSER_VERSION:?}" --tag "${docker_image_tag}" .
 
     end_github_workflow_log_group "${current_github_workflow_log_group_name}"
 

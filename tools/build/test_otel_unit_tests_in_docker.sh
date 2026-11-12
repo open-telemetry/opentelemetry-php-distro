@@ -70,6 +70,10 @@ TEST_ERROR=0
 
 COMPOSE_FILE=${PWD}/docker/otel-tests/docker-compose.yml
 
+source "${PWD}/tools/read_properties.sh"
+read_properties "${PWD}/project.properties" _PROJECT_PROPERTIES
+export COMPOSER_VERSION="${_PROJECT_PROPERTIES_COMPOSER_VERSION:?}"
+
 for PHP_VERSION in "${PHP_VERSIONS[@]}"; do
     export PHP_VERSION="${PHP_VERSION:0:1}.${PHP_VERSION:1}"
 

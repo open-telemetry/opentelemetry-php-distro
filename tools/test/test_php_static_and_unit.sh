@@ -67,6 +67,8 @@ main() {
 
     repo_root_dir="$(realpath "${PWD}")"
     source "${repo_root_dir}/tools/shared.sh"
+    source "${repo_root_dir}/tools/read_properties.sh"
+    read_properties "${repo_root_dir}/project.properties" _PROJECT_PROPERTIES
 
     parse_args "$@"
 
@@ -104,7 +106,7 @@ main() {
             "${PHP_docker_image}" \
             sh -c "\
                 apk update && apk add bash git \
-                && curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin \
+                && curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin --version=${_PROJECT_PROPERTIES_COMPOSER_VERSION:?} \
                 && echo 'Running static check on prod (without dev only dependencies); PHP_version_no_dot:' ${PHP_version_no_dot} \
                 && mkdir -p /tmp/repo \
                 && cp -r /repo_root/* /tmp/repo/ \
