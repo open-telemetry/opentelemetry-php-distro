@@ -1,3 +1,22 @@
+## 0.7.1
+
+### This release is based on the following OpenTelemetry PHP packages:
+
+- [open-telemetry/api 1.10.1](https://packagist.org/packages/open-telemetry/api#1.10.1)
+- [open-telemetry/sdk 1.15.0](https://packagist.org/packages/open-telemetry/sdk#1.15.0)
+- [open-telemetry/context 1.6.0](https://packagist.org/packages/open-telemetry/context#1.6.0)
+
+### What's changed
+
+- fix: updated bundled PHP dependencies (including Symfony components) to versions that fix security advisories reported by `composer audit`
+- build: pin the Composer release (PR [#160](https://github.com/open-telemetry/opentelemetry-php-distro/pull/160))
+- fix(tests): install the unsigned rpm package with `--nosignature` in component tests (PR [#161](https://github.com/open-telemetry/opentelemetry-php-distro/pull/161))
+- ci: use shared OSSF Scorecard workflow (PR [#148](https://github.com/open-telemetry/opentelemetry-php-distro/pull/148))
+
+### Deprecation notice
+
+The next release will drop support for PHP 8.1.
+
 ## 0.7.0
 
 ### This release is based on the following OpenTelemetry PHP packages:
