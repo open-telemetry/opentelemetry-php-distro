@@ -89,6 +89,9 @@ for tag in "${TAGS[@]}"; do
 done
 if [[ "${PUSH}" == "true" ]]; then
     build_args+=(--push --provenance=mode=max --sbom=true)
+    # ghcr.io reads a multi-platform image's description from the index, not from the
+    # image labels. The local image store has no index, so only set it when pushing.
+    build_args+=(--annotation "index:org.opencontainers.image.description=OpenTelemetry PHP Distro files, for use with COPY --from")
 else
     build_args+=(--load)
 fi
