@@ -1,0 +1,54 @@
+---
+
+name: test-image
+
+on:
+  workflow_call: ~
+
+permissions:
+  contents: read
+
+env:
+  BUILT_PACKAGES_DIR: _BUILT/packages
+
+jobs:
+  test-image:
+    name: test-image
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [ amd64, arm64 ]
+        libc: [ glibc, musl ]
+    env:
+      LIBC: ${{ matrix.libc }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: packages-*
+          path: ${{ env.BUILT_PACKAGES_DIR }}
+          merge-multiple: true
+      - name: Build image
+        run: ./tools/build/build_image.sh --libc "${LIBC}" --tag "opentelemetry-php-distro:test-${LIBC}" --packages_dir "${BUILT_PACKAGES_DIR}"
+      - name: Test image with each supported PHP version
+        run: |
+          source ./tools/shared.sh
+          source ./tools/read_properties.sh
+          read_properties project.properties PROJECT_PROPERTIES
+
+          failed=()
+          for php_version_no_dot in ${PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS//[()]/}; do
+            php_version=$(convert_no_dot_to_dot_separated_version "${php_version_no_dot}")
+            start_github_workflow_log_group "PHP ${php_version}"
+            ./tools/test/image/test_image.sh --image "opentelemetry-php-distro:test-${LIBC}" --libc "${LIBC}" --php_version "${php_version}" || failed+=("${php_version}")
+            end_github_workflow_log_group "PHP ${php_version}"
+          done
+
+          if [ ${#failed[@]} -ne 0 ]; then
+            echo "Image test failed for PHP ${failed[*]}"
+            exit 1
+          fi
