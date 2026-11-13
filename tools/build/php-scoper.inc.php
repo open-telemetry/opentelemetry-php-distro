@@ -123,6 +123,30 @@ $restoreUnscopedExtensionFunctions = static function (string $filePath, string $
     return $content;
 };
 
+// Keep polyfilled functions global.
+//
+// Scoped code calls polyfilled functions by their global name, e.g. \ini_parse_quantity() on PHP 8.1. php-scoper
+// puts the polyfill files in the prefix namespace, so they would define OTelDistroScoped\ini_parse_quantity()
+// instead. php-scoper covers this with aliases in vendor/scoper-autoload.php, but the distro loads vendor/autoload.php.
+//
+// Deleting the namespace line is enough because php-scoper fully qualifies every other name in these files.
+$keepPolyfilledFunctionsGlobal = static function (string $filePath, string $scoperPrefix, string $content): string {
+    if (preg_match('~/(symfony/polyfill-[^/]+/bootstrap\d*|ralouphie/getallheaders/src/getallheaders)\.php$~', $filePath) !== 1) {
+        return $content;
+    }
+    $quotedPrefix = preg_quote($scoperPrefix, '~');
+    $content = preg_replace('~^namespace ' . $quotedPrefix . ';\n~m', '', $content, count: $namespaceCount);
+    if ($content === null || $namespaceCount !== 1) {
+        throw new \RuntimeException('php-scoper patcher: expected one "namespace ' . $scoperPrefix . ';" line in ' . $filePath);
+    }
+    // php-scoper 0.17 writes 'Prefix\\name' in the guards, 0.18 writes 'Prefix\name'.
+    $content = preg_replace('~\\\\function_exists\(\'' . $quotedPrefix . '\\\\{1,2}(\w+)\'\)~', '\\\\function_exists(\'$1\')', $content);
+    if ($content === null) {
+        throw new \RuntimeException('php-scoper patcher: preg_replace failed in ' . $filePath . ': ' . preg_last_error_msg());
+    }
+    return $content;
+};
+
 return [
     'prefix' => $prefix,
     // User-facing namespaces hooked by auto-instrumentation must NOT be prefixed.
@@ -187,5 +211,6 @@ return [
     'patchers' => [
         $restoreUnscopedExtensionFunctions,
         $primeAutoloadBeforeHook,
+        $keepPolyfilledFunctionsGlobal,
     ],
 ];

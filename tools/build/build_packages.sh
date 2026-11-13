@@ -91,16 +91,12 @@ test_package() {
     local -r _PKG_FILENAME="$2"
     local -r _DOCKER_PLATFORM="$3"
     local -r _SCOPE_NAME="$4"
-
-    # Use the highest supported PHP version
-    # SC2086: Double quote to prevent globbing and word splitting.
-    # shellcheck disable=SC2086
-    local -r _PHP_VERSION_NO_DOT=$(get_array_max_value ${_PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS})
+    local -r _PHP_VERSION_NO_DOT="$5"
     local -r _PHP_VERSION=$(convert_no_dot_to_dot_separated_version "${_PHP_VERSION_NO_DOT}")
 
     echo "${_PKG_FILENAME}"
 
-    echo "Starting ${_PKG_FILENAME} smoke test"
+    echo "Starting ${_PKG_FILENAME} smoke test on PHP ${_PHP_VERSION}"
     echo "Running on platform ${_DOCKER_PLATFORM}";
 
     local TEST_LICENSE_FILES="echo -n 'Checking for \"copyright\" files existence: ' && test -f /opt/opentelemetry/php/distro/LICENSE && test -f /opt/opentelemetry/php/distro/NOTICE && echo -e '\033[0;32mOK\033[0;39m'"
@@ -153,7 +149,7 @@ test_package() {
     # SC2181: Check exit code directly with e.g. 'if ! mycmd;', not indirectly with $?.
     # shellcheck disable=SC2181
     if [ $? -ne 0 ]; then
-        echo -e "\033[0;31mPackage ${_PKG_FILENAME} smoke test FAILED\033[0;39m"
+        echo -e "\033[0;31mPackage ${_PKG_FILENAME} smoke test on PHP ${_PHP_VERSION} FAILED\033[0;39m"
         exit 1
     fi
 
@@ -180,6 +176,14 @@ export PACKAGE_GOARCHITECTURE="${PACKAGE_GOARCHITECTURE}"
 export PACKAGE_SHA="${PACKAGE_SHA}"
 
 export SCOPE_NAME="${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX}"
+
+# Each PHP version has its own scoped vendor tree, so test both ends of the supported range.
+# SC2086: Double quote to prevent globbing and word splitting.
+# shellcheck disable=SC2086
+SMOKE_TEST_PHP_VERSIONS_NO_DOT=(
+    "$(get_array_min_value ${_PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS})"
+    "$(get_array_max_value ${_PROJECT_PROPERTIES_SUPPORTED_PHP_VERSIONS})"
+)
 
 DOCKER_PLATFORM="linux/x86_64"
 if [[ -n "${BUILD_ARCHITECTURE}" ]] && [[ "${BUILD_ARCHITECTURE}" =~ arm64$ ]]; then
@@ -219,7 +223,10 @@ do
     sha512sum "${PKG_FILENAME}" >"${PKG_FILENAME}".sha512
     popd
 
-    test_package "${pkg_type}" "${PKG_FILENAME}" "${DOCKER_PLATFORM}" "${SCOPE_NAME}"
+    for php_version_no_dot in "${SMOKE_TEST_PHP_VERSIONS_NO_DOT[@]}"
+    do
+        test_package "${pkg_type}" "${PKG_FILENAME}" "${DOCKER_PLATFORM}" "${SCOPE_NAME}" "${php_version_no_dot}"
+    done
 
 done
 
