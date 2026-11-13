@@ -12,6 +12,17 @@ env:
   BUILT_PACKAGES_DIR: _BUILT/packages
 
 jobs:
+  test-image-tags:
+    name: test-image-tags
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Test release image tags
+        run: ./tools/test/image/test_image_tags.sh
+
   test-image:
     name: test-image
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
