@@ -1,4 +1,4 @@
-FROM centos:8 as devtools
+FROM centos:8@sha256:a27fd8080b517143cbbbab9dfb7c8571c40d67d534bbdee55bd6c473f432b177 as devtools
 
 ARG USER_NAME=build
 
@@ -75,7 +75,7 @@ RUN cd Python-${PYTHON_VERSION} \
 
 RUN sudo yum -y clean all
 
-FROM centos:8
+FROM centos:8@sha256:a27fd8080b517143cbbbab9dfb7c8571c40d67d534bbdee55bd6c473f432b177
 
 ARG USER_NAME=build
 
