@@ -7,6 +7,7 @@ declare(strict_types=1);
 namespace OpenTelemetry\Distro;
 
 use Closure;
+use OpenTelemetry\Distro\InferredSpans\InferredSpans;
 use OpenTelemetry\Distro\Log\LoggingClassTrait;
 use OpenTelemetry\Distro\Log\LogFeature;
 use OpenTelemetry\Distro\Log\LogLevel;
@@ -35,6 +36,11 @@ final class InstrumentationBridge
 
     private bool $enableDebugHooks;
 
+    private bool $inferredSpansEnabled;
+
+    /** @var array<string, true> */
+    private array $functionsWithInferredSpansHooks = [];
+
     public function bootstrap(): void
     {
         $logDebug = self::logTrace(__FUNCTION__);
@@ -54,6 +60,8 @@ final class InstrumentationBridge
          * @noinspection PhpUnnecessaryFullyQualifiedNameInspection
          */
         $this->enableDebugHooks = (bool)\OpenTelemetry\Distro\get_config_option_by_name('debug_php_hooks_enabled');
+        /** @noinspection PhpUnnecessaryFullyQualifiedNameInspection */
+        $this->inferredSpansEnabled = (bool)\OpenTelemetry\Distro\get_config_option_by_name('inferred_spans_enabled');
 
         $logDebug?->with(__LINE__, 'Exiting');
     }
@@ -67,6 +75,11 @@ final class InstrumentationBridge
         $logTrace = self::logTrace(__FUNCTION__);
         $logTrace?->with(__LINE__, 'Entered', compact('class', 'function'));
 
+        // Only for hooks with both callbacks: a hook that starts a span in its pre callback and ends it in its post callback.
+        if ($this->inferredSpansEnabled && $pre !== null && $post !== null) {
+            $this->placeInferredSpansHooks($class, $function);
+        }
+
         $success = self::nativeHookNoThrow($class, $function, $pre, $post);
 
         if ($this->enableDebugHooks) {
@@ -75,6 +88,31 @@ final class InstrumentationBridge
 
         $logTrace?->with(__LINE__, 'Exiting', compact('success', 'class', 'function'));
         return $success;
+    }
+
+    /**
+     * Hooks are called in the order they were added, so these run before the instrumentation's own pre and post hooks.
+     * They let inferred spans end the spans started inside the hooked function before the instrumentation's post hook
+     * detaches the current scope, and keep the inferred spans that instrumentation spans use as parent.
+     */
+    private function placeInferredSpansHooks(?string $class, string $function): void
+    {
+        $key = strtolower(($class ?? '') . '::' . $function);
+        if (array_key_exists($key, $this->functionsWithInferredSpansHooks)) {
+            return;
+        }
+        $this->functionsWithInferredSpansHooks[$key] = true;
+
+        self::nativeHookNoThrow(
+            $class,
+            $function,
+            static function (): void {
+                InferredSpans::onHookedFunctionEnter();
+            },
+            static function (): void {
+                InferredSpans::onHookedFunctionExit();
+            }
+        );
     }
 
     private static function nullableToLog(null|int|string $str): string

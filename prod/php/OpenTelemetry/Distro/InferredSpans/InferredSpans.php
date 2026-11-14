@@ -10,6 +10,7 @@ use OpenTelemetry\Distro\OTelDistroScoperConfig;
 use OpenTelemetry\Distro\Util\ArrayUtil;
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Behavior\LogsMessagesTrait;
+use OpenTelemetry\API\Trace\Span as ApiSpan;
 use OpenTelemetry\API\Trace\SpanBuilderInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\API\Trace\SpanKind;
@@ -55,6 +56,22 @@ class InferredSpans
 
     private bool $shutdown;
 
+    private static ?self $instance = null;
+
+    /**
+     * Value of $stackTraceId when each hooked function that is still running was entered
+     *
+     * @var list<int>
+     */
+    private array $hookedFunctionsEntryStackTraceIds = [];
+
+    /**
+     * IDs of spans that are the parent of at least one span that was (or will be) exported.
+     * Such inferred spans must not be dropped, otherwise their children end up with a parent that is never exported.
+     *
+     * @var array<string, true>
+     */
+    private array $spansWithChildren = [];
 
     public function __construct(private readonly bool $spanReductionEnabled, private readonly bool $attachStackTrace, private readonly float $minSpanDuration)
     {
@@ -68,6 +85,73 @@ class InferredSpans
 
         $this->lastStackTrace = array();
         $this->shutdown = false;
+        self::$instance = $this;
+    }
+
+    /**
+     * Called before the pre hooks of a function hooked by an instrumentation
+     */
+    public static function onHookedFunctionEnter(): void
+    {
+        self::$instance?->hookedFunctionEnter();
+    }
+
+    /**
+     * Called before the post hooks of a function hooked by an instrumentation
+     */
+    public static function onHookedFunctionExit(): void
+    {
+        self::$instance?->hookedFunctionExit();
+    }
+
+    private function hookedFunctionEnter(): void
+    {
+        $this->hookedFunctionsEntryStackTraceIds[] = $this->stackTraceId;
+
+        if ($this->shutdown || empty($this->lastStackTrace)) {
+            return;
+        }
+
+        // The instrumentation's pre hook usually starts a span with the current span as parent.
+        // If the current span is an inferred span, it must be kept.
+        $currentSpanContext = ApiSpan::getCurrent()->getContext();
+        if ($currentSpanContext->isValid()) {
+            $this->spansWithChildren[$currentSpanContext->getSpanId()] = true;
+        }
+    }
+
+    private function hookedFunctionExit(): void
+    {
+        $entryStackTraceId = array_pop($this->hookedFunctionsEntryStackTraceIds);
+        if ($entryStackTraceId === null || $this->shutdown) {
+            return;
+        }
+
+        try {
+            // Inferred spans started after the hooked function was entered are for frames that have returned by now
+            // (the hooked function itself and the functions it called). Their scopes are attached on top of the scope
+            // of the instrumentation's span. They have to be ended and detached now, before the instrumentation's post hook
+            // detaches what it expects to be its own scope (Context::storage()->scope()) and ends the span in it.
+            // Otherwise the post hook ends the inferred span instead, and the instrumentation's span is never ended
+            // or exported, leaving its children with a parent that is missing from the trace.
+            // This includes frames of callers of the hooked function that were first seen by a sample taken inside it:
+            // their scopes were attached on top of the instrumentation's scope too. If they are still running,
+            // the next sample starts them again.
+            $framesToEnd = 0;
+            foreach ($this->lastStackTrace as $frame) {
+                if ($frame[self::METADATA_STACKTRACE_ID] <= $entryStackTraceId) {
+                    break;
+                }
+                $framesToEnd++;
+            }
+
+            if ($framesToEnd > 0) {
+                self::logDebug("Hooked function exit - ending " . $framesToEnd . " inferred span(s) started inside it");
+                $this->endNewestFrames($framesToEnd, null);
+            }
+        } catch (Throwable $throwable) {
+            self::logError($throwable->__toString());
+        }
     }
 
     // $durationMs - duration between interrupt request and interrupt occurrence
@@ -114,28 +198,8 @@ class InferredSpans
         $oldFramesCount = $lastStackTraceCount - $identicalFramesCount;
 
         // on previous stack trace - end all spans above identical frames
-        $previousFrameStackTraceId = -1;
-        $forceParentChangeFailed = false;
-
-        for ($index = 0; $index < $oldFramesCount; $index++) {
-            $endEpochNanos = null;
-             // if last frame was internal function, so duration contains it's time, previous ones ended between sampling interval - they're shorter
-            if ($topFrameIsInternalFunction) {
-                $endEpochNanos = $this->getStartTime($durationMs);
-            }
-
-            $dropSpan = false;
-            if ($this->spanReductionEnabled) {
-                $dropSpan = $this->shouldReduceFrame($index, $oldFramesCount, $previousFrameStackTraceId, $forceParentChangeFailed);
-            }
-
-            $this->endFrameSpan($this->lastStackTrace[$index], $dropSpan, $endEpochNanos);
-
-            unset($this->lastStackTrace[$index]); // remove ended frame
-        }
-
-        // reindex array
-        $this->lastStackTrace = array_values($this->lastStackTrace);
+        // if last frame was internal function, so duration contains it's time, previous ones ended between sampling interval - they're shorter
+        $this->endNewestFrames($oldFramesCount, $topFrameIsInternalFunction ? $durationMs : null);
 
         $stackTraceCount = count($stackTrace);
         if ($stackTraceCount == $identicalFramesCount) {
@@ -168,6 +232,39 @@ class InferredSpans
                 array_unshift($this->lastStackTrace, $newFrame); // push-copy frame in front of last stack trace for next interruption processing
             }
         }
+    }
+
+    /**
+     * Ends the spans of the $framesToEnd newest frames of the last stack trace and removes those frames
+     */
+    private function endNewestFrames(int $framesToEnd, ?int $endedDurationMsAgo): void
+    {
+        $previousFrameStackTraceId = -1;
+        $forceParentChangeFailed = false;
+
+        for ($index = 0; $index < $framesToEnd; $index++) {
+            $endEpochNanos = null;
+            if ($endedDurationMsAgo !== null) {
+                $endEpochNanos = $this->getStartTime($endedDurationMsAgo);
+            }
+
+            $dropSpan = false;
+            if ($this->spanReductionEnabled) {
+                $dropSpan = $this->shouldReduceFrame($index, $framesToEnd, $previousFrameStackTraceId, $forceParentChangeFailed);
+            }
+
+            $this->endFrameSpan($this->lastStackTrace[$index], $dropSpan, $endEpochNanos);
+
+            unset($this->lastStackTrace[$index]); // remove ended frame
+        }
+
+        // reindex array
+        $this->lastStackTrace = array_values($this->lastStackTrace);
+    }
+
+    private function hasChildren(SpanInterface $span): bool
+    {
+        return array_key_exists($span->getContext()->getSpanId(), $this->spansWithChildren);
     }
 
     private function getStartTime(int $durationMs): int
@@ -253,6 +350,12 @@ class InferredSpans
 
                 $span = $this->lastStackTrace[$i][self::METADATA_SPAN]->get();
                 if (!$span instanceof Span) {
+                    break;
+                }
+
+                if ($this->hasChildren($span)) {
+                    // this span is kept because other spans have it as parent - frames below it can't be skipped
+                    $lastSpanParent = $span->getContext();
                     break;
                 }
 
@@ -407,11 +510,21 @@ class InferredSpans
 
         $scope = $frame[self::METADATA_SCOPE]; // strong ref — scope (and its context/span) kept alive by InferredSpans
 
+        if ($dropSpan && $this->hasChildren($span)) {
+            // dropping it would leave its children with a parent that is never exported
+            self::logDebug("Span not dropped because it has children: " . $span->getName() . ' StackTraceId: ' . $frame[self::METADATA_STACKTRACE_ID]);
+            $dropSpan = false;
+        }
+        unset($this->spansWithChildren[$span->getContext()->getSpanId()]);
+
         if ($dropSpan) {
             self::logDebug("Span dropped:   " . $span->getName() . ' StackTraceId: ' . $frame[self::METADATA_STACKTRACE_ID]);
             $scope->detach(); // safe: returns DETACHED flag if already detached by third party, no crash
             return;
         }
+
+        // this span is going to be exported, so its parent must be exported too
+        $this->spansWithChildren[$span->getParentContext()->getSpanId()] = true;
 
         $detachResult = $scope->detach();
 
