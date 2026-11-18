@@ -7,11 +7,18 @@ namespace OTelDistroTests\UnitTests;
 use OpenTelemetry\API\Trace\Span as ApiSpan;
 use OpenTelemetry\API\Trace\TracerInterface;
 use OpenTelemetry\Context\Context;
+use OpenTelemetry\Context\ContextInterface;
 use OpenTelemetry\Context\ContextStorageScopeInterface;
 use OpenTelemetry\Context\ScopeInterface;
 use OpenTelemetry\Distro\InferredSpans\InferredSpans;
+use OpenTelemetry\SDK\Common\Future\CancellationInterface;
 use OpenTelemetry\SDK\Sdk;
 use OpenTelemetry\SDK\Trace\ImmutableSpan;
+use OpenTelemetry\SDK\Trace\ReadableSpanInterface;
+use OpenTelemetry\SDK\Trace\ReadWriteSpanInterface;
+use OpenTelemetry\SDK\Trace\Sampler\AlwaysOffSampler;
+use OpenTelemetry\SDK\Trace\SamplerInterface;
+use OpenTelemetry\SDK\Trace\SpanProcessorInterface;
 use OpenTelemetry\SDK\Trace\SpanExporter\InMemoryExporter;
 use OpenTelemetry\SDK\Trace\SpanProcessor\SimpleSpanProcessor;
 use OpenTelemetry\SDK\Trace\TracerProvider;
@@ -32,6 +39,19 @@ final class InferredSpansUnitTest extends TestCaseBase
 
         $this->exporter = new InMemoryExporter();
         $this->tracerProvider = new TracerProvider(new SimpleSpanProcessor($this->exporter));
+        $this->globalsScope = Sdk::builder()->setTracerProvider($this->tracerProvider)->buildAndRegisterGlobal();
+    }
+
+    /**
+     * @param list<SpanProcessorInterface> $extraSpanProcessors
+     */
+    private function replaceTracerProvider(array $extraSpanProcessors = [], ?SamplerInterface $sampler = null): void
+    {
+        $this->globalsScope->detach();
+        $this->tracerProvider->shutdown();
+
+        $this->exporter = new InMemoryExporter();
+        $this->tracerProvider = new TracerProvider([new SimpleSpanProcessor($this->exporter), ...$extraSpanProcessors], $sampler);
         $this->globalsScope = Sdk::builder()->setTracerProvider($this->tracerProvider)->buildAndRegisterGlobal();
     }
 
@@ -146,6 +166,97 @@ final class InferredSpansUnitTest extends TestCaseBase
         $inferredSpans->shutdown();
         $rootScope->detach();
         ApiSpan::fromContext($rootScope->context())->end();
+        $this->assertNoOrphans();
+    }
+
+    /**
+     * The inferred spans of an unsampled trace are not recording, so there is nothing to end or export.
+     * Their ids must not be kept, or they accumulate while an outer frame stays on the stack (long-running workers),
+     * and their scopes must still be detached.
+     */
+    public function testNonRecordingInferredSpansAreNotTracked(): void
+    {
+        $this->replaceTracerProvider(sampler: new AlwaysOffSampler());
+        $inferredSpans = new InferredSpans(spanReductionEnabled: true, attachStackTrace: false, minSpanDuration: 0);
+        $contextBefore = Context::getCurrent();
+
+        for ($i = 0; $i < 3; $i++) {
+            self::sample($inferredSpans, [self::frame('job'), self::frame('worker loop')]);
+
+            InferredSpans::onHookedFunctionEnter();
+            InferredSpans::onHookedFunctionExit();
+
+            self::sample($inferredSpans, [self::frame('worker loop')]);
+            self::assertSame([], self::getPrivateProperty($inferredSpans, 'activeInferredSpanIds'));
+            self::assertSame([], self::getPrivateProperty($inferredSpans, 'spansWithChildren'));
+        }
+
+        $inferredSpans->shutdown();
+        self::assertSame($contextBefore, Context::getCurrent());
+        self::assertSame([], $this->exportedSpans());
+    }
+
+    /**
+     * Ending a span can run code (e.g. a span processor exporting a batch) during which a sample is taken.
+     * A sample taken while the inferred spans of a hooked function are being ended must not change them.
+     */
+    public function testSampleTakenWhileEndingHookedFunctionFramesIsSkipped(): void
+    {
+        $samplingProcessor = new class implements SpanProcessorInterface {
+            public ?InferredSpans $inferredSpans = null;
+            public int $samplesTaken = 0;
+
+            public function onStart(ReadWriteSpanInterface $span, ContextInterface $parentContext): void
+            {
+            }
+
+            public function onEnd(ReadableSpanInterface $span): void
+            {
+                // a sample taken while the inferred span 'callee' is being ended
+                if ($this->inferredSpans !== null && $span->getName() === 'callee') {
+                    $this->samplesTaken++;
+                    $this->inferredSpans->captureStackTrace(0, false);
+                }
+            }
+
+            public function forceFlush(?CancellationInterface $cancellation = null): bool
+            {
+                return true;
+            }
+
+            public function shutdown(?CancellationInterface $cancellation = null): bool
+            {
+                return true;
+            }
+        };
+        $this->replaceTracerProvider([$samplingProcessor]);
+        $inferredSpans = new InferredSpans(spanReductionEnabled: false, attachStackTrace: false, minSpanDuration: 0);
+        $samplingProcessor->inferredSpans = $inferredSpans;
+        $tracer = $this->tracerProvider->getTracer('test');
+
+        $rootScope = self::startAndActivateSpan($tracer, 'root');
+
+        self::sample($inferredSpans, [self::frame('main')]);
+
+        InferredSpans::onHookedFunctionEnter();
+        self::startAndActivateSpan($tracer, 'instrumented');
+
+        self::sample($inferredSpans, [self::frame('callee'), self::frame('instrumentedFunction'), self::frame('main')]);
+
+        InferredSpans::onHookedFunctionExit();
+        self::instrumentationPostHook();
+
+        self::assertSame(1, $samplingProcessor->samplesTaken);
+        $samplingProcessor->inferredSpans = null;
+        $inferredSpans->shutdown();
+        $rootScope->detach();
+        ApiSpan::fromContext($rootScope->context())->end();
+
+        $spanNames = array_map(static fn (ImmutableSpan $span) => $span->getName(), $this->exportedSpans());
+        self::assertContains('instrumented', $spanNames);
+        self::assertContains('callee', $spanNames);
+        self::assertContains('instrumentedFunction', $spanNames);
+        self::assertContains('main', $spanNames);
         $this->assertNoOrphans();
     }
 

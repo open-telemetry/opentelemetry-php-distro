@@ -84,6 +84,14 @@ class InferredSpans
      */
     private array $activeInferredSpanIds = [];
 
+    /**
+     * True while the inferred spans of a hooked function that returned are being ended.
+     * That runs from a hook, outside the extension's guard against nested sampling, and ending a span can run code
+     * (e.g. a span processor exporting a batch) during which a sample is taken. Such a sample would change $lastStackTrace
+     * while it is being iterated, so it is skipped.
+     */
+    private bool $endingHookedFunctionFrames = false;
+
     public function __construct(private readonly bool $spanReductionEnabled, private readonly bool $attachStackTrace, private readonly float $minSpanDuration)
     {
         $this->tracer = Globals::tracerProvider()->getTracer(
@@ -135,6 +143,7 @@ class InferredSpans
             return;
         }
 
+        $this->endingHookedFunctionFrames = true;
         try {
             // Inferred spans started after the hooked function was entered are for frames that have returned by now
             // (the hooked function itself and the functions it called). Their scopes are attached on top of the scope
@@ -159,6 +168,8 @@ class InferredSpans
             }
         } catch (Throwable $throwable) {
             self::logError($throwable->__toString());
+        } finally {
+            $this->endingHookedFunctionFrames = false;
         }
     }
 
@@ -168,6 +179,11 @@ class InferredSpans
         self::logDebug("captureStackTrace topFrameInternal: $topFrameIsInternalFunction, duration: $durationMs ms shutdown: " . $this->shutdown);
 
         if ($this->shutdown) {
+            return;
+        }
+
+        if ($this->endingHookedFunctionFrames) {
+            self::logDebug("captureStackTrace skipped: inferred spans of a hooked function are being ended");
             return;
         }
 
@@ -500,7 +516,10 @@ class InferredSpans
         $scope = Context::storage()->attach($context); //OpenTelemetry\Context\ContextStorageScopeInterface
 
         $newFrame = $frame;
-        $this->activeInferredSpanIds[$span->getContext()->getSpanId()] = true;
+        if ($span instanceof Span) {
+            // endFrameSpan() only ends (and forgets) SDK spans, e.g. not the non-recording spans of unsampled traces
+            $this->activeInferredSpanIds[$span->getContext()->getSpanId()] = true;
+        }
         $newFrame[self::METADATA_SPAN] = WeakReference::create($span);
         $newFrame[self::METADATA_CONTEXT] = WeakReference::create($context);
         $newFrame[self::METADATA_SCOPE] = $scope; // strong ref: keeps context/span alive even if detached externally
@@ -526,7 +545,9 @@ class InferredSpans
 
         $span = $frame[self::METADATA_SPAN]->get();
         if (!$span instanceof Span) {
+            // e.g. the non-recording span of an unsampled trace: nothing to end or export, but its scope still has to go
             self::logDebug("Span in frame is not instanceof Trace\Span", [$span, $frame]);
+            $frame[self::METADATA_SCOPE]->detach();
             return;
         }
 
