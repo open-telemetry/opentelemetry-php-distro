@@ -18,6 +18,7 @@ use OpenTelemetry\SDK\Trace\TracerProvider;
 use OTelDistroTests\ComponentTests\Util\InferredSpanExpectationsBuilder;
 use OTelDistroTests\Util\TestCaseBase;
 use ReflectionMethod;
+use ReflectionProperty;
 
 final class InferredSpansUnitTest extends TestCaseBase
 {
@@ -113,6 +114,44 @@ final class InferredSpansUnitTest extends TestCaseBase
         self::assertContains('main', $spanNames);
         self::assertNotContains('withoutChild', $spanNames);
         $this->assertNoOrphans();
+    }
+
+    /**
+     * Only ids of inferred spans are kept, and only while they are in flight, so long-running processes don't accumulate them.
+     */
+    public function testChildrenBookkeepingDoesNotGrow(): void
+    {
+        $inferredSpans = new InferredSpans(spanReductionEnabled: true, attachStackTrace: false, minSpanDuration: 0);
+        $tracer = $this->tracerProvider->getTracer('test');
+
+        $rootScope = self::startAndActivateSpan($tracer, 'root');
+
+        for ($i = 0; $i < 3; $i++) {
+            self::sample($inferredSpans, [self::frame('work'), self::frame('main')]);
+
+            // a hooked function entered while an instrumentation span (not an inferred one) is current
+            $outerScope = self::startAndActivateSpan($tracer, 'outer instrumented');
+            InferredSpans::onHookedFunctionEnter();
+            self::startAndActivateSpan($tracer, 'inner instrumented');
+            InferredSpans::onHookedFunctionExit();
+            self::instrumentationPostHook();
+            $outerScope->detach();
+            ApiSpan::fromContext($outerScope->context())->end();
+
+            self::sample($inferredSpans, []);
+            self::assertSame([], self::getPrivateProperty($inferredSpans, 'spansWithChildren'));
+            self::assertSame([], self::getPrivateProperty($inferredSpans, 'activeInferredSpanIds'));
+        }
+
+        $inferredSpans->shutdown();
+        $rootScope->detach();
+        ApiSpan::fromContext($rootScope->context())->end();
+        $this->assertNoOrphans();
+    }
+
+    private static function getPrivateProperty(InferredSpans $inferredSpans, string $name): mixed
+    {
+        return (new ReflectionProperty(InferredSpans::class, $name))->getValue($inferredSpans);
     }
 
     /**

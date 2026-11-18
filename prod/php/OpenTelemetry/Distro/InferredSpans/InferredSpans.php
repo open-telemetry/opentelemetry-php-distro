@@ -59,7 +59,10 @@ class InferredSpans
     private static ?self $instance = null;
 
     /**
-     * Value of $stackTraceId when each hooked function that is still running was entered
+     * Value of $stackTraceId when each hooked function that is still running was entered.
+     * Hooked functions are assumed to return in LIFO order. Fibers break that assumption: a fiber that suspends inside
+     * a hooked function makes the exits come out of order, which can end the wrong inferred spans early.
+     * Inferred spans already assume a single call stack, so fibers are not supported here either.
      *
      * @var list<int>
      */
@@ -72,6 +75,14 @@ class InferredSpans
      * @var array<string, true>
      */
     private array $spansWithChildren = [];
+
+    /**
+     * IDs of the inferred spans that are started and not ended yet. Only these are recorded in $spansWithChildren,
+     * so it does not grow with the ids of other spans in long-running processes (e.g. queue workers).
+     *
+     * @var array<string, true>
+     */
+    private array $activeInferredSpanIds = [];
 
     public function __construct(private readonly bool $spanReductionEnabled, private readonly bool $attachStackTrace, private readonly float $minSpanDuration)
     {
@@ -114,10 +125,7 @@ class InferredSpans
 
         // The instrumentation's pre hook usually starts a span with the current span as parent.
         // If the current span is an inferred span, it must be kept.
-        $currentSpanContext = ApiSpan::getCurrent()->getContext();
-        if ($currentSpanContext->isValid()) {
-            $this->spansWithChildren[$currentSpanContext->getSpanId()] = true;
-        }
+        $this->markHasChildren(ApiSpan::getCurrent()->getContext()->getSpanId());
     }
 
     private function hookedFunctionExit(): void
@@ -260,6 +268,19 @@ class InferredSpans
 
         // reindex array
         $this->lastStackTrace = array_values($this->lastStackTrace);
+
+        if (empty($this->lastStackTrace)) {
+            // nothing is in flight anymore (also drops ids of spans that were garbage collected before they were ended)
+            $this->spansWithChildren = [];
+            $this->activeInferredSpanIds = [];
+        }
+    }
+
+    private function markHasChildren(string $spanId): void
+    {
+        if (array_key_exists($spanId, $this->activeInferredSpanIds)) {
+            $this->spansWithChildren[$spanId] = true;
+        }
     }
 
     private function hasChildren(SpanInterface $span): bool
@@ -479,6 +500,7 @@ class InferredSpans
         $scope = Context::storage()->attach($context); //OpenTelemetry\Context\ContextStorageScopeInterface
 
         $newFrame = $frame;
+        $this->activeInferredSpanIds[$span->getContext()->getSpanId()] = true;
         $newFrame[self::METADATA_SPAN] = WeakReference::create($span);
         $newFrame[self::METADATA_CONTEXT] = WeakReference::create($context);
         $newFrame[self::METADATA_SCOPE] = $scope; // strong ref: keeps context/span alive even if detached externally
@@ -515,7 +537,7 @@ class InferredSpans
             self::logDebug("Span not dropped because it has children: " . $span->getName() . ' StackTraceId: ' . $frame[self::METADATA_STACKTRACE_ID]);
             $dropSpan = false;
         }
-        unset($this->spansWithChildren[$span->getContext()->getSpanId()]);
+        unset($this->spansWithChildren[$span->getContext()->getSpanId()], $this->activeInferredSpanIds[$span->getContext()->getSpanId()]);
 
         if ($dropSpan) {
             self::logDebug("Span dropped:   " . $span->getName() . ' StackTraceId: ' . $frame[self::METADATA_STACKTRACE_ID]);
@@ -524,7 +546,7 @@ class InferredSpans
         }
 
         // this span is going to be exported, so its parent must be exported too
-        $this->spansWithChildren[$span->getParentContext()->getSpanId()] = true;
+        $this->markHasChildren($span->getParentContext()->getSpanId());
 
         $detachResult = $scope->detach();
 
