@@ -76,6 +76,11 @@ jobs:
       - build-packages
     uses: ./.github/workflows/test-packages-component-tests.yml
 
+  test-image:
+    needs:
+      - build-packages
+    uses: ./.github/workflows/test-image.yml
+
 
   # The very last job to report whether the Workflow passed.
   # This will act as the Branch Protection gatekeeper
@@ -88,6 +93,7 @@ jobs:
       - build-packages
       - test-otel-unit
       - test-packages-component-tests
+      - test-image
     runs-on: ubuntu-latest
     steps:
       - name: report
