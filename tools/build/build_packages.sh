@@ -99,7 +99,7 @@ test_package() {
     echo "Starting ${_PKG_FILENAME} smoke test on PHP ${_PHP_VERSION}"
     echo "Running on platform ${_DOCKER_PLATFORM}";
 
-    local TEST_LICENSE_FILES="echo -n 'Checking for \"copyright\" files existence: ' && test -f /opt/opentelemetry/php/distro/LICENSE && test -f /opt/opentelemetry/php/distro/NOTICE && echo -e '\033[0;32mOK\033[0;39m'"
+    local TEST_LICENSE_FILES="sh /source/packaging/test/checkLicenseFiles.sh"
 
     case "${_PKG_TYPE}" in
         "apk")

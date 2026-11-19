@@ -156,7 +156,7 @@ EOF
 #### Function add_extension_configuration ######################################
 function add_extension_configuration() {
     # The container image ships these settings prebuilt in
-    # packaging/image/opentelemetry-distro.ini. Keep the two in sync.
+    # packaging/image/opentelemetry-distro.ini. The image test checks the two match.
     cat <<EOF
 extension=${EXTENSION_FILE_PATH}
 opentelemetry_distro.bootstrap_php_part_file=${BOOTSTRAP_FILE_PATH}
