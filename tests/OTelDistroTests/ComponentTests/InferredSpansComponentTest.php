@@ -384,7 +384,7 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
      * the pair hooked function that wraps it still has to get its own inferred spans ended.
      * The two kinds are tested separately, because a stale enter (pre only) and a missing enter (post only) cancel each other out.
      */
-    private static function appCodeForPartialHookScenario(bool $preOnly): void
+    private static function appCodeForPartialHookScenario(bool $preOnly, bool $postHookAddedLater = false): void
     {
         $hook = AppCodeContextUtil::adaptClassNameRawStringToScoping('OpenTelemetry\\Instrumentation\\hook');
         self::assertTrue(function_exists($hook));
@@ -392,7 +392,14 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
         $context = AppCodeContextUtil::adaptClassNameToScoping(Context::class);
         $apiSpan = AppCodeContextUtil::adaptClassNameToScoping(ApiSpan::class);
 
-        if ($preOnly) {
+        if ($postHookAddedLater) {
+            // the function is observed with a pre hook only, a post hook is added after that
+            self::assertTrue($hook(__CLASS__, 'partiallyHookedWork', static function (): void {
+            }, null));
+            self::partiallyHookedWork();
+            self::assertTrue($hook(__CLASS__, 'partiallyHookedWork', null, static function (): void {
+            }));
+        } elseif ($preOnly) {
             self::assertTrue($hook(__CLASS__, 'partiallyHookedWork', static function (): void {
             }, null));
         } else {
@@ -427,6 +434,11 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
     public static function appCodeForTestPostOnlyHookKeepsBookkeepingBalanced(): void
     {
         self::appCodeForPartialHookScenario(preOnly: false);
+    }
+
+    public static function appCodeForTestPostHookAddedLaterKeepsBookkeepingBalanced(): void
+    {
+        self::appCodeForPartialHookScenario(preOnly: true, postHookAddedLater: true);
     }
 
     public static function partiallyHookedWork(): void
@@ -480,6 +492,14 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
         $this->runAndEscalateLogLevelOnFailure(
             self::buildDbgDescForTest(__CLASS__, __FUNCTION__),
             fn() => $this->implTestPartialHookKeepsBookkeepingBalanced('appCodeForTestPreOnlyHookKeepsBookkeepingBalanced')
+        );
+    }
+
+    public function testPostHookAddedLaterKeepsBookkeepingBalanced(): void
+    {
+        $this->runAndEscalateLogLevelOnFailure(
+            self::buildDbgDescForTest(__CLASS__, __FUNCTION__),
+            fn() => $this->implTestPartialHookKeepsBookkeepingBalanced('appCodeForTestPostHookAddedLaterKeepsBookkeepingBalanced')
         );
     }
 
