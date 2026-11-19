@@ -8,7 +8,7 @@
 ARG LIBC
 
 # Extraction runs on the build platform, so a multi-platform build needs no emulation.
-FROM --platform=${BUILDPLATFORM} debian:trixie-slim AS extract
+FROM --platform=${BUILDPLATFORM} debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS extract
 ARG LIBC
 ARG VERSION
 ARG TARGETARCH
