@@ -8,6 +8,7 @@ namespace opentelemetry::php::test {
 class PhpBridgeMock : public PhpBridgeInterface {
 public:
     MOCK_METHOD(bool, callInferredSpans, (std::chrono::milliseconds duration), (const, override));
+    MOCK_METHOD(bool, callInferredSpansHookedFunction, (bool), (const, override));
     MOCK_METHOD(bool, callPHPSideEntryPoint, (LogLevel logLevel, std::chrono::time_point<std::chrono::system_clock> requestInitStart), (const, override));
     MOCK_METHOD(bool, callPHPSideExitPoint, (), (const, override));
     MOCK_METHOD(bool, callPHPSideErrorHandler, (int type, std::string_view errorFilename, uint32_t errorLineno, std::string_view message), (const, override));

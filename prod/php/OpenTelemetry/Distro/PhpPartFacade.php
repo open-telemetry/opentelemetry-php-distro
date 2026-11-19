@@ -175,6 +175,23 @@ final class PhpPartFacade
         return true;
     }
 
+    /**
+     * Called by the extension before the pre hooks ($exiting is false) and before the post hooks ($exiting is true)
+     * of every function that has hooks, including #[WithSpan]
+     *
+     * @noinspection PhpUnused
+     */
+    public static function inferredSpansHookedFunction(bool $exiting): bool
+    {
+        if ($exiting) {
+            InferredSpans::onHookedFunctionExit();
+        } else {
+            InferredSpans::onHookedFunctionEnter();
+        }
+
+        return true;
+    }
+
     private static function isDistroEnabled(): bool
     {
         /**

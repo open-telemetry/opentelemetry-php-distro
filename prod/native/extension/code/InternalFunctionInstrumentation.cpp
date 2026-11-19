@@ -19,9 +19,11 @@
 #include "RequestScope.h"
 #include "InstrumentedFunctionHooksStorage.h"
 #include "PhpScoper.h"
+#include "InferredSpans.h"
 
 #include <array>
 #include <algorithm>
+#include <optional>
 
 namespace opentelemetry::php {
 
@@ -31,6 +33,48 @@ using InternalStorage_t = InternalFunctionInstrumentationStorage<zend_ulong, zif
 
 // Forward declaration — defined later in this file.
 void handleAndReleaseHookException(zend_object *exception);
+
+/// Tells the inferred spans logic that a function with hooks starts (before its pre hooks) or finishes (before its post hooks).
+/// On exit it ends the inferred spans started since the matching enter, so the instrumentation's post hook sees its own scope as the current one.
+/// The returned guard keeps sampling suspended while the post hooks run, so no inferred span can be started between this call and the post hooks.
+static std::optional<InferredSpans::SamplingSuspension> notifyInferredSpansHookedFunction(bool exiting) {
+    if (!OTEL_GL(config_)->get().inferred_spans_enabled || !OTEL_GL(requestScope_)->isFunctional()) {
+        return std::nullopt;
+    }
+
+    // suspended also while entering, so the notification itself is never sampled
+    std::optional<InferredSpans::SamplingSuspension> suspension{std::in_place, *OTEL_GL(inferredSpans_)};
+
+    try {
+        AutomaticExceptionStateRestorer restorer;
+        if (!OTEL_GL(bridge_)->callInferredSpansHookedFunction(exiting)) {
+            ELOGF_WARNING(OTEL_GL(logger_), INSTRUMENTATION, "Inferred spans notification about hooked function %s has failed", exiting ? "exit" : "enter");
+        }
+        handleAndReleaseHookException(EG(exception));
+    } catch (std::exception const &e) {
+        ELOGF_ERROR(OTEL_GL(logger_), INSTRUMENTATION, "Unable to notify inferred spans about hooked function %s: '%s'", exiting ? "exit" : "enter", e.what());
+    }
+    if (!exiting) {
+        return std::nullopt;
+    }
+    return suspension;
+}
+
+/// Enter and exit notifications must be balanced, and the exit is sent only before post hooks, so enter is sent only for functions that have one
+/// Known limitation: it is evaluated separately at enter and at exit, so a hook added to the function while it is running can unbalance the pair.
+static bool hasPostHook(auto const *callbacks, bool hasAttrHook) {
+    if (hasAttrHook) {
+        return true;
+    }
+    if (callbacks) {
+        for (auto const &item : *callbacks) {
+            if (!item.second.isNull() && !item.second.isUndef()) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
 
 /// Calls WithSpanHandler::pre(target, params, class, function, filename, lineno, span_args, attributes)
 /// from the observer begin handler when #[WithSpan] is present.
@@ -382,6 +426,11 @@ void ZEND_FASTCALL internal_function_handler(INTERNAL_FUNCTION_PARAMETERS) {
         return;
     }
 
+    bool notifyInferredSpans = hasPostHook(callbacks, false);
+    if (notifyInferredSpans) {
+        notifyInferredSpansHookedFunction(false);
+    }
+
     for (auto &callback : *callbacks) {
         if (callback.first.isNull() || callback.first.isUndef()) {
             continue;
@@ -398,6 +447,8 @@ void ZEND_FASTCALL internal_function_handler(INTERNAL_FUNCTION_PARAMETERS) {
     }
 
     callOriginalHandler(originalHandler, INTERNAL_FUNCTION_PARAM_PASSTHRU);
+
+    auto samplingSuspension = notifyInferredSpans ? notifyInferredSpansHookedFunction(true) : std::nullopt;
 
     for (auto &callback : *callbacks) {
         if (callback.second.isNull() || callback.second.isUndef()) {
@@ -468,8 +519,16 @@ void observerFcallBeginHandler(zend_execute_data *execute_data) {
     ELOGF_TRACE(OTEL_GL(logger_), INSTRUMENTATION, "observerFcallBeginHandler hash 0x%X", hash);
 
     auto callbacks = reinterpret_cast<InstrumentedFunctionHooksStorage_t *>(OTEL_GL(hooksStorage_).get())->find(hash);
+    auto const *attrMeta = AttrHooksStorage::getInstance().find(hash);
+    if (hasPostHook(callbacks, attrMeta != nullptr)) {
+        notifyInferredSpansHookedFunction(false);
+    }
+
     if (callbacks) {
         for (auto &callback : *callbacks) {
+            if (callback.first.isNull() || callback.first.isUndef()) {
+                continue;
+            }
             try {
                 AutomaticExceptionStateRestorer restorer;
                 callPreHook(callback.first);
@@ -482,7 +541,6 @@ void observerFcallBeginHandler(zend_execute_data *execute_data) {
     }
 
     // Attribute-based WithSpan hook
-    auto const *attrMeta = AttrHooksStorage::getInstance().find(hash);
     if (attrMeta) {
         callWithSpanHandlerPre(execute_data, *attrMeta);
     } else if (!callbacks) {
@@ -496,6 +554,7 @@ void observerFcallEndHandler(zend_execute_data *execute_data, zval *retval) {
     ELOGF_TRACE(OTEL_GL(logger_), INSTRUMENTATION, "observerFcallEndHandler hash 0x%X", hash);
 
     auto callbacks = reinterpret_cast<InstrumentedFunctionHooksStorage_t *>(OTEL_GL(hooksStorage_).get())->find(hash);
+    auto samplingSuspension = hasPostHook(callbacks, AttrHooksStorage::getInstance().find(hash) != nullptr) ? notifyInferredSpansHookedFunction(true) : std::nullopt;
     if (callbacks) {
         for (auto &callback : *callbacks) {
             try {
@@ -606,6 +665,11 @@ zend_observer_fcall_handlers registerObserverHandlers(zend_execute_data *execute
         }
     }
     ELOGF_TRACE(OTEL_GL(logger_), INSTRUMENTATION, "registerObserverHandlers hash: 0x%X, havePreHooks: %d havePostHooks: %d haveAttrHook: %d", hash, havePreHook, havePostHook, haveAttrHook);
+
+    // the begin handler also sends the enter notification that pairs with the exit one sent by the end handler
+    if (havePostHook && OTEL_GL(config_)->get().inferred_spans_enabled) {
+        havePreHook = true;
+    }
 
     return {havePreHook ? observerFcallBeginHandler : nullptr, havePostHook ? observerFcallEndHandler : nullptr};
 }

@@ -18,6 +18,7 @@ public:
     }
 
     bool callInferredSpans(std::chrono::milliseconds duration) const final;
+    bool callInferredSpansHookedFunction(bool exiting) const final;
     bool callPHPSideEntryPoint(LogLevel logLevel, std::chrono::time_point<std::chrono::system_clock> requestInitStart) const final;
     bool callPHPSideExitPoint() const final;
     bool callPHPSideErrorHandler(int type, std::string_view errorFilename, uint32_t errorLineno, std::string_view message) const final;

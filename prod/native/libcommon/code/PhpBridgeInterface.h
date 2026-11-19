@@ -22,6 +22,8 @@ public:
     virtual ~PhpBridgeInterface() = default;
 
     virtual bool callInferredSpans(std::chrono::milliseconds duration) const = 0;
+    /// Tells the PHP side that a function with hooks is about to run its pre hooks (exiting == false) or its post hooks (exiting == true)
+    virtual bool callInferredSpansHookedFunction(bool exiting) const = 0;
     virtual bool callPHPSideEntryPoint(LogLevel logLevel, std::chrono::time_point<std::chrono::system_clock> requestInitStart) const = 0;
     virtual bool callPHPSideExitPoint() const = 0;
     virtual bool callPHPSideErrorHandler(int type, std::string_view errorFilename, uint32_t errorLineno, std::string_view message) const = 0;

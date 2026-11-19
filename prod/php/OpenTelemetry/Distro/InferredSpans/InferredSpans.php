@@ -86,9 +86,9 @@ class InferredSpans
 
     /**
      * True while the inferred spans of a hooked function that returned are being ended.
-     * That runs from a hook, outside the extension's guard against nested sampling, and ending a span can run code
-     * (e.g. a span processor exporting a batch) during which a sample is taken. Such a sample would change $lastStackTrace
-     * while it is being iterated, so it is skipped.
+     * The extension also suspends sampling natively while it notifies about the exit and runs the post hooks, but ending a span
+     * can run code (e.g. a span processor exporting a batch) that is not covered by that, and a sample taken then would change
+     * $lastStackTrace while it is being iterated, so it is skipped. This flag is kept as a second line of defence.
      */
     private bool $endingHookedFunctionFrames = false;
 

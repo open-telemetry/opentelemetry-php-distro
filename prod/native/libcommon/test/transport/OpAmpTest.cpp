@@ -22,6 +22,7 @@ public:
 class MockPhpBridge : public opentelemetry::php::PhpBridgeInterface {
 public:
     MOCK_METHOD(bool, callInferredSpans, (std::chrono::milliseconds), (const, override));
+    MOCK_METHOD(bool, callInferredSpansHookedFunction, (bool), (const, override));
     MOCK_METHOD(bool, callPHPSideEntryPoint, (LogLevel, std::chrono::time_point<std::chrono::system_clock>), (const, override));
     MOCK_METHOD(bool, callPHPSideExitPoint, (), (const, override));
     MOCK_METHOD(bool, callPHPSideErrorHandler, (int, std::string_view, uint32_t, std::string_view), (const, override));
