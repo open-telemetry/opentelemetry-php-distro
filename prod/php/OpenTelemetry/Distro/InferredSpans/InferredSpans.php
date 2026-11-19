@@ -143,6 +143,12 @@ class InferredSpans
             return;
         }
 
+        if ($this->endingHookedFunctionFrames) {
+            // a hooked function called while ending spans (e.g. by an exporter): no sample was taken since it was entered,
+            // so it has no inferred spans to end, and the outer cleanup must stay guarded
+            return;
+        }
+
         $this->endingHookedFunctionFrames = true;
         try {
             // Inferred spans started after the hooked function was entered are for frames that have returned by now

@@ -214,6 +214,9 @@ final class InferredSpansUnitTest extends TestCaseBase
             {
                 // a sample taken while the inferred span 'callee' is being ended
                 if ($this->inferredSpans !== null && $span->getName() === 'callee') {
+                    // e.g. an exporter calling a hooked function, then a sample
+                    InferredSpans::onHookedFunctionEnter();
+                    InferredSpans::onHookedFunctionExit();
                     $this->samplesTaken++;
                     $this->inferredSpans->captureStackTrace(0, false);
                 }
