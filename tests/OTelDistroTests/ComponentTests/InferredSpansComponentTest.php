@@ -60,6 +60,10 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
     private const INSTRUMENTED_SPAN_NAME = 'instrumented work';
     private const WITH_SPAN_NAME = 'with span work';
     private const INTERNAL_FUNC_SPAN_NAME = 'instrumented internal function';
+    private const CALLBACK_INTERNAL_FUNC_SPAN_NAME = 'instrumented callback-driven internal function';
+
+    private static bool $armedForCallbackDrivenInternalFunction = false;
+    private static bool $startedSpanForCallbackDrivenInternalFunction = false;
     private const INSTRUMENTED_WORK_SECONDS = 1;
 
     /**
@@ -484,6 +488,90 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
         $this->runAndEscalateLogLevelOnFailure(
             self::buildDbgDescForTest(__CLASS__, __FUNCTION__),
             fn() => $this->implTestPartialHookKeepsBookkeepingBalanced('appCodeForTestPostOnlyHookKeepsBookkeepingBalanced')
+        );
+    }
+
+    /**
+     * The hooked internal function calls back into PHP, so the samples taken while it runs create inferred spans (and their scopes)
+     * inside the internal function, before its post hook runs.
+     */
+    public static function appCodeForTestCallbackDrivenInternalFunctionHookWithScope(): void
+    {
+        $hook = AppCodeContextUtil::adaptClassNameRawStringToScoping('OpenTelemetry\\Instrumentation\\hook');
+        self::assertTrue(function_exists($hook));
+        $globals = AppCodeContextUtil::adaptClassNameToScoping(Globals::class);
+        $context = AppCodeContextUtil::adaptClassNameToScoping(Context::class);
+        $apiSpan = AppCodeContextUtil::adaptClassNameToScoping(ApiSpan::class);
+
+        $hookAdded = $hook(
+            null,
+            'array_walk',
+            static function () use ($globals, $context): void {
+                if (!self::$armedForCallbackDrivenInternalFunction) {
+                    return;
+                }
+                self::$armedForCallbackDrivenInternalFunction = false;
+                self::$startedSpanForCallbackDrivenInternalFunction = true;
+                $span = $globals::tracerProvider()->getTracer('test')->spanBuilder(self::CALLBACK_INTERNAL_FUNC_SPAN_NAME)->startSpan();
+                $context::storage()->attach($span->storeInContext($context::getCurrent()));
+            },
+            static function () use ($context, $apiSpan): void {
+                if (!self::$startedSpanForCallbackDrivenInternalFunction) {
+                    return;
+                }
+                self::$startedSpanForCallbackDrivenInternalFunction = false;
+                $scope = $context::storage()->scope();
+                if ($scope === null) {
+                    return;
+                }
+                $scope->detach();
+                $apiSpan::fromContext($scope->context())->end();
+            }
+        );
+        self::assertTrue($hookAdded);
+
+        $items = [1];
+        self::$armedForCallbackDrivenInternalFunction = true;
+        array_walk($items, static function (): void {
+            self::multiStepUsleep(self::INSTRUMENTED_WORK_SECONDS);
+        });
+    }
+
+    public function testCallbackDrivenInternalFunctionHookWithScope(): void
+    {
+        $this->runAndEscalateLogLevelOnFailure(
+            self::buildDbgDescForTest(__CLASS__, __FUNCTION__),
+            function (): void {
+                DebugContext::getCurrentScope(/* out */ $dbgCtx);
+
+                $testCaseHandle = $this->getTestCaseHandle();
+                $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
+                    function (AppCodeHostParams $appCodeHostParams): void {
+                        $appCodeHostParams->setProdOption(OptionForProdName::inferred_spans_enabled, true);
+                        $appCodeHostParams->setProdOption(OptionForProdName::inferred_spans_sampling_interval, '20ms');
+                    }
+                );
+                $appCodeHost->execAppCode(AppCodeTarget::asRouted([__CLASS__, 'appCodeForTestCallbackDrivenInternalFunctionHookWithScope']));
+
+                // root span + the instrumentation span + at least the inferred spans for the callback and the functions it calls
+                $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(WaitForOTelSignalCounts::spansAtLeast(4));
+                $dbgCtx->add(compact('agentBackendComms'));
+
+                $rootSpan = IterableUtil::singleValue($agentBackendComms->findRootSpans());
+                $agentBackendComms->singleSpanByName(self::CALLBACK_INTERNAL_FUNC_SPAN_NAME);
+
+                $spanIds = [];
+                foreach ($agentBackendComms->spans() as $span) {
+                    self::assertSame($rootSpan->traceId, $span->traceId);
+                    $spanIds[$span->id] = true;
+                }
+                foreach ($agentBackendComms->spans() as $span) {
+                    $dbgCtx->add(compact('span'));
+                    if ($span->parentId !== null) {
+                        self::assertArrayHasKey($span->parentId, $spanIds, 'Parent of span ' . $span->name . ' was not exported');
+                    }
+                }
+            }
         );
     }
 

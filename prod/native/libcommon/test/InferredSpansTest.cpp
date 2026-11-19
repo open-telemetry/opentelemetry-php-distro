@@ -21,7 +21,8 @@ InferredSpans makeInferredSpans(Counters &c) {
 
 void requestInterrupt(InferredSpans &is) {
     is.setInterval(1ms);
-    is.tryRequestInterrupt(InferredSpans::time_point_t{std::chrono::milliseconds{1'000'000'000}});
+    // the last request tick is initialized from the steady clock, so "now" has to be derived from it too
+    is.tryRequestInterrupt(std::chrono::time_point_cast<InferredSpans::time_point_t::duration>(InferredSpans::clock_t::now()) + 1s);
 }
 
 } // namespace
