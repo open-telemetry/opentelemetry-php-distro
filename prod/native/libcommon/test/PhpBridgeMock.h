@@ -35,7 +35,7 @@ public:
     MOCK_METHOD((std::pair<std::size_t, std::size_t>), getNewlyCompiledFiles, (std::function<void(std::string_view)> recordFile, std::size_t lastClassIndex, std::size_t lastFunctionIndex), (const, override));
 
     MOCK_METHOD((std::pair<int, int>), getPhpVersionMajorMinor, (), (const, override));
-    MOCK_METHOD(std::string, phpUname, (char mode), (const));
+    MOCK_METHOD(std::string, phpUname, (char mode), (const, override));
 };
 
 } // namespace opentelemetry::php::test

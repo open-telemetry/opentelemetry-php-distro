@@ -3,6 +3,7 @@
 #include "ConfigurationStorage.h"
 #include "ResourceDetector.h"
 #include "PhpBridgeInterface.h"
+#include "../PhpBridgeMock.h"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -17,30 +18,6 @@ public:
     MOCK_METHOD(void, initializeConnection, (std::string, std::size_t, std::string, enpointHeaders_t const &, std::chrono::milliseconds, std::size_t, std::chrono::milliseconds, HttpEndpointSSLOptions), (override));
     MOCK_METHOD(void, enqueue, (std::size_t, std::span<std::byte>, responseCallback_t), (override));
     MOCK_METHOD(void, updateRetryDelay, (size_t, std::chrono::milliseconds), (override));
-};
-
-class MockPhpBridge : public opentelemetry::php::PhpBridgeInterface {
-public:
-    MOCK_METHOD(bool, callInferredSpans, (std::chrono::milliseconds), (const, override));
-    MOCK_METHOD(bool, callInferredSpansHookedFunction, (bool), (const, override));
-    MOCK_METHOD(bool, callPHPSideEntryPoint, (LogLevel, std::chrono::time_point<std::chrono::system_clock>), (const, override));
-    MOCK_METHOD(bool, callPHPSideExitPoint, (), (const, override));
-    MOCK_METHOD(bool, callPHPSideErrorHandler, (int, std::string_view, uint32_t, std::string_view), (const, override));
-    MOCK_METHOD(void, enableScopedNamespaces, (bool), (override));
-    MOCK_METHOD(std::vector<phpExtensionInfo_t>, getExtensionList, (), (const, override));
-    MOCK_METHOD(std::string, getPhpInfo, (), (const, override));
-    MOCK_METHOD(std::string_view, getPhpSapiName, (), (const, override));
-    MOCK_METHOD(std::optional<std::string_view>, getCurrentExceptionMessage, (), (const, override));
-    MOCK_METHOD(void, compileAndExecuteFile, (std::string_view), (const, override));
-    MOCK_METHOD(void, enableAccessToServerGlobal, (), (const, override));
-    MOCK_METHOD(bool, detectOpcachePreload, (), (const, override));
-    MOCK_METHOD(bool, isScriptRestricedByOpcacheAPI, (), (const, override));
-    MOCK_METHOD(bool, detectOpcacheRestartPending, (), (const, override));
-    MOCK_METHOD(bool, isOpcacheEnabled, (), (const, override));
-    MOCK_METHOD(void, getCompiledFiles, (std::function<void(std::string_view)>), (const, override));
-    MOCK_METHOD((std::pair<std::size_t, std::size_t>), getNewlyCompiledFiles, (std::function<void(std::string_view)>, std::size_t, std::size_t), (const, override));
-    MOCK_METHOD((std::pair<int, int>), getPhpVersionMajorMinor, (), (const, override));
-    MOCK_METHOD(std::string, phpUname, (char), (const, override));
 };
 
 class OpAmpTest : public ::testing::Test {
@@ -69,7 +46,7 @@ protected:
     }
 
     std::shared_ptr<opentelemetry::php::ResourceDetector> makeResourceDetector() {
-        auto bridge = std::make_shared<MockPhpBridge>();
+        auto bridge = std::make_shared<opentelemetry::php::test::PhpBridgeMock>();
         EXPECT_CALL(*bridge, getPhpVersionMajorMinor()).WillRepeatedly(::testing::Return(std::make_pair(8, 3)));
         EXPECT_CALL(*bridge, phpUname(::testing::_)).WillRepeatedly(::testing::Return("Linux"));
         return std::make_shared<opentelemetry::php::ResourceDetector>(bridge);
