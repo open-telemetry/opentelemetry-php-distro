@@ -97,7 +97,7 @@ final class WaitForOTelSignalCounts implements IsEnoughAgentBackendCommsInterfac
     private static function areAllParentsPresent(iterable $spans): bool
     {
         // $spans can be a generator that can be traversed only once
-        $spansArray = iterator_to_array($spans, preserve_keys: false);
+        $spansArray = IterableUtil::toList($spans);
         /** @var array<string, true> $ids */
         $ids = [];
         foreach ($spansArray as $span) {
