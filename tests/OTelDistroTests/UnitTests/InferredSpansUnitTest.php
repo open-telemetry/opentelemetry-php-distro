@@ -170,9 +170,29 @@ final class InferredSpansUnitTest extends TestCaseBase
     public function testExitWithoutEnterIsIgnored(): void
     {
         $inferredSpans = new InferredSpans(spanReductionEnabled: false, attachStackTrace: false, minSpanDuration: 0);
+        $tracer = $this->tracerProvider->getTracer('test');
+        $rootScope = self::startAndActivateSpan($tracer, 'root');
+
+        // a stray exit must not unbalance the bookkeeping
         self::assertTrue(PhpPartFacade::inferredSpansHookedFunction(true));
-        $inferredSpans->shutdown();
         self::assertSame([], $this->exportedSpans());
+
+        self::sample($inferredSpans, [self::frame('main')]);
+
+        InferredSpans::onHookedFunctionEnter();
+        self::startAndActivateSpan($tracer, 'instrumented');
+        self::sample($inferredSpans, [self::frame('callee'), self::frame('instrumentedFunction'), self::frame('main')]);
+        InferredSpans::onHookedFunctionExit();
+        self::instrumentationPostHook();
+
+        $inferredSpans->shutdown();
+        $rootScope->detach();
+        ApiSpan::fromContext($rootScope->context())->end();
+
+        $spanNames = array_map(static fn (ImmutableSpan $span) => $span->getName(), $this->exportedSpans());
+        self::assertContains('instrumented', $spanNames);
+        self::assertContains('callee', $spanNames);
+        $this->assertNoOrphans();
     }
 
     /**

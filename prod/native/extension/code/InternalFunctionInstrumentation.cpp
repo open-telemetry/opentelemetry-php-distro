@@ -654,6 +654,9 @@ zend_observer_fcall_handlers registerObserverHandlers(zend_execute_data *execute
 
     // The begin handler sends the enter notification and the end handler the exit one, so with inferred spans both are registered together.
     // Otherwise a hook added later to an already observed function would unbalance them.
+    // This applies to every function that has any hook (pre-only, post-only, #[WithSpan], debug_instrument_all). With debug_instrument_all
+    // every user function is notified, so each return ends the inferred spans started inside it and inferred spans come out fragmented.
+    // That combination is a debugging aid and is not supported together with inferred spans.
     if (OTEL_GL(config_)->get().inferred_spans_enabled) {
         havePreHook = true;
         havePostHook = true;

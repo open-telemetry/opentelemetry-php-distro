@@ -62,9 +62,10 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
     private const INTERNAL_FUNC_SPAN_NAME = 'instrumented internal function';
     private const CALLBACK_INTERNAL_FUNC_SPAN_NAME = 'instrumented callback-driven internal function';
 
+    private const INSTRUMENTED_WORK_SECONDS = 1;
+
     private static bool $armedForCallbackDrivenInternalFunction = false;
     private static bool $startedSpanForCallbackDrivenInternalFunction = false;
-    private const INSTRUMENTED_WORK_SECONDS = 1;
 
     /**
      * @return iterable<array{MixedMap}>
