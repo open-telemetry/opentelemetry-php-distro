@@ -171,7 +171,7 @@ final class InferredSpansComponentTest extends ComponentTestCaseBase
         // Regular (i.e., not inferred) spans count is 1 - the automatic root span
         $expectedSpanMinCount = $expectedInferredSpansMinCount + 1;
         $agentBackendComms = $testCaseHandle->waitForEnoughAgentBackendComms(
-            $isInferredSpansEnabled ? WaitForOTelSignalCounts::spansAtLeast($expectedSpanMinCount) : WaitForOTelSignalCounts::spans($expectedSpanMinCount)
+            $isInferredSpansEnabled ? WaitForOTelSignalCounts::spansAtLeast($expectedSpanMinCount)->withAllParentsPresent() : WaitForOTelSignalCounts::spans($expectedSpanMinCount)
         );
         $dbgCtx->add(compact('agentBackendComms'));
 
