@@ -115,7 +115,7 @@ public:
     }
 
     constexpr void set(NotZvalPointer auto &&val) {
-        if constexpr (std::is_same_v<decltype(val), bool>) {
+        if constexpr (std::is_same_v<std::remove_cvref_t<decltype(val)>, bool>) {
             ZVAL_BOOL(&value, val);
         } else if constexpr (std::is_floating_point_v<std::remove_reference_t<decltype(val)>>) {
             ZVAL_DOUBLE(&value, val);

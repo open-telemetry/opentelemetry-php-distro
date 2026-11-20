@@ -11,6 +11,7 @@ use OpenTelemetry\Context\ContextInterface;
 use OpenTelemetry\Context\ContextStorageScopeInterface;
 use OpenTelemetry\Context\ScopeInterface;
 use OpenTelemetry\Distro\InferredSpans\InferredSpans;
+use OpenTelemetry\Distro\PhpPartFacade;
 use OpenTelemetry\SDK\Common\Future\CancellationInterface;
 use OpenTelemetry\SDK\Sdk;
 use OpenTelemetry\SDK\Trace\ImmutableSpan;
@@ -101,6 +102,96 @@ final class InferredSpansUnitTest extends TestCaseBase
         self::assertContains('callee', $spanNames);
         self::assertContains('instrumentedFunction', $spanNames);
         self::assertContains('main', $spanNames);
+        $this->assertNoOrphans();
+    }
+
+    /**
+     * The extension notifies the inferred spans through the facade before the pre hooks and before the post hooks.
+     */
+    public function testFacadeNotificationsEndInferredSpansBeforePostHook(): void
+    {
+        $inferredSpans = new InferredSpans(spanReductionEnabled: false, attachStackTrace: false, minSpanDuration: 0);
+        $tracer = $this->tracerProvider->getTracer('test');
+
+        $rootScope = self::startAndActivateSpan($tracer, 'root');
+        self::sample($inferredSpans, [self::frame('main')]);
+
+        self::assertTrue(PhpPartFacade::inferredSpansHookedFunction(false));
+        self::startAndActivateSpan($tracer, 'instrumented');
+        self::sample($inferredSpans, [self::frame('callee'), self::frame('instrumentedFunction'), self::frame('main')]);
+
+        self::assertTrue(PhpPartFacade::inferredSpansHookedFunction(true));
+        self::instrumentationPostHook();
+
+        $inferredSpans->shutdown();
+        $rootScope->detach();
+        ApiSpan::fromContext($rootScope->context())->end();
+
+        $spanNames = array_map(static fn (ImmutableSpan $span) => $span->getName(), $this->exportedSpans());
+        self::assertContains('instrumented', $spanNames);
+        self::assertContains('callee', $spanNames);
+        $this->assertNoOrphans();
+    }
+
+    /**
+     * Nested hooked functions: each exit ends only the inferred spans started since its own enter.
+     */
+    public function testNestedHookedFunctionsEndOnlyTheirOwnInferredSpans(): void
+    {
+        $inferredSpans = new InferredSpans(spanReductionEnabled: false, attachStackTrace: false, minSpanDuration: 0);
+        $tracer = $this->tracerProvider->getTracer('test');
+
+        $rootScope = self::startAndActivateSpan($tracer, 'root');
+        self::sample($inferredSpans, [self::frame('main')]);
+
+        InferredSpans::onHookedFunctionEnter();
+        self::startAndActivateSpan($tracer, 'outer');
+        self::sample($inferredSpans, [self::frame('outerFunction'), self::frame('main')]);
+
+        InferredSpans::onHookedFunctionEnter();
+        self::startAndActivateSpan($tracer, 'inner');
+        self::sample($inferredSpans, [self::frame('innerFunction'), self::frame('outerFunction'), self::frame('main')]);
+
+        InferredSpans::onHookedFunctionExit();
+        self::instrumentationPostHook(); // ends 'inner'
+        InferredSpans::onHookedFunctionExit();
+        self::instrumentationPostHook(); // ends 'outer'
+
+        $inferredSpans->shutdown();
+        $rootScope->detach();
+        ApiSpan::fromContext($rootScope->context())->end();
+
+        $spanNames = array_map(static fn (ImmutableSpan $span) => $span->getName(), $this->exportedSpans());
+        self::assertContains('outer', $spanNames);
+        self::assertContains('inner', $spanNames);
+        $this->assertNoOrphans();
+    }
+
+    public function testExitWithoutEnterIsIgnored(): void
+    {
+        $inferredSpans = new InferredSpans(spanReductionEnabled: false, attachStackTrace: false, minSpanDuration: 0);
+        $tracer = $this->tracerProvider->getTracer('test');
+        $rootScope = self::startAndActivateSpan($tracer, 'root');
+
+        // a stray exit must not unbalance the bookkeeping
+        self::assertTrue(PhpPartFacade::inferredSpansHookedFunction(true));
+        self::assertSame([], $this->exportedSpans());
+
+        self::sample($inferredSpans, [self::frame('main')]);
+
+        InferredSpans::onHookedFunctionEnter();
+        self::startAndActivateSpan($tracer, 'instrumented');
+        self::sample($inferredSpans, [self::frame('callee'), self::frame('instrumentedFunction'), self::frame('main')]);
+        InferredSpans::onHookedFunctionExit();
+        self::instrumentationPostHook();
+
+        $inferredSpans->shutdown();
+        $rootScope->detach();
+        ApiSpan::fromContext($rootScope->context())->end();
+
+        $spanNames = array_map(static fn (ImmutableSpan $span) => $span->getName(), $this->exportedSpans());
+        self::assertContains('instrumented', $spanNames);
+        self::assertContains('callee', $spanNames);
         $this->assertNoOrphans();
     }
 
