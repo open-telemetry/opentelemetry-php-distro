@@ -22,7 +22,7 @@ show_help() {
     echo "  --libc           Required. glibc takes the files from the .deb, musl from the .apk."
     echo "  --tag            Required. Image tag. Repeat for more tags."
     echo "  --packages_dir   Optional. Directory holding the built packages. Default: _BUILT/packages"
-    echo "  --platforms      Optional. Comma separated platforms (eg. linux/amd64,linux/arm64)."
+    echo "  --platforms      Optional. One platform (eg. linux/amd64), or a comma separated list with --push."
     echo "                   Default: the Docker host's platform."
     echo "  --push           Optional. Push to the registry with provenance and SBOM attestations,"
     echo "                   instead of loading into the local image store."
@@ -77,6 +77,12 @@ parse_args "$@"
 if [[ -z "${LIBC+x}" ]] || [[ ${#TAGS[@]} -eq 0 ]]; then
     echo "Error: Missing required arguments."
     show_help
+    exit 1
+fi
+
+# The classic Docker image store can't --load a multi-platform build.
+if [[ "${PUSH}" != "true" ]] && [[ "${PLATFORMS}" == *,* ]]; then
+    echo "Error: --platforms takes one platform without --push, because the image is loaded into the local image store."
     exit 1
 fi
 

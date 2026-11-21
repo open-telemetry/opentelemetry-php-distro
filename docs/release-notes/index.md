@@ -1,3 +1,21 @@
+## 0.7.2
+
+### This release is based on the following OpenTelemetry PHP packages:
+
+- [open-telemetry/api 1.10.1](https://packagist.org/packages/open-telemetry/api#1.10.1)
+- [open-telemetry/sdk 1.15.0](https://packagist.org/packages/open-telemetry/sdk#1.15.0)
+- open-telemetry/context:
+  - PHP 8.1: [1.5.0](https://packagist.org/packages/open-telemetry/context#1.5.0)
+  - PHP 8.2: [1.6.0](https://packagist.org/packages/open-telemetry/context#1.6.0)
+  - PHP 8.3: [1.6.0](https://packagist.org/packages/open-telemetry/context#1.6.0)
+  - PHP 8.4: [1.6.0](https://packagist.org/packages/open-telemetry/context#1.6.0)
+  - PHP 8.5: [1.6.0](https://packagist.org/packages/open-telemetry/context#1.6.0)
+
+### What's changed
+
+- Fix PHP 8.1 fatal from scoped polyfills (PR [#164](https://github.com/open-telemetry/opentelemetry-php-distro/pull/164))
+- test(loader): cover the PHP detection table and version parsing (PR [#158](https://github.com/open-telemetry/opentelemetry-php-distro/pull/158))
+
 ## 0.7.1
 
 ### This release is based on the following OpenTelemetry PHP packages:
