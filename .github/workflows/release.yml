@@ -130,6 +130,7 @@ jobs:
       matrix:
         libc: [ glibc, musl ]
     env:
+      GITHUB_TOKEN: ${{ github.token }}
       IMAGE: ghcr.io/${{ github.repository }}
       LIBC: ${{ matrix.libc }}
     steps:
@@ -154,10 +155,15 @@ jobs:
           source ./tools/read_properties.sh
           read_properties project.properties PROJECT_PROPERTIES
 
+          released_versions=$(gh release list --repo "${GITHUB_REPOSITORY}" --exclude-drafts --exclude-pre-releases \
+            --limit 1000 --json tagName --jq '.[].tagName | ltrimstr("v")')
+          # Captured first, because a failure inside a process substitution doesn't stop the step.
+          tags=$(./tools/build/image_tags.sh --image "${IMAGE}" --version "${PROJECT_PROPERTIES_VERSION}" --libc "${LIBC}" \
+            --released_versions "${released_versions}")
           tag_args=()
           while read -r tag; do
             tag_args+=(--tag "${tag}")
-          done < <(./tools/build/image_tags.sh --image "${IMAGE}" --version "${PROJECT_PROPERTIES_VERSION}" --libc "${LIBC}")
+          done <<< "${tags}"
 
           ./tools/build/build_image.sh --libc "${LIBC}" "${tag_args[@]}" \
             --packages_dir "${BUILT_PACKAGES_DIR}" \

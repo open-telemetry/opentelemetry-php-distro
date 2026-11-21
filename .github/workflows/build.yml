@@ -35,6 +35,9 @@ jobs:
   verify-composer-version-is-pinned:
     uses: ./.github/workflows/verify-composer-version-is-pinned.yml
 
+  test-image-tags:
+    uses: ./.github/workflows/test-image-tags.yml
+
   build-compiler:
     uses: ./.github/workflows/native-dev-tools-build.yml
     secrets:
@@ -93,6 +96,7 @@ jobs:
       - build-packages
       - test-otel-unit
       - test-packages-component-tests
+      - test-image-tags
       - test-image
     runs-on: ubuntu-latest
     steps:

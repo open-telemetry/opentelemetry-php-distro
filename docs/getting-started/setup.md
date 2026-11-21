@@ -46,19 +46,24 @@ Each image works with every supported PHP version, on `linux/amd64` and `linux/a
 
 | Base image | Example | Tags |
 |------------|---------|------|
-| Debian or Ubuntu (glibc) | `php:8.4-fpm` | `0.7.1`, `0.7`, `latest` |
-| Alpine (musl) | `php:8.4-fpm-alpine` | `0.7.1-musl`, `0.7-musl`, `musl` |
+| Debian or Ubuntu (glibc) | `php:8.4-fpm` | `X.Y.Z`, `X.Y`, `latest` |
+| Alpine (musl) | `php:8.4-fpm-alpine` | `X.Y.Z-musl`, `X.Y-musl`, `musl` |
 
-The images are at `ghcr.io/open-telemetry/opentelemetry-php-distro`. Pin a full version in production. Before 1.0 there is no major-only tag, because a minor release can include breaking changes. Pre-releases get only their own version tag.
+The images are at `ghcr.io/open-telemetry/opentelemetry-php-distro`. Pin a full version in production. The versions are listed on the [releases page](https://github.com/open-telemetry/opentelemetry-php-distro/releases).
+
+- `X.Y` follows the newest patch release of that minor version.
+- `latest` and `musl` follow the newest release. A patch to an older minor version doesn't move them.
+- Before 1.0 there is no major-only tag, because a minor release can include breaking changes. From 1.0, `X` and `X-musl` follow the newest release of that major version.
+- Pre-releases get only their own version tag.
 
 ### Copy the distro into your image
 
-Copy the files and the ini that loads the extension:
+Copy the files and the ini that loads the extension. Replace `<version>` with a release version:
 
 ```dockerfile
 FROM php:8.4-fpm
-COPY --from=ghcr.io/open-telemetry/opentelemetry-php-distro:0.7.1 /opt/opentelemetry /opt/opentelemetry
-COPY --from=ghcr.io/open-telemetry/opentelemetry-php-distro:0.7.1 \
+COPY --from=ghcr.io/open-telemetry/opentelemetry-php-distro:<version> /opt/opentelemetry /opt/opentelemetry
+COPY --from=ghcr.io/open-telemetry/opentelemetry-php-distro:<version> \
      /opt/opentelemetry/php/distro/etc/opentelemetry-distro.ini \
      /usr/local/etc/php/conf.d/98-opentelemetry-distro.ini
 ```
@@ -67,8 +72,8 @@ For Alpine, use the `-musl` tag:
 
 ```dockerfile
 FROM php:8.4-fpm-alpine
-COPY --from=ghcr.io/open-telemetry/opentelemetry-php-distro:0.7.1-musl /opt/opentelemetry /opt/opentelemetry
-COPY --from=ghcr.io/open-telemetry/opentelemetry-php-distro:0.7.1-musl \
+COPY --from=ghcr.io/open-telemetry/opentelemetry-php-distro:<version>-musl /opt/opentelemetry /opt/opentelemetry
+COPY --from=ghcr.io/open-telemetry/opentelemetry-php-distro:<version>-musl \
      /opt/opentelemetry/php/distro/etc/opentelemetry-distro.ini \
      /usr/local/etc/php/conf.d/98-opentelemetry-distro.ini
 ```
@@ -87,7 +92,7 @@ To change settings, add another ini file that sorts after `98-opentelemetry-dist
 Release images are signed with [cosign](https://docs.sigstore.dev/cosign/) keyless signing, from the release workflow. To verify a tag:
 
 ```bash
-cosign verify ghcr.io/open-telemetry/opentelemetry-php-distro:0.7.1 \
+cosign verify ghcr.io/open-telemetry/opentelemetry-php-distro:<version> \
   --certificate-identity-regexp '^https://github\.com/open-telemetry/opentelemetry-php-distro/\.github/workflows/release\.yml@refs/tags/v' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
