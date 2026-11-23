@@ -113,3 +113,69 @@ jobs:
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags')
         run: gh release edit "${TAG_NAME}" --draft=false
+
+  # Runs after the release is public, so a failed push leaves a release without an image
+  # (fixed by rerunning this job) rather than a public image without a release.
+  publish-image:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # push to ghcr.io with GITHUB_TOKEN
+      id-token: write # cosign keyless signing gets its certificate with the workflow's OIDC token
+    strategy:
+      fail-fast: false
+      matrix:
+        libc: [ glibc, musl ]
+    # Two overlapping releases could otherwise both pick the floating tags, and the older push
+    # could land last. Serialised, the second run reads the release list after the first finishes.
+    concurrency:
+      group: publish-image-${{ matrix.libc }}
+      cancel-in-progress: false
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      IMAGE: ghcr.io/${{ github.repository }}
+      LIBC: ${{ matrix.libc }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Download package artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: packages-*
+          path: ${{ env.BUILT_PACKAGES_DIR }}
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+      - name: Build and push image
+        run: |
+          source ./tools/read_properties.sh
+          read_properties project.properties PROJECT_PROPERTIES
+
+          released_versions=$(gh release list --repo "${GITHUB_REPOSITORY}" --exclude-drafts --exclude-pre-releases \
+            --limit 1000 --json tagName --jq '.[].tagName | ltrimstr("v")')
+          # Captured first, because a failure inside a process substitution doesn't stop the step.
+          tags=$(./tools/build/image_tags.sh --image "${IMAGE}" --version "${PROJECT_PROPERTIES_VERSION}" --libc "${LIBC}" \
+            --released_versions "${released_versions}")
+          tag_args=()
+          while read -r tag; do
+            tag_args+=(--tag "${tag}")
+          done <<< "${tags}"
+
+          ./tools/build/build_image.sh --libc "${LIBC}" "${tag_args[@]}" \
+            --packages_dir "${BUILT_PACKAGES_DIR}" \
+            --platforms linux/amd64,linux/arm64 \
+            --push \
+            --metadata_file image-metadata.json
+      - name: Sign image
+        run: |
+          digest=$(jq -r '."containerimage.digest"' image-metadata.json)
+          cosign sign --yes "${IMAGE}@${digest}"
