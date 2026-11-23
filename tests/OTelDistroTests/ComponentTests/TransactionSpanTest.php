@@ -78,6 +78,9 @@ final class TransactionSpanTest extends ComponentTestCaseBase
         $transactionSpanEnabledCli = $testArgs->getNullableBool(OptionForProdName::transaction_span_enabled_cli->name);
         $isTransactionSpanEnabled = self::isTransactionSpanEnabled($transactionSpanEnabled, $transactionSpanEnabledCli);
         $shouldAppCodeCreateDummySpan = $testArgs->getBool(self::SHOULD_APP_CODE_CREATE_DUMMY_SPAN_KEY);
+        // When the option is set to true explicitly, it reaches the application's own copy of the SDK as well (the distro only supplies
+        // its default to its own runtime). Since SDK 1.17 that copy can export, so it sends its own root span, in a trace of its own.
+        $isAppOwnSdkRootSpanExpected = (self::isMainAppCodeHostHttp() ? $transactionSpanEnabled : $transactionSpanEnabledCli) === true;
 
         $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
             function (AppCodeHostParams $appCodeHostParams) use ($transactionSpanEnabled, $transactionSpanEnabledCli): void {
@@ -100,6 +103,9 @@ final class TransactionSpanTest extends ComponentTestCaseBase
         $expectedSpanCount = 0;
         if ($isTransactionSpanEnabled) {
             ++$expectedSpanCount;
+            if ($isAppOwnSdkRootSpanExpected) {
+                ++$expectedSpanCount;
+            }
         }
         if ($shouldAppCodeCreateDummySpan) {
             ++$expectedSpanCount;
@@ -155,14 +161,27 @@ final class TransactionSpanTest extends ComponentTestCaseBase
         $dummySpan = null;
         if ($isTransactionSpanEnabled) {
             $rootSpans = IterableUtil::toList($agentBackendComms->findRootSpans());
-            self::assertCount(1, $rootSpans);
+            self::assertCount($isAppOwnSdkRootSpanExpected ? 2 : 1, $rootSpans);
+            foreach ($rootSpans as $anyRootSpan) {
+                $expectationsForRootSpan->assertMatches($anyRootSpan);
+            }
+            if ($isAppOwnSdkRootSpanExpected) {
+                self::assertNotSame($rootSpans[0]->traceId, $rootSpans[1]->traceId);
+            }
             /** @var Span $rootSpan */
             $rootSpan = ArrayUtilForTests::getFirstValue($rootSpans);
             if ($shouldAppCodeCreateDummySpan) {
-                $childSpans = IterableUtil::toList($agentBackendComms->findChildSpans($rootSpan->id));
-                self::assertCount(1, $childSpans);
+                // The app code creates the dummy span with the distro's runtime, so its parent is the distro's root span
                 /** @var Span $dummySpan */
-                $dummySpan = ArrayUtilForTests::getFirstValue($childSpans);
+                $dummySpan = $agentBackendComms->singleSpanByName(self::APP_CODE_DUMMY_SPAN_NAME);
+                $dummySpanParent = null;
+                foreach ($rootSpans as $anyRootSpan) {
+                    if ($anyRootSpan->id === $dummySpan->parentId) {
+                        $dummySpanParent = $anyRootSpan;
+                    }
+                }
+                self::assertNotNull($dummySpanParent);
+                $rootSpan = $dummySpanParent;
             }
         } else {
             $dummySpan = $agentBackendComms->singleSpan();

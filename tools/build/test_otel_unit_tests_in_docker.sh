@@ -6,14 +6,14 @@ show_help() {
     echo "Usage: $0 --build_architecture <architecture> --php_versions <versions> --results_path <path> --deb_package <package.deb> "
     echo
     echo "Arguments:"
-    echo "  --php_versions           Required. List of PHP versions separated by spaces (e.g., '81 82 83 84')."
+    echo "  --php_versions           Required. List of PHP versions separated by spaces (e.g., '82 83 84 85')."
     echo "  --results_path           Optional. The path where the results will be saved if a test failure occurs. (default is '${RESULTS_PATH}')"
     echo "  --deb_package            Optional. The path to debian package to install inside container."
     echo "  --hook_bridge            Optional. Path to hook bridge PHP file (generated in /tmp if not provided)."
     echo "  --quiet                  Optional. Quiet composer."
     echo
     echo "Example:"
-    echo "  $0 --php_versions '81 82 83 84'"
+    echo "  $0 --php_versions '82 83 84 85'"
 }
 
 parse_args() {

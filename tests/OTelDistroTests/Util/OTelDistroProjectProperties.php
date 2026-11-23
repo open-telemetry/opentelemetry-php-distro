@@ -118,7 +118,7 @@ final class OTelDistroProjectProperties
      */
     private static function parseSupportedPhpVersions(string $propValue): array
     {
-        // Example $propValue: (81 82 83 84)
+        // Example $propValue: (82 83 84 85)
 
         return array_map(PhpVersionInfo::fromMajorMinorNoDotString(...), self::parseArray($propValue));
     }

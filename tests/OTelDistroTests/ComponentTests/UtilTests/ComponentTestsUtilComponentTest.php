@@ -6,7 +6,6 @@ namespace OTelDistroTests\ComponentTests\UtilTests;
 
 use OpenTelemetry\Distro\Log\LogLevel;
 use OTelDistroTests\ComponentTests\Util\AppCodeAuxOutputUtil;
-use OTelDistroTests\ComponentTests\Util\AppCodeHostParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeRequestParams;
 use OTelDistroTests\ComponentTests\Util\AppCodeTarget;
 use OTelDistroTests\ComponentTests\Util\ComponentTestCaseBase;
@@ -84,11 +83,7 @@ final class ComponentTestsUtilComponentTest extends ComponentTestCaseBase
 
         $testCaseHandle = $this->getTestCaseHandle();
 
-        $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
-            function (AppCodeHostParams $appCodeHostParams): void {
-                self::ensureTransactionSpanEnabled($appCodeHostParams);
-            }
-        );
+        $appCodeHost = $testCaseHandle->ensureMainAppCodeHost();
 
         /** @var array<string, mixed> $appCodeRequestArgs */
         $appCodeRequestArgs = [
