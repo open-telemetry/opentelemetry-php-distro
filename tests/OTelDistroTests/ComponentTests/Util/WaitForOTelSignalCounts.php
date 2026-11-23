@@ -20,6 +20,7 @@ final class WaitForOTelSignalCounts implements IsEnoughAgentBackendCommsInterfac
 
     private int $minSpanCount = 0;
     private int $maxSpanCount = 0;
+    private bool $shouldRequireAllParentsPresent = false;
 
     private readonly Logger $logger;
 
@@ -54,6 +55,17 @@ final class WaitForOTelSignalCounts implements IsEnoughAgentBackendCommsInterfac
         return self::spans(min: $min, max: PHP_INT_MAX);
     }
 
+    /**
+     * Do not consider the wait over until the parent of every received span has been received as well.
+     * Needed when spans are exported in several batches (a child can arrive before its parent).
+     * Do not use if some spans have a parent that is not exported (for example, a remote one).
+     */
+    public function withAllParentsPresent(): self
+    {
+        $this->shouldRequireAllParentsPresent = true;
+        return $this;
+    }
+
     #[Override]
     public function isEnough(AgentBackendComms $comms): bool
     {
@@ -62,6 +74,9 @@ final class WaitForOTelSignalCounts implements IsEnoughAgentBackendCommsInterfac
 
         // If minSpanCount !== 0 then check that there is at least one root span
         $result = ($spansCount >= $this->minSpanCount) && (($this->minSpanCount === 0) || self::isThereAtLeastOneRootSpan($comms->spans()));
+        if ($result && $this->shouldRequireAllParentsPresent) {
+            $result = self::areAllParentsPresent($comms->spans());
+        }
 
         $this->logger->logDebug(__FUNCTION__)?->with(__LINE__, 'Checked if exported data events counts reached the waited for values', compact('result', 'spansCount', 'this'));
 
@@ -74,5 +89,25 @@ final class WaitForOTelSignalCounts implements IsEnoughAgentBackendCommsInterfac
     private static function isThereAtLeastOneRootSpan(iterable $spans): bool
     {
         return !IterableUtil::isEmpty(IterableUtil::findByPredicateOnValue($spans, fn($span) => $span->parentId === null));
+    }
+
+    /**
+     * @param iterable<Span> $spans
+     */
+    private static function areAllParentsPresent(iterable $spans): bool
+    {
+        // $spans can be a generator that can be traversed only once
+        $spansArray = IterableUtil::toList($spans);
+        /** @var array<string, true> $ids */
+        $ids = [];
+        foreach ($spansArray as $span) {
+            $ids[$span->id] = true;
+        }
+        foreach ($spansArray as $span) {
+            if ($span->parentId !== null && !isset($ids[$span->parentId])) {
+                return false;
+            }
+        }
+        return true;
     }
 }

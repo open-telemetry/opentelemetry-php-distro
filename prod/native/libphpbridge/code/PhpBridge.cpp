@@ -40,6 +40,10 @@ std::string_view getFacadeInferredSpansMethodName(bool scoped) {
     return scoped ? PHP_SCOPER_PREFIX "OpenTelemetry\\Distro\\PhpPartFacade::inferredSpans"sv : "OpenTelemetry\\Distro\\PhpPartFacade::inferredSpans"sv;
 }
 
+std::string_view getFacadeInferredSpansHookedFunctionMethodName(bool scoped) {
+    return scoped ? PHP_SCOPER_PREFIX "OpenTelemetry\\Distro\\PhpPartFacade::inferredSpansHookedFunction"sv : "OpenTelemetry\\Distro\\PhpPartFacade::inferredSpansHookedFunction"sv;
+}
+
 std::string_view getFacadeBootstrapMethodName(bool scoped) {
     return scoped ? PHP_SCOPER_PREFIX "OpenTelemetry\\Distro\\PhpPartFacade::bootstrap"sv : "OpenTelemetry\\Distro\\PhpPartFacade::bootstrap"sv;
 }
@@ -77,6 +81,19 @@ bool PhpBridge::callInferredSpans(std::chrono::milliseconds duration) const {
     AutoZval rv;
     std::array<AutoZval, 2> params{duration.count(), internal};
     return callMethod(nullptr, getFacadeInferredSpansMethodName(scopedNamespacesEnabled_), params.data()->get(), params.size(), rv.get());
+}
+
+bool PhpBridge::callInferredSpansHookedFunction(bool exiting) const {
+    auto phpPartFacadeClass = findClassEntry(getFacadeClassName(scopedNamespacesEnabled_));
+    if (!phpPartFacadeClass) {
+        return false;
+    }
+
+    AutoZval rv;
+    std::array<AutoZval, 1> params{exiting};
+    callMethod(nullptr, getFacadeInferredSpansHookedFunctionMethodName(scopedNamespacesEnabled_), params.data()->get(), params.size(), rv.get());
+    // callMethod reports success even if the call was rejected (e.g. TypeError for an argument), in that case there is no return value
+    return !rv.isUndef();
 }
 
 std::string_view PhpBridge::getPhpSapiName() const {
