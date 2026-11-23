@@ -22,10 +22,10 @@
 
 ### What's changed
 
-- chore: update open-telemetry packages (SDK 1.17.0, API 1.12.0, exporter-otlp 1.6.0, sdk-configuration 0.10.0, sem-conv 1.45.0 and the auto-instrumentation packages)
-- feat: the root span (transaction span) is created by the SDK's `AutoRootSpan` (URL grouping, request and response header capture and request body capture come from the SDK, see the upstream highlights). The distro still enables it by default for web and CLI, and the defaults are supplied to the distro's own SDK only, so an application's own copy of the SDK is not affected
-- fix: the distro's OTLP exporters (`Contrib/Otlp`) are compatible with `exporter-otlp` 1.5.0; without this the OTLP metric exporter could not be created
-- feat: native OTLP exporters aligned with `exporter-otlp` 1.6.0 (histogram `min`/`max` are not exported when they were not recorded), native semantic conventions 1.45.0 and OTLP proto v1.11.1
+- chore: update open-telemetry packages (SDK 1.17.0, API 1.12.0, exporter-otlp 1.6.0, sdk-configuration 0.10.0, sem-conv 1.45.0 and the auto-instrumentation packages) (PR [#172](https://github.com/open-telemetry/opentelemetry-php-distro/pull/172))
+- feat: the root span (transaction span) is created by the SDK's `AutoRootSpan` (URL grouping, request and response header capture and request body capture come from the SDK, see the upstream highlights). The distro still enables it by default for web and CLI, and the defaults are supplied to the distro's own SDK only, so an application's own copy of the SDK is not affected (PR [#172](https://github.com/open-telemetry/opentelemetry-php-distro/pull/172))
+- fix: the distro's OTLP exporters (`Contrib/Otlp`) are compatible with `exporter-otlp` 1.5.0; without this the OTLP metric exporter could not be created (PR [#172](https://github.com/open-telemetry/opentelemetry-php-distro/pull/172))
+- feat: native OTLP exporters aligned with `exporter-otlp` 1.6.0 (histogram `min`/`max` are not exported when they were not recorded), native semantic conventions 1.45.0 and OTLP proto v1.11.1 (PR [#172](https://github.com/open-telemetry/opentelemetry-php-distro/pull/172))
 - fix(inferred-spans): keep instrumentation spans and their parents exported (PR [#167](https://github.com/open-telemetry/opentelemetry-php-distro/pull/167))
 - fix(inferred-spans): end inferred spans natively before the post hooks of instrumentations run (PR [#170](https://github.com/open-telemetry/opentelemetry-php-distro/pull/170))
 - feat: build the distro as a container image, for `COPY --from` (PR [#165](https://github.com/open-telemetry/opentelemetry-php-distro/pull/165))
