@@ -129,6 +129,11 @@ jobs:
       fail-fast: false
       matrix:
         libc: [ glibc, musl ]
+    # Two overlapping releases could otherwise both pick the floating tags, and the older push
+    # could land last. Serialised, the second run reads the release list after the first finishes.
+    concurrency:
+      group: publish-image-${{ matrix.libc }}
+      cancel-in-progress: false
     env:
       GITHUB_TOKEN: ${{ github.token }}
       IMAGE: ghcr.io/${{ github.repository }}
