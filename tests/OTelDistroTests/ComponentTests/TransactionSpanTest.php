@@ -17,13 +17,17 @@ use OTelDistroTests\ComponentTests\Util\OtlpData\SpanKind;
 use OTelDistroTests\ComponentTests\Util\SpanExpectationsBuilder;
 use OTelDistroTests\ComponentTests\Util\UrlUtil;
 use OTelDistroTests\ComponentTests\Util\WaitForOTelSignalCounts;
+use OTelDistroTests\Util\AmbientContextForTests;
 use OTelDistroTests\Util\ArrayUtilForTests;
+use OTelDistroTests\Util\AssertEx;
 use OTelDistroTests\Util\BoolUtilForTests;
 use OTelDistroTests\Util\Config\OptionForProdName;
 use OTelDistroTests\Util\Config\OptionsForProdDefaultValues;
+use OTelDistroTests\Util\Config\OptionsForProdMetadata;
 use OTelDistroTests\Util\DebugContext;
 use OTelDistroTests\Util\IterableUtil;
 use OTelDistroTests\Util\MixedMap;
+use OpenTelemetry\Distro\Util\BoolUtil;
 use OpenTelemetry\SemConv\Attributes\HttpAttributes;
 use OpenTelemetry\SemConv\Attributes\ServerAttributes;
 use OpenTelemetry\SemConv\Attributes\UrlAttributes;
@@ -41,6 +45,19 @@ final class TransactionSpanTest extends ComponentTestCaseBase
         return self::isMainAppCodeHostHttp()
             ? ($transactionSpanEnabled ?? OptionsForProdDefaultValues::TRANSACTION_SPAN_ENABLED)
             : ($transactionSpanEnabledCli ?? OptionsForProdDefaultValues::TRANSACTION_SPAN_ENABLED_CLI);
+    }
+
+    private static function isScopedDepsEnabledForAppCodeHost(): bool
+    {
+        $boolStringVal = AmbientContextForTests::testConfig()->matrixRow()->optionalPart?->prodOptions?->get(OptionForProdName::scoped_deps_enabled, default: null);
+        if ($boolStringVal === null) {
+            $defaultValue = OptionsForProdMetadata::get()[OptionForProdName::scoped_deps_enabled->name]->defaultValue();
+            self::assertIsBool($defaultValue);
+            return $defaultValue;
+        }
+        $isEnabled = BoolUtil::parse(AssertEx::isString($boolStringVal));
+        self::assertNotNull($isEnabled);
+        return $isEnabled;
     }
 
     /**
@@ -80,7 +97,9 @@ final class TransactionSpanTest extends ComponentTestCaseBase
         $shouldAppCodeCreateDummySpan = $testArgs->getBool(self::SHOULD_APP_CODE_CREATE_DUMMY_SPAN_KEY);
         // When the option is set to true explicitly, it reaches the application's own copy of the SDK as well (the distro only supplies
         // its default to its own runtime). Since SDK 1.17 that copy can export, so it sends its own root span, in a trace of its own.
-        $isAppOwnSdkRootSpanExpected = (self::isMainAppCodeHostHttp() ? $transactionSpanEnabled : $transactionSpanEnabledCli) === true;
+        // Without scoped dependencies the application and the distro share one copy of the SDK, so there is only one root span.
+        $isAppOwnSdkRootSpanExpected = self::isScopedDepsEnabledForAppCodeHost()
+                                       && (self::isMainAppCodeHostHttp() ? $transactionSpanEnabled : $transactionSpanEnabledCli) === true;
 
         $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
             function (AppCodeHostParams $appCodeHostParams) use ($transactionSpanEnabled, $transactionSpanEnabledCli): void {
