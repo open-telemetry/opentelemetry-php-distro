@@ -12,15 +12,12 @@ use OpenTelemetry\SDK\Common\Future\FutureInterface;
 use OpenTelemetry\SDK\Trace\SpanExporterInterface;
 use Throwable;
 
-/**
- * @psalm-import-type SUPPORTED_CONTENT_TYPES from ProtobufSerializer
- */
 final class SpanExporter implements SpanExporterInterface
 {
     use LogsMessagesTrait;
 
     /**
-     * @psalm-param TransportInterface<SUPPORTED_CONTENT_TYPES> $transport
+     * @param TransportInterface<ContentTypes::*> $transport
      */
     public function __construct(
         private readonly TransportInterface $transport

@@ -69,7 +69,6 @@ prod/native/_build/custom-release/loader/code/opentelemetry_php_distro_loader.so
 prod/native/_build/custom-release/extension/code/opentelemetry_php_distro_84.so
 prod/native/_build/custom-release/extension/code/opentelemetry_php_distro_83.so
 prod/native/_build/custom-release/extension/code/opentelemetry_php_distro_82.so
-prod/native/_build/custom-release/extension/code/opentelemetry_php_distro_81.so
 ```
 
 
@@ -80,7 +79,7 @@ The following script will run the phpt tests for the native library, which shoul
 
 ```bash
 cd opentelemetry-php-distro
-  ./tools/build/test_phpt.sh --build_architecture linux-x86-64 --php_versions '81 82 83 84'
+  ./tools/build/test_phpt.sh --build_architecture linux-x86-64 --php_versions '82 83 84 85'
 ```
 
 ### Building PHP dependencies
@@ -89,7 +88,7 @@ To ensure the instrumentation is fully successful, it is required to download an
 
 ```bash
 cd opentelemetry-php-distro
-  ./tools/build/build_php_code_for_packages.sh --php_versions '81 82 83 84'
+  ./tools/build/build_php_code_for_packages.sh --php_versions '82 83 84 85'
 ```
 
 ### Building Packages
@@ -206,7 +205,7 @@ cp .local-repos.json.example .local-repos.json
 4. Build PHP dependencies:
 
 ```bash
-./tools/build/build_php_code_for_packages.sh --php_versions '81 82 83 84 85' --skip_notice --local-repos-file .local-repos.json
+./tools/build/build_php_code_for_packages.sh --php_versions '82 83 84 85' --skip_notice --local-repos-file .local-repos.json
 ```
 
 **Caveats:**

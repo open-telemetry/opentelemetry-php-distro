@@ -121,7 +121,6 @@ final class WithSpanAttributeTest extends ComponentTestCaseBase
         $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
             function (AppCodeHostParams $appCodeHostParams) use ($attrHooksEnabled): void {
                 self::disableTimingDependentFeatures($appCodeHostParams);
-                self::ensureTransactionSpanEnabled($appCodeHostParams);
                 $appCodeHostParams->setAdditionalEnvVar('OTEL_PHP_ATTR_HOOKS_ENABLED', $attrHooksEnabled ? 'true' : 'false');
             }
         );

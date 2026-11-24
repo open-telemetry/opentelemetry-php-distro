@@ -236,6 +236,9 @@ FAILURE=false
 
 semconv_package=$(get_package_version "open-telemetry/sem-conv")
 sdk_package=$(get_package_version "open-telemetry/sdk")
+# sdk-configuration must follow the distro too: the tested packages may require an older one in require-dev,
+# and it conflicts with newer open-telemetry/api (api >= 1.11 conflicts with sdk-configuration < 0.10)
+sdk_configuration_package=$(get_package_version "open-telemetry/sdk-configuration")
 
 declare -A PACKAGE_EXCLUDE_FILTERS
 # These curl tests must be disabled due to double instrumentation and internal handling of
@@ -257,9 +260,9 @@ for package in "${MATCHED_PACKAGES[@]}"; do
 
     echo "Removing static analysis tools to avoid conflicts with tests"
 
-    composer ${OPT_QUIET} require php:^8.1 --no-update
+    composer ${OPT_QUIET} require php:^8.2 --no-update
     composer ${OPT_QUIET} remove --dev -n --no-update phan/phan phpstan/phpstan phpstan/phpstan-phpunit psalm/plugin-phpunit vimeo/psalm friendsofphp/php-cs-fixer
-    composer ${OPT_QUIET} require -n --no-update "$semconv_package" "$sdk_package"
+    composer ${OPT_QUIET} require -n --no-update "$semconv_package" "$sdk_package" "$sdk_configuration_package"
 
     echo "Installing $package with version constraints from composer.json"
     composer ${OPT_QUIET} install
@@ -273,7 +276,12 @@ for package in "${MATCHED_PACKAGES[@]}"; do
         echo "Applying PHPUnit filter for package $package: $exclude_filter"
     fi
 
-    php -d auto_prepend_file=${OPT_HOOK_BRIDGE_FILE} ./vendor/bin/phpunit ${exclude_filter} --verbose --debug --log-junit ${OPT_REPORTS_DESTINATION_PATH}/$package.xml
+    # --verbose was removed in PHPUnit 11, and some tested packages (e.g. laravel via orchestra/testbench 10) install it
+    verbose_option=""
+    if ./vendor/bin/phpunit --help 2>/dev/null | grep -q -- '--verbose'; then
+        verbose_option="--verbose"
+    fi
+    php -d auto_prepend_file=${OPT_HOOK_BRIDGE_FILE} ./vendor/bin/phpunit ${exclude_filter} ${verbose_option} --debug --log-junit ${OPT_REPORTS_DESTINATION_PATH}/$package.xml
 
     if [[ $? -ne 0 ]]; then
         echo "::error::PHPUnit tests failed for package $package"

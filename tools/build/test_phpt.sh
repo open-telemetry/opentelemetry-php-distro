@@ -7,11 +7,11 @@ show_help() {
     echo
     echo "Arguments:"
     echo "  --build_architecture     Required. Build architecture (e.g., 'linux-x86-64')."
-    echo "  --php_versions           Required. List of PHP versions separated by spaces (e.g., '80 81 82 83')."
+    echo "  --php_versions           Required. List of PHP versions separated by spaces (e.g., '82 83 84 85')."
     echo "  --results_path           Optional. The path where the results will be saved if a test failure occurs. (default is 'build/test_phpt_results')"
     echo
     echo "Example:"
-    echo "  $0 --build_architecture linux-x86-64 --php_versions '80 81 82 83'"
+    echo "  $0 --build_architecture linux-x86-64 --php_versions '82 83 84 85'"
 }
 
 parse_args() {

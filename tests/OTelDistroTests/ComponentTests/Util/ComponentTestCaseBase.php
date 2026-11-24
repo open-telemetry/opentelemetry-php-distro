@@ -124,7 +124,6 @@ class ComponentTestCaseBase extends TestCaseBase
 
         $appCodeHost = $testCaseHandle->ensureMainAppCodeHost(
             function (AppCodeHostParams $appCodeHostParams) use ($testArgs): void {
-                self::ensureTransactionSpanEnabled($appCodeHostParams);
                 self::disableTimingDependentFeatures($appCodeHostParams);
                 self::copyProdOptionsToAppCodeHostParams($testArgs, $appCodeHostParams);
             }
@@ -439,12 +438,6 @@ class ComponentTestCaseBase extends TestCaseBase
     protected static function disableTimingDependentFeatures(AppCodeHostParams $appCodeHostParams): void
     {
         $appCodeHostParams->setProdOption(OptionForProdName::inferred_spans_enabled, false);
-    }
-
-    protected static function ensureTransactionSpanEnabled(AppCodeHostParams $appCodeHostParams): void
-    {
-        $appCodeHostParams->setProdOption(OptionForProdName::transaction_span_enabled, true);
-        $appCodeHostParams->setProdOption(OptionForProdName::transaction_span_enabled_cli, true);
     }
 
     protected static function copyProdOptionsToAppCodeHostParams(MixedMap $testArgs, AppCodeHostParams $appCodeHostParams): void
