@@ -12,23 +12,32 @@
 namespace opentelemetry::php {
 
 static void beforeFork() {
+    if (!OTEL_G(globals)) {
+        return;
+    }
     ELOGF_NF_DEBUG(OTEL_GL(logger_), "Before process fork (i.e., in parent context); its parent (i.e., grandparent) PID: %d", static_cast<int>(opentelemetry::osutils::getParentProcessId()));
     // TODO implement forkable registry
-    if (OTEL_G(globals) && OTEL_G(globals)->forkableRegistry_) {
+    if (OTEL_G(globals)->forkableRegistry_) {
         OTEL_G(globals)->forkableRegistry_->preFork();
     }
 }
 
 static void afterForkInParent() {
+    if (!OTEL_G(globals)) {
+        return;
+    }
     ELOGF_NF_DEBUG(OTEL_GL(logger_), "After process fork (in parent context)");
-    if (OTEL_G(globals) && OTEL_G(globals)->forkableRegistry_) {
+    if (OTEL_G(globals)->forkableRegistry_) {
         OTEL_G(globals)->forkableRegistry_->postFork(false);
     }
 }
 
 static void afterForkInChild() {
+    if (!OTEL_G(globals)) {
+        return;
+    }
     ELOGF_NF_DEBUG(OTEL_GL(logger_), "After process fork (in child context); parent PID: %d", static_cast<int>(opentelemetry::osutils::getParentProcessId()));
-    if (OTEL_G(globals) && OTEL_G(globals)->forkableRegistry_) {
+    if (OTEL_G(globals)->forkableRegistry_) {
         OTEL_G(globals)->forkableRegistry_->postFork(true);
     }
 }
