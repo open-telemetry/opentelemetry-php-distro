@@ -200,11 +200,12 @@ function is_php_supported() {
     if  [ "${PHP_MAJOR_MINOR}" == "8.2" ] || \
         [ "${PHP_MAJOR_MINOR}" == "8.3" ] || \
         [ "${PHP_MAJOR_MINOR}" == "8.4" ] || \
-        [ "${PHP_MAJOR_MINOR}" == "8.5" ]
+        [ "${PHP_MAJOR_MINOR}" == "8.5" ] || \
+        [ "${PHP_MAJOR_MINOR}" == "8.6" ]
     then
         return 0
     else
-        echo 'Failed. The supported PHP versions are 8.2-8.5.'
+        echo 'Failed. The supported PHP versions are 8.2-8.6.'
         return 1
     fi
 }

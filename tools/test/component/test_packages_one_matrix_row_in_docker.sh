@@ -184,7 +184,13 @@ function main() {
     local current_github_workflow_log_group_name="Building docker image with tag ${docker_image_tag} using ${this_script_dir}/${dockerfile} with PHP_VERSION=${OTEL_PHP_TESTS_PHP_VERSION:?}"
     start_github_workflow_log_group "${current_github_workflow_log_group_name}"
 
-    docker build --file "${this_script_dir}/${dockerfile}" --build-arg "PHP_VERSION=${OTEL_PHP_TESTS_PHP_VERSION:?}" --build-arg "COMPOSER_VERSION=${_PROJECT_PROPERTIES_COMPOSER_VERSION:?}" --tag "${docker_image_tag}" .
+    local docker_build_extra_args=()
+    case "${OTEL_PHP_TESTS_PACKAGE_TYPE:?}" in
+        deb) docker_build_extra_args+=(--build-arg "PHP_BASE_IMAGE=$(get_nts_php_docker_image "${OTEL_PHP_TESTS_PHP_VERSION:?}" glibc "php:${OTEL_PHP_TESTS_PHP_VERSION:?}-cli")") ;;
+        apk) docker_build_extra_args+=(--build-arg "PHP_BASE_IMAGE=$(get_nts_php_docker_image "${OTEL_PHP_TESTS_PHP_VERSION:?}" musl "php:${OTEL_PHP_TESTS_PHP_VERSION:?}-cli-alpine")") ;;
+    esac
+
+    docker build "${docker_build_extra_args[@]}" --file "${this_script_dir}/${dockerfile}" --build-arg "PHP_VERSION=${OTEL_PHP_TESTS_PHP_VERSION:?}" --build-arg "COMPOSER_VERSION=${_PROJECT_PROPERTIES_COMPOSER_VERSION:?}" --tag "${docker_image_tag}" .
 
     end_github_workflow_log_group "${current_github_workflow_log_group_name}"
 

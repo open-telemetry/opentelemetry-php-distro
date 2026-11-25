@@ -6,10 +6,12 @@
 # Without it, the build fails on the FROM below.
 ARG COMPOSER_VERSION
 ARG PHP_VERSION
+# Override for PHP versions without an official NTS image, see get_nts_php_docker_image() in tools/shared.sh
+ARG PHP_BASE_IMAGE=php:${PHP_VERSION}-cli-alpine
 
 FROM composer:${COMPOSER_VERSION} AS composer_bin
 
-FROM php:${PHP_VERSION}-cli-alpine
+FROM ${PHP_BASE_IMAGE}
 
 RUN ls -1 /etc/*release | xargs -i sh -c 'echo {} && cat {}'
 

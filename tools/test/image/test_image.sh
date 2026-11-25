@@ -80,12 +80,18 @@ case "${SAPI}" in
         ;;
 esac
 
+if [[ "${PHP_VERSION}" == "8.6" && "${SAPI}" == "fpm" ]]; then
+    # Official php:8.6-fpm images are ZTS-only (unsupported) and there is no own NTS fpm image, see get_nts_php_docker_image()
+    echo "Skipping: no NTS php-fpm image available for PHP ${PHP_VERSION}"
+    exit 0
+fi
+
 case "${LIBC}" in
     glibc)
-        PHP_IMAGE="php:${PHP_VERSION}-${SAPI}"
+        PHP_IMAGE="$(get_nts_php_docker_image "${PHP_VERSION}" glibc "php:${PHP_VERSION}-${SAPI}" "${PLATFORM:-}")"
         ;;
     musl)
-        PHP_IMAGE="php:${PHP_VERSION}-${SAPI}-alpine"
+        PHP_IMAGE="$(get_nts_php_docker_image "${PHP_VERSION}" musl "php:${PHP_VERSION}-${SAPI}-alpine" "${PLATFORM:-}")"
         ;;
     *)
         echo "Unknown libc: ${LIBC}"

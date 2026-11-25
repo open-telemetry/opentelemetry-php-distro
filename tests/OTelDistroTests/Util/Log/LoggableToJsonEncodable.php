@@ -284,7 +284,6 @@ final class LoggableToJsonEncodable
         return [
             LogConsts::TYPE_KEY        => get_class($object),
             LogConsts::OBJECT_ID_KEY   => spl_object_id($object),
-            LogConsts::OBJECT_HASH_KEY => spl_object_hash($object),
         ];
     }
 

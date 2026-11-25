@@ -109,7 +109,7 @@ test_package() {
                 --platform "${_DOCKER_PLATFORM}" \
                 -v "${PWD}:/source" \
                 -e OTEL_PHP_LOG_LEVEL_STDERR=error \
-                "php:${_PHP_VERSION}-alpine" sh -c "ls /source/_BUILT/packages && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
+                "$(get_nts_php_docker_image "${_PHP_VERSION}" musl "php:${_PHP_VERSION}-alpine" "${_DOCKER_PLATFORM}")" sh -c "ls /source/_BUILT/packages && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
         ;;
         "deb")
             local INSTALL_SMOKE="dpkg -i  /source/_BUILT/packages/${_PKG_FILENAME} && php /source/packaging/test/smokeTest.php ${_SCOPE_NAME}"
@@ -118,7 +118,7 @@ test_package() {
                 --platform "${_DOCKER_PLATFORM}" \
                 -v "${PWD}:/source" \
                 -e OTEL_PHP_LOG_LEVEL_STDERR=error \
-                "php:${_PHP_VERSION}" sh -c "ls /source/_BUILT/packages && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
+                "$(get_nts_php_docker_image "${_PHP_VERSION}" glibc "php:${_PHP_VERSION}" "${_DOCKER_PLATFORM}")" sh -c "ls /source/_BUILT/packages && ${INSTALL_SMOKE} && ${TEST_LICENSE_FILES} && ${UNINSTALL_SMOKE} && ls -alR /opt/opentelemetry/php/distro"
         ;;
         "rpm")
             local INSTALL_PHP="cat /etc/redhat-release \

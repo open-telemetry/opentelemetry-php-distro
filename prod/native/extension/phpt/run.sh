@@ -83,6 +83,11 @@ RUN_TESTS=/usr/local/lib/php/build/run-tests.php
 mkdir -p "${LOCAL_TMP_DIR}/$(dirname ${TESTS_TO_RUN})"
 cp  -R "${TESTS_TO_RUN}" "${LOCAL_TMP_DIR}/${TESTS_TO_RUN}"
 
+if [[ -n "${ALPINE_IMAGE-}" ]]; then PHP_LIBC=musl; else PHP_LIBC=glibc; fi
+PHP_VERSION_DOTTED="${PHP_VERSION:0:1}.${PHP_VERSION:1:1}"
+OFFICIAL_PHP_DOCKER_IMAGE="php:${PHP_VERSION_DOTTED}-cli${ALPINE_IMAGE}"
+PHP_DOCKER_IMAGE=$(source "${REPO_ROOT_DIR}/tools/shared.sh" && get_nts_php_docker_image "${PHP_VERSION_DOTTED}" "${PHP_LIBC}" "${OFFICIAL_PHP_DOCKER_IMAGE}" "${DOCKER_PLATFORM}") || exit 1
+
 docker run --rm \
     --platform ${DOCKER_PLATFORM} \
     -v ${LOCAL_TMP_DIR}/tests:/phpt-tests/tests \
@@ -92,7 +97,7 @@ docker run --rm \
     -v ${OTEL_AGENT_SO_PATH}:/otel/opentelemetry_php_distro.so \
     -e OTEL_PHP_SCOPER_PREFIX=${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX} \
     -w /phpt-tests \
-    php:${PHP_VERSION:0:1}.${PHP_VERSION:1:1}-cli${ALPINE_IMAGE} sh -c "php -n ${RUN_TESTS} -s ${LOG_TEST_RUN} -w ${LOG_FAILED_TESTS} ${TESTS_TO_RUN}"
+    "${PHP_DOCKER_IMAGE}" sh -c "php -n ${RUN_TESTS} -s ${LOG_TEST_RUN} -w ${LOG_FAILED_TESTS} ${TESTS_TO_RUN}"
 
 if [ $? -ne 0 ]; then
     echo "Test failed"

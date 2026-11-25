@@ -25,6 +25,7 @@ permissions:
 
 env:
   TEST_PHPT_RESULTS_SUB_DIR: _BUILT/test_phpt_results
+  OTEL_PHP_NTS_IMAGE_CACHE_DIR: _BUILT/php_nts_image_cache
 
 jobs:
   setup-build-matrix:
@@ -54,6 +55,11 @@ jobs:
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
         with:
           platforms: arm64
+      - name: Cache own NTS PHP docker image
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.OTEL_PHP_NTS_IMAGE_CACHE_DIR }}
+          key: php-nts-image-${{ runner.arch }}-${{ matrix.arch || 'host' }}-${{ matrix.libc || 'all' }}-${{ hashFiles('tools/test/php_nts/**') }}
       - name: Run phpt tests
         run: |
           uname -a

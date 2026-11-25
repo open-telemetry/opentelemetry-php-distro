@@ -53,9 +53,9 @@ PHP_RSHUTDOWN_FUNCTION(opentelemetry_distro) {
     return SUCCESS;
 }
 
-ZEND_RESULT_CODE  opentelemetry_distro_request_postdeactivate(void) {
+zend_result  opentelemetry_distro_request_postdeactivate(void) {
     OTEL_G(globals)->requestScope_->onRequestPostDeactivate();
-    return ZEND_RESULT_CODE::SUCCESS;
+    return SUCCESS;
 }
 
 PHP_MINFO_FUNCTION(opentelemetry_distro) {

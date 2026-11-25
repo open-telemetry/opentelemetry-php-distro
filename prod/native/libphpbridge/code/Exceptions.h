@@ -9,7 +9,9 @@ namespace opentelemetry::php {
 
 struct SavedException {
     zend_object *exception = nullptr;
+#if PHP_VERSION_ID < 80600
     zend_object *prev_exception = nullptr;
+#endif
     const zend_op *opline_before_exception = nullptr;
     std::optional<const zend_op *> opline;
 };

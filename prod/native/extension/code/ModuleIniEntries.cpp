@@ -58,7 +58,7 @@ void displaySecretIniValue(zend_ini_entry *iniEntry, int type) {
 }
 
 bool registerIniEntries(opentelemetry::php::LoggerInterface *log, int module_number) {
-    if (zend_register_ini_entries(ini_entries, module_number) != ZEND_RESULT_CODE::SUCCESS) {
+    if (zend_register_ini_entries(ini_entries, module_number) != SUCCESS) {
         return false;
     }
 
@@ -75,7 +75,7 @@ bool registerIniEntries(opentelemetry::php::LoggerInterface *log, int module_num
             continue;
         }
 
-        if (zend_ini_register_displayer(iniName.data(), iniName.length(), displaySecretIniValue) != ZEND_RESULT_CODE::SUCCESS) {
+        if (zend_ini_register_displayer(iniName.data(), iniName.length(), displaySecretIniValue) != SUCCESS) {
             ELOGF_WARNING(log, MODULE, "zend_ini_register_displayer() failed; iniName: " PRsv, PRsvArg(iniName));
         }
 

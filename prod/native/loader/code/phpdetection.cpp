@@ -56,10 +56,11 @@ bool isThreadSafe() {
 
 std::tuple<std::string_view, int, int, bool> getZendModuleApiVersion(std::string_view zendVersion) {
     using namespace std::string_view_literals;
-    constexpr size_t knownVersionsCount = 18;
+    constexpr size_t knownVersionsCount = 19;
 
     // zendEngineVersion, phpVersion, zendModuleApiVersion, isVersionSupported
     constexpr std::array<std::tuple<std::string_view, int, int, bool>, knownVersionsCount> knownPhpVersions{{
+        {"4.6"sv, 86, 20261112, true},  // PHP 8.6
         {"4.5"sv, 85, 20250925, true},  // PHP 8.5
         {"4.4"sv, 84, 20240924, true},  // PHP 8.4
         {"4.3"sv, 83, 20230831, true},  // PHP 8.3
