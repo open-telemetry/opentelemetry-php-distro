@@ -88,10 +88,10 @@ fi
 
 case "${LIBC}" in
     glibc)
-        PHP_IMAGE="$(get_nts_php_docker_image "${PHP_VERSION}" glibc "php:${PHP_VERSION}-${SAPI}" "${PLATFORM:-}")"
+        PHP_IMAGE="$(get_nts_php_docker_image "${PHP_VERSION}" glibc "php:${PHP_VERSION}-${SAPI}")"
         ;;
     musl)
-        PHP_IMAGE="$(get_nts_php_docker_image "${PHP_VERSION}" musl "php:${PHP_VERSION}-${SAPI}-alpine" "${PLATFORM:-}")"
+        PHP_IMAGE="$(get_nts_php_docker_image "${PHP_VERSION}" musl "php:${PHP_VERSION}-${SAPI}-alpine")"
         ;;
     *)
         echo "Unknown libc: ${LIBC}"

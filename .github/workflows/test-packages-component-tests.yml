@@ -11,7 +11,6 @@ permissions:
 env:
   BUILT_PACKAGES_SUB_DIR: _BUILT/packages
   COMPONENT_TESTS_LOGS_SUB_DIR: _BUILT/component_tests_logs
-  OTEL_PHP_NTS_IMAGE_CACHE_DIR: _BUILT/php_nts_image_cache
 
 jobs:
   generate-component-tests-matrix:
@@ -31,11 +30,6 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
-      - name: Cache own NTS PHP docker image
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ env.OTEL_PHP_NTS_IMAGE_CACHE_DIR }}
-          key: php-nts-image-${{ runner.arch }}-${{ matrix.arch || 'host' }}-${{ matrix.libc || 'all' }}-${{ hashFiles('tools/test/php_nts/**') }}
       - name: Download built packages
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:

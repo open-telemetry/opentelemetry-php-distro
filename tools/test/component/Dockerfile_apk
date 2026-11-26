@@ -34,6 +34,9 @@ RUN docker-php-ext-install \
 # OPcache is built into PHP core since 8.5
 RUN if [ "$(php -r 'echo PHP_VERSION_ID;')" -lt 80500 ]; then docker-php-ext-install opcache; fi
 
+# mbstring (required by PHPUnit) is not enabled in the official PHP 8.6 images
+RUN if ! php -m | grep -qx mbstring; then apk add --no-cache oniguruma-dev $PHPIZE_DEPS && docker-php-ext-install mbstring; fi
+
 COPY --from=composer_bin /usr/bin/composer /usr/bin/composer
 
 WORKDIR /

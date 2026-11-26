@@ -253,24 +253,26 @@ function build_docker_env_vars_command_line_part () {
     done < <(env)
 }
 
-# Official php:8.6 docker images are ZTS-only (docker-library/php#1686) and the distro does not support ZTS.
-# For such PHP versions a local NTS image is built (and cached) by tools/test/php_nts/ensure_image.sh.
-# Remove the special case when official NTS images are back (docker-library/php#1721, #1722).
+# The default official php:8.6 docker images (php:8.6-cli, php:8.6-alpine, ...) are ZTS builds (docker-library/php#1686)
+# and the distro does not support ZTS. NTS images for 8.6 are published as separate variants (php:8.6-nts, php:8.6-nts-alpine),
+# they come without php-fpm.
 #
 # Prints the docker image to use for running the distro with the given PHP version.
 #   $1 - PHP version, dot separated (e.g. 8.6)
 #   $2 - libc: glibc | musl
 #   $3 - official image to use when it is NTS (e.g. php:8.4-cli-alpine)
-#   $4 - optional docker platform (e.g. linux/arm64), default: docker host platform
 function get_nts_php_docker_image() {
     local PHP_version_dot_separated="${1:?}"
     local libc="${2:?}"
     local official_image="${3:?}"
-    local platform="${4:-}"
 
     case "${PHP_version_dot_separated}" in
         8.6)
-            "$(dirname "${BASH_SOURCE[0]}")/test/php_nts/ensure_image.sh" --php_version "${PHP_version_dot_separated}" --libc "${libc}" ${platform:+--platform "${platform}"}
+            if [[ "${libc}" == "musl" ]]; then
+                echo "php:${PHP_version_dot_separated}-nts-alpine"
+            else
+                echo "php:${PHP_version_dot_separated}-nts"
+            fi
             ;;
         *)
             echo "${official_image}"

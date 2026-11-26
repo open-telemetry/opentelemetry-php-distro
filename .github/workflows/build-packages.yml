@@ -32,7 +32,7 @@ jobs:
 
   build-packages:
     name: build-packages
-    runs-on: 'ubuntu-latest'
+    runs-on: ${{ matrix.goarch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     needs: setup-build-matrix
     timeout-minutes: 300
     strategy:
@@ -40,15 +40,10 @@ jobs:
       matrix: ${{ fromJson(needs.setup-build-matrix.outputs.matrix-combinations) }}
     env:
       BUILD_ARCHITECTURE: ${{ matrix.arch }}
-      OTEL_PHP_NTS_IMAGE_CACHE_DIR: _BUILT/php_nts_image_cache
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
-      - if: ${{ matrix.goarch == 'arm64' }}
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
-        with:
-          platforms: arm64
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: build-native-${{ matrix.arch }}
@@ -57,11 +52,6 @@ jobs:
         with:
             name: php-code-for-packages
             path: _BUILT/
-      - name: Cache own NTS PHP docker image
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ env.OTEL_PHP_NTS_IMAGE_CACHE_DIR }}
-          key: php-nts-image-${{ runner.arch }}-${{ matrix.arch || 'host' }}-${{ matrix.libc || 'all' }}-${{ hashFiles('tools/test/php_nts/**') }}
       - name: Build packages
         env:
           ARCH: ${{ matrix.arch }}

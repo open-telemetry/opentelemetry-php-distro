@@ -82,7 +82,7 @@ cp  -R ${TESTS_TO_RUN} ${LOCAL_TMP_DIR}/${TESTS_TO_RUN}
 if [[ -n "${ALPINE_IMAGE-}" ]]; then PHP_LIBC=musl; else PHP_LIBC=glibc; fi
 PHP_VERSION_DOTTED="${PHP_VERSION:0:1}.${PHP_VERSION:1:1}"
 OFFICIAL_PHP_DOCKER_IMAGE="php:${PHP_VERSION_DOTTED}-cli${ALPINE_IMAGE}"
-PHP_DOCKER_IMAGE=$(source "${REPO_ROOT_DIR}/tools/shared.sh" && get_nts_php_docker_image "${PHP_VERSION_DOTTED}" "${PHP_LIBC}" "${OFFICIAL_PHP_DOCKER_IMAGE}" "${DOCKER_PLATFORM}") || exit 1
+PHP_DOCKER_IMAGE=$(source "${REPO_ROOT_DIR}/tools/shared.sh" && get_nts_php_docker_image "${PHP_VERSION_DOTTED}" "${PHP_LIBC}" "${OFFICIAL_PHP_DOCKER_IMAGE}") || exit 1
 
 docker run --rm \
     --platform ${DOCKER_PLATFORM} \
