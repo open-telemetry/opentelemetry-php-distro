@@ -76,6 +76,9 @@ export COMPOSER_VERSION="${_PROJECT_PROPERTIES_COMPOSER_VERSION:?}"
 
 for PHP_VERSION in "${PHP_VERSIONS[@]}"; do
     export PHP_VERSION="${PHP_VERSION:0:1}.${PHP_VERSION:1}"
+    # The default official php:8.6 images are ZTS, which the distro does not support. Sourced in a subshell because shared.sh sets shell options.
+    PHP_BASE_IMAGE=$(source "${PWD}/tools/shared.sh" && get_nts_php_docker_image "${PHP_VERSION}" glibc "php:${PHP_VERSION}-cli")
+    export PHP_BASE_IMAGE
 
     echo "::group::Building docker images"
     docker compose -f ${COMPOSE_FILE} build php
