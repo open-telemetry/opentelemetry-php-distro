@@ -12,8 +12,6 @@ enabled (otherwise the name is interned request-locally), and a name built at
 run time rather than a literal (a literal would be interned with this file, and
 eval() would reuse it).
 opcache
---XFAIL--
-refcount bug: getScopeNameOrThis() passes the static method's called class name without taking a reference, so it is over-freed
 --INI--
 extension=/otel/opentelemetry_php_distro.so
 opentelemetry_distro.bootstrap_php_part_file={PWD}/../includes/bootstrap_mock.inc

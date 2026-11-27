@@ -1,4 +1,5 @@
 #include "PhpBridge.h"
+#include <Zend/zend_closures.h>
 
 #include "AutoZval.h"
 #include "AutoZendString.h"
@@ -380,14 +381,40 @@ void getCallArguments(zval *zv, zend_execute_data *ex) {
 
 
 void getScopeNameOrThis(zval *zv, zend_execute_data *execute_data) {
-    if (execute_data->func->op_array.scope) {
-        if (execute_data->func->op_array.fn_flags & ZEND_ACC_STATIC) {
-            ZVAL_STR(zv, zend_get_called_scope(execute_data)->name);
-        } else {
-            ZVAL_OBJ_COPY(zv, zend_get_this_object(execute_data));
-        }
-    } else {
+    zend_function *func = execute_data->func;
+    if (!func->common.scope) {
         ZVAL_NULL(zv);
+        return;
+    }
+
+    bool isStatic = (func->common.fn_flags & ZEND_ACC_STATIC) != 0;
+
+    // An internal method called through a closure (first-class callable, Closure::fromCallable): Zend replaces
+    // the receiver or called scope with the closure object, leaving the zval type unchanged. Ask the closure for the
+    // real ones.
+    if (func->type == ZEND_INTERNAL_FUNCTION && (ZEND_CALL_INFO(execute_data) & ZEND_CALL_CLOSURE) && Z_TYPE(execute_data->This) == IS_OBJECT &&
+        Z_OBJ(execute_data->This) == ZEND_CLOSURE_OBJECT(func)) {
+        zend_object *closure = Z_OBJ(execute_data->This);
+        zend_class_entry *calledScope = nullptr;
+        zend_function *closureFunc = nullptr;
+        zend_object *boundThis = nullptr;
+        if (closure->handlers->get_closure(closure, &calledScope, &closureFunc, &boundThis, true) == SUCCESS) {
+            if (isStatic && calledScope) {
+                ZVAL_STR_COPY(zv, calledScope->name);
+                return;
+            }
+            if (!isStatic && boundThis) {
+                ZVAL_OBJ_COPY(zv, boundThis);
+                return;
+            }
+        }
+    }
+
+    if (isStatic) {
+        // the zval is released by its owner, so it needs its own reference
+        ZVAL_STR_COPY(zv, zend_get_called_scope(execute_data)->name);
+    } else {
+        ZVAL_OBJ_COPY(zv, zend_get_this_object(execute_data));
     }
 }
 

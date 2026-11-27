@@ -1,7 +1,5 @@
 --TEST--
 Hooks receive the bound object or called class when calling an internal method through a closure
---XFAIL--
-hooks of internal methods called through a closure do not receive the bound object / called class
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 80200) {
@@ -43,8 +41,6 @@ foreach ($calls as $label => $call) {
     var_dump($pre === $collection, $post === $collection);
 }
 
-class HookDate extends DateTimeImmutable {}
-
 hook(
     DateTimeImmutable::class,
     'createFromFormat',
@@ -57,16 +53,16 @@ hook(
 );
 
 $calls = [
-    'direct static call' => static fn () => HookDate::createFromFormat('Y', '2020'),
-    'static array callable' => static fn () => call_user_func([HookDate::class, 'createFromFormat'], 'Y', '2020'),
-    'static first-class callable' => static fn () => (HookDate::createFromFormat(...))('Y', '2020'),
-    'static Closure::fromCallable' => static fn () => Closure::fromCallable([HookDate::class, 'createFromFormat'])('Y', '2020'),
+    'direct static call' => static fn () => DateTimeImmutable::createFromFormat('Y', '2020'),
+    'static array callable' => static fn () => call_user_func([DateTimeImmutable::class, 'createFromFormat'], 'Y', '2020'),
+    'static first-class callable' => static fn () => (DateTimeImmutable::createFromFormat(...))('Y', '2020'),
+    'static Closure::fromCallable' => static fn () => Closure::fromCallable([DateTimeImmutable::class, 'createFromFormat'])('Y', '2020'),
 ];
 
 foreach ($calls as $label => $call) {
     $pre = $post = null;
     printf("%s: %s\n", $label, $call()->format('Y'));
-    var_dump($pre === HookDate::class, $post === HookDate::class);
+    var_dump($pre === DateTimeImmutable::class, $post === DateTimeImmutable::class);
 }
 ?>
 --EXPECT--
