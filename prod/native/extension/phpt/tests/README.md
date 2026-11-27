@@ -1,6 +1,7 @@
 # Tests ported from opentelemetry-php-instrumentation
 
 Source: `ext/tests` of open-telemetry/opentelemetry-php-instrumentation at b2fd524 (1.5.0 + later fixes).
+To synchronize, compare `ext/tests` from that commit onwards and update the commit above.
 
 - `with_span/`, `span_attribute/`, `mocks/` - `#[WithSpan]` / `#[SpanAttribute]` tests. They run with
   `OTEL_PHP_SCOPED_DEPS_ENABLED=false` and `includes/bootstrap_mock_unscoped.inc`, so the mock `WithSpanHandler`
