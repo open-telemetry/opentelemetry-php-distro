@@ -35,8 +35,8 @@ echo "Test completed\n";
 ?>
 --EXPECTF--
 * userspace() body.
-*** posthook userspace()
-*** second posthook userspace()
 *** third posthook userspace()
-string(9) "second_rv"
+*** second posthook userspace()
+*** posthook userspace()
+int(12)
 Test completed

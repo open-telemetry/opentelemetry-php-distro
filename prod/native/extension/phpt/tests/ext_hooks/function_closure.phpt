@@ -1,0 +1,19 @@
+--TEST--
+Check if hooks are invoked for closures
+--INI--
+extension=/otel/opentelemetry_php_distro.so
+opentelemetry_distro.bootstrap_php_part_file={PWD}/../includes/bootstrap_mock.inc
+--FILE--
+<?php
+\OpenTelemetry\Distro\hook(null, 'helloWorld', fn() => var_dump('PRE'), fn() => var_dump('POST'));
+
+function helloWorld() {
+    var_dump('HELLO');
+}
+
+Closure::fromCallable('helloWorld')();
+?>
+--EXPECT--
+string(3) "PRE"
+string(5) "HELLO"
+string(4) "POST"

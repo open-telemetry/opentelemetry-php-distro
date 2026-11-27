@@ -1,12 +1,12 @@
 #include "WithSpanAttributes.h"
+#include "PhpBridge.h"
 
 #include <Zend/zend_API.h>
 #include <Zend/zend_attributes.h>
 #include <Zend/zend_hash.h>
 #include <Zend/zend_types.h>
 
-#include <algorithm>
-#include <cstring>
+#include <string>
 #include <string_view>
 
 namespace opentelemetry::php {
@@ -15,124 +15,177 @@ using namespace std::string_view_literals;
 
 namespace {
 
-static constexpr std::string_view withSpanLcName  = "opentelemetry\\api\\instrumentation\\withspan"sv;
-static constexpr std::string_view spanAttrLcName  = "opentelemetry\\api\\instrumentation\\spanattribute"sv;
+constexpr std::string_view spanAttrLcName = "opentelemetry\\api\\instrumentation\\spanattribute"sv;
 
-/// Finds an argument in an attribute by positional index or by name.
-/// Returns the index into attr->args, or -1 if not found.
-int findAttrArgIndex(zend_attribute *attr, uint32_t positionalIdx, std::string_view argName) {
-    for (uint32_t i = 0; i < attr->argc; i++) {
-        if (!attr->args[i].name && i == positionalIdx) {
-            return static_cast<int>(i);
-        }
-        if (attr->args[i].name) {
-            std::string_view name{ZSTR_VAL(attr->args[i].name), ZSTR_LEN(attr->args[i].name)};
-            if (name == argName) {
-                return static_cast<int>(i);
-            }
-        }
+std::optional<std::string> evaluateToString(AttributeArgEvaluator &evaluator, ResolvedAttribute const &attribute, uint32_t position, std::string_view name) {
+    auto value = evaluator.evaluate(attribute, position, name);
+    if (value.ok && value.type == IS_STRING) {
+        return std::move(value.text);
     }
-    return -1;
+    return std::nullopt;
+}
+
+/// Attribute key for a #[SpanAttribute]: its `name` argument, or `defaultName` when there is none (a bare
+/// #[SpanAttribute] is *defined* to key on the parameter/property name, as is an explicit null). There is no default
+/// for a parameter the function does not declare (inherited from an interface), such an attribute needs a name.
+///
+/// Any other name that cannot be used - not evaluable, not a non-empty string, a different named argument - yields
+/// no key at all: falling back to the default would publish a plausible-looking wrong key nobody queries, while a
+/// missing attribute is diagnosable. After exit() nothing more is evaluated, so nothing more is keyed either.
+std::optional<std::string> resolveSpanAttributeKey(AttributeArgEvaluator &evaluator, ResolvedAttribute const &attribute, std::optional<std::string> defaultName) {
+    if (evaluator.stopped()) {
+        return std::nullopt;
+    }
+    if (attribute.attr->argc == 0) {
+        return defaultName;
+    }
+    zend_string *firstArgName = attribute.attr->args[0].name;
+    if (firstArgName && std::string_view{ZSTR_VAL(firstArgName), ZSTR_LEN(firstArgName)} != "name"sv) {
+        return std::nullopt;
+    }
+
+    auto value = evaluator.evaluateAt(attribute, 0);
+    if (!value.ok) {
+        return std::nullopt;
+    }
+    if (value.type == IS_NULL) {
+        return defaultName;
+    }
+    // not coerced: whether userland would coerce a scalar depends on strict_types in the declaring file
+    if (value.type == IS_STRING && !value.text.empty()) {
+        return std::move(value.text);
+    }
+    return std::nullopt;
+}
+
+/// OpenTelemetry attribute values may only be of limited types.
+bool isValidAttributeValue(zval const *value) {
+    switch (Z_TYPE_P(value)) {
+        case IS_STRING:
+        case IS_LONG:
+        case IS_DOUBLE:
+        case IS_TRUE:
+        case IS_FALSE:
+        case IS_ARRAY:
+            return true;
+        default:
+            return false;
+    }
+}
+
+/// Adds a copy of the (dereferenced) value if it is a valid attribute value; later keys replace earlier ones.
+void addAttributeValue(zval *out, std::string const &key, zval *value) {
+    ZVAL_DEREF(value);
+    if (!isValidAttributeValue(value)) {
+        return;
+    }
+    zval copy;
+    ZVAL_COPY(&copy, value);
+    zend_symtable_str_update(Z_ARR_P(out), key.c_str(), key.length(), &copy);
+}
+
+/// The zval of the call argument with 0-based index `index`. Arguments beyond the declared parameters of a user
+/// function are not stored next to the declared ones but after the compiled variables and temporaries.
+zval *callArgument(zend_execute_data *ex, uint32_t index) {
+    uint32_t declared = ex->func->op_array.num_args;
+    if (index < declared) {
+        return ZEND_CALL_ARG(ex, index + 1);
+    }
+    return ZEND_CALL_VAR_NUM(ex, ex->func->op_array.last_var + ex->func->op_array.T) + (index - declared);
 }
 
 } // namespace
 
 bool hasWithSpanAttribute(zend_function *func) {
-    if (func->common.type != ZEND_USER_FUNCTION) {
-        return false;
-    }
-    if (!func->common.attributes) {
-        return false;
-    }
-    return zend_get_attribute_str(func->common.attributes, withSpanLcName.data(), withSpanLcName.size()) != nullptr;
+    return findWithSpanAttribute(func).has_value();
 }
 
-std::optional<WithSpanMetadata> readWithSpanMetadata(zend_function *func) {
-    if (func->common.type != ZEND_USER_FUNCTION || !func->common.attributes) {
-        return std::nullopt;
+void readWithSpanStaticAttributes(zend_function *func, AttributeArgEvaluator &evaluator, zval *out) {
+    auto resolved = findWithSpanAttribute(func);
+    if (!resolved) {
+        return;
     }
+    evaluator.evaluateArrayEntries(*resolved, 2, "attributes", out);
+}
 
-    zend_attribute *attr = zend_get_attribute_str(
-        func->common.attributes, withSpanLcName.data(), withSpanLcName.size());
-    if (!attr) {
+void addParameterAttributeValues(zend_execute_data *executeData, WithSpanMetadata const &metadata, zval *out) {
+    uint32_t argCount = ZEND_CALL_NUM_ARGS(executeData);
+    for (auto const &p : metadata.paramAttributes) {
+        if (p.argIndex >= argCount) {
+            continue;
+        }
+        zval *arg = callArgument(executeData, p.argIndex);
+        if (Z_TYPE_P(arg) != IS_UNDEF) {
+            addAttributeValue(out, p.attrKey, arg);
+        }
+    }
+}
+
+void addPropertyAttributeValues(zend_execute_data *executeData, WithSpanMetadata const &metadata, zval *out) {
+    if (metadata.propAttributes.empty() || Z_TYPE(executeData->This) != IS_OBJECT) {
+        return;
+    }
+    // The properties are those of the class that declares the method, a private one is only visible from there even
+    // if the method runs on an instance of a subclass.
+    zend_class_entry *ce = executeData->func->common.scope ? executeData->func->common.scope : Z_OBJCE(executeData->This);
+    for (auto const &p : metadata.propAttributes) {
+        // Reading can call __get() or a property hook, which can throw or exit(), and the value can live in `rv` (not in
+        // the object): copy it before `rv` goes. Nothing of this may reach the observed function.
+        AutomaticExceptionStateRestorer restorer;
+        zval rv;
+        ZVAL_UNDEF(&rv);
+        zval *prop = zend_read_property(ce, Z_OBJ(executeData->This), p.propName.c_str(), p.propName.length(), 1, &rv);
+        if (prop && Z_TYPE_P(prop) != IS_UNDEF) {
+            addAttributeValue(out, p.attrKey, prop);
+        }
+        zval_ptr_dtor(&rv);
+    }
+}
+
+std::optional<WithSpanMetadata> readWithSpanMetadata(zend_function *func, AttributeArgEvaluator &evaluator) {
+    auto withSpan = findWithSpanAttribute(func);
+    if (!withSpan) {
         return std::nullopt;
     }
 
     WithSpanMetadata metadata;
-    zend_class_entry *scope = func->common.scope;
+    metadata.hasStaticAttributes = findAttributeArgIndex(withSpan->attr, 2, "attributes").has_value();
 
-    // ---- Read span_name (positional arg 0, or named 'span_name') ----
+    metadata.spanName = evaluateToString(evaluator, *withSpan, 0, "span_name"sv);
+
     {
-        int argIdx = findAttrArgIndex(attr, 0, "span_name");
-        if (argIdx >= 0) {
-            zval resolved;
-            ZVAL_UNDEF(&resolved);
-            if (zend_get_attribute_value(&resolved, attr, static_cast<uint32_t>(argIdx), scope) == SUCCESS) {
-                if (Z_TYPE(resolved) == IS_STRING) {
-                    metadata.spanName = std::string{ZSTR_VAL(Z_STR(resolved)), ZSTR_LEN(Z_STR(resolved))};
-                }
-                zval_ptr_dtor(&resolved);
-            }
+        auto kind = evaluator.evaluate(*withSpan, 1, "span_kind"sv);
+        if (kind.ok && kind.type == IS_LONG) {
+            metadata.spanKind = kind.number;
         }
     }
 
-    // ---- Read span_kind (positional arg 1, or named 'span_kind') ----
-    {
-        int argIdx = findAttrArgIndex(attr, 1, "span_kind");
-        if (argIdx >= 0) {
-            zval resolved;
-            ZVAL_UNDEF(&resolved);
-            if (zend_get_attribute_value(&resolved, attr, static_cast<uint32_t>(argIdx), scope) == SUCCESS) {
-                if (Z_TYPE(resolved) == IS_LONG) {
-                    metadata.spanKind = static_cast<int64_t>(Z_LVAL(resolved));
-                }
-                zval_ptr_dtor(&resolved);
-            }
+    // #[SpanAttribute] on parameters, own or inherited from the interface method
+    // The range covers parameters only an implemented interface declares, and the variadic parameter.
+    uint32_t declared = declaredParameterCount(func);
+    uint32_t paramCount = maxDeclaredParameterCount(func);
+    for (uint32_t i = 0; i < paramCount; i++) {
+        auto paramAttr = findSpanAttributeOnParameter(func, i);
+        if (!paramAttr) {
+            continue;
+        }
+
+        // vars[] holds the declared parameters first, the variadic one last
+        std::optional<std::string> paramName;
+        if (i < declared) {
+            zend_string *name = func->op_array.vars[i];
+            paramName = std::string{ZSTR_VAL(name), ZSTR_LEN(name)};
+        }
+        auto attrKey = resolveSpanAttributeKey(evaluator, *paramAttr, std::move(paramName));
+        if (attrKey) {
+            metadata.paramAttributes.push_back({i, std::move(*attrKey)});
         }
     }
 
-    // ---- Read #[SpanAttribute] on parameters ----
-    // Parameter attributes use offset = paramIndex + 1 (per Zend attribute spec).
-    {
-        uint32_t numArgs = func->common.num_args;
-        for (uint32_t i = 0; i < numArgs; i++) {
-            // zend_get_parameter_attribute_str takes a 0-based parameter index;
-            // it adds 1 internally before comparing with attr->offset.
-            zend_attribute *paramAttr = zend_get_parameter_attribute_str(
-                func->common.attributes, spanAttrLcName.data(), spanAttrLcName.size(), i);
-            if (!paramAttr) {
-                continue;
-            }
-
-            std::string attrKey;
-
-            // Read optional 'name' arg (positional 0, or named 'name')
-            int nameArgIdx = findAttrArgIndex(paramAttr, 0, "name");
-            if (nameArgIdx >= 0) {
-                zval resolved;
-                ZVAL_UNDEF(&resolved);
-                if (zend_get_attribute_value(&resolved, paramAttr, static_cast<uint32_t>(nameArgIdx), scope) == SUCCESS) {
-                    if (Z_TYPE(resolved) == IS_STRING) {
-                        attrKey = std::string{ZSTR_VAL(Z_STR(resolved)), ZSTR_LEN(Z_STR(resolved))};
-                    }
-                    zval_ptr_dtor(&resolved);
-                }
-            }
-
-            // Default: use the PHP parameter name
-            if (attrKey.empty()) {
-                auto &argInfo = func->op_array.arg_info[i];
-                attrKey = std::string{ZSTR_VAL(argInfo.name), ZSTR_LEN(argInfo.name)};
-            }
-
-            metadata.paramAttributes.push_back({i, std::move(attrKey)});
-        }
-    }
-
-    // ---- Read #[SpanAttribute] on class properties (requires a scope/class) ----
-    if (scope) {
+    // #[SpanAttribute] on class properties (requires a scope/class)
+    if (zend_class_entry *scope = func->common.scope) {
         zend_string *propName = nullptr;
-        zval        *propZval = nullptr;
+        zval *propZval = nullptr;
 
         ZEND_HASH_FOREACH_STR_KEY_VAL(&scope->properties_info, propName, propZval) {
             if (!propName || !propZval) {
@@ -142,40 +195,30 @@ std::optional<WithSpanMetadata> readWithSpanMetadata(zend_function *func) {
             if (!propInfo || !propInfo->attributes) {
                 continue;
             }
+            // read from $this, a static property would be looked up as an instance one (and end up in __get())
+            if (propInfo->flags & ZEND_ACC_STATIC) {
+                continue;
+            }
+            // A private property of a parent class is not accessible from the method of the child: reading it would call
+            // __get() of the child (user code) and record what that returns.
+            if ((propInfo->flags & ZEND_ACC_PRIVATE) && propInfo->ce != scope) {
+                continue;
+            }
 
-            zend_attribute *propAttr = zend_get_attribute_str(
-                propInfo->attributes, spanAttrLcName.data(), spanAttrLcName.size());
+            zend_attribute *propAttr = zend_get_attribute_str(propInfo->attributes, spanAttrLcName.data(), spanAttrLcName.size());
             if (!propAttr) {
                 continue;
             }
 
-            std::string attrKey;
-
-            // Read optional 'name' arg
-            int nameArgIdx = findAttrArgIndex(propAttr, 0, "name");
-            if (nameArgIdx >= 0) {
-                zval resolved;
-                ZVAL_UNDEF(&resolved);
-                if (zend_get_attribute_value(&resolved, propAttr, static_cast<uint32_t>(nameArgIdx), scope) == SUCCESS) {
-                    if (Z_TYPE(resolved) == IS_STRING) {
-                        attrKey = std::string{ZSTR_VAL(Z_STR(resolved)), ZSTR_LEN(Z_STR(resolved))};
-                    }
-                    zval_ptr_dtor(&resolved);
-                }
+            std::string propNameStr{ZSTR_VAL(propName), ZSTR_LEN(propName)};
+            auto attrKey = resolveSpanAttributeKey(evaluator, ResolvedAttribute{propAttr, propInfo->ce ? propInfo->ce : scope}, propNameStr);
+            if (attrKey) {
+                metadata.propAttributes.push_back({propNameStr, std::move(*attrKey)});
             }
-
-            // Default: use the PHP property name
-            if (attrKey.empty()) {
-                attrKey = std::string{ZSTR_VAL(propName), ZSTR_LEN(propName)};
-            }
-
-            metadata.propAttributes.push_back({
-                std::string{ZSTR_VAL(propName), ZSTR_LEN(propName)},
-                std::move(attrKey)
-            });
         } ZEND_HASH_FOREACH_END();
     }
 
+    metadata.evaluationStopped = evaluator.stopped();
     return metadata;
 }
 

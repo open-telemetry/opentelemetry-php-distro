@@ -17,6 +17,7 @@ SavedException saveExceptionState() {
     savedException.prev_exception = EG(prev_exception);
 #endif
     savedException.opline_before_exception = EG(opline_before_exception);
+    savedException.exit_status = EG(exit_status);
 
     EG(exception) = nullptr;
 #if PHP_VERSION_ID < 80600
@@ -30,7 +31,82 @@ SavedException saveExceptionState() {
     return savedException;
 }
 
-void restoreExceptionState(SavedException savedException) {
+namespace {
+
+// How many exceptions are dropped one after the other, a destructor of a dropped one can throw another.
+constexpr int maxDroppedExceptions = 64;
+
+/// Drops what is pending in EG(exception) (and what the destructors of that throw in turn).
+void dropPendingExceptions() {
+    for (int i = 0; EG(exception) && i < maxDroppedExceptions; ++i) {
+        zend_object *dropped = EG(exception);
+        EG(exception) = nullptr;
+        OBJ_RELEASE(dropped);
+    }
+    if (EG(exception)) {
+        // the destructors keep throwing, drop the rest without running anything else
+        zend_object *rest = EG(exception);
+        EG(exception) = nullptr;
+        OBJ_RELEASE(rest);
+    }
+}
+
+/// The exit() in EG(exception) wins over what was saved: that is released, the saved state is not restored.
+///
+/// The exit() is taken out of EG(exception) while that is done. A destructor of a saved exception can throw, and PHP drops
+/// a pending exit() when something is thrown on top of it.
+void keepPendingExit(SavedException const &savedException) {
+    zend_object *pendingExit = EG(exception);
+    EG(exception) = nullptr;
+
+    if (savedException.exception) {
+        OBJ_RELEASE(savedException.exception);
+        dropPendingExceptions();
+    }
+#if PHP_VERSION_ID < 80600
+    if (savedException.prev_exception) {
+        OBJ_RELEASE(savedException.prev_exception);
+        dropPendingExceptions();
+    }
+#endif
+
+    EG(exception) = pendingExit;
+}
+
+} // namespace
+
+void restoreExceptionState(SavedException savedException, PendingExit pendingExit) {
+    if (pendingExit == PendingExit::keep && EG(exception) && zend_is_unwind_exit(EG(exception))) {
+        // exit() called by the isolated code wins over whatever was pending before it
+        keepPendingExit(savedException);
+        return;
+    }
+
+    // Whatever the isolated code left pending is dropped now: release it, it is not referenced from anywhere else. A
+    // destructor of what is released can throw again, hence the loop.
+    for (int i = 0; EG(exception) && EG(exception) != savedException.exception && i < maxDroppedExceptions; ++i) {
+        zend_object *dropped = EG(exception);
+        if (zend_is_unwind_exit(dropped)) {
+            // an exit() that is dropped here must not leave its exit status behind: the script goes on
+            EG(exit_status) = savedException.exit_status;
+        }
+        EG(exception) = nullptr;
+        OBJ_RELEASE(dropped);
+
+        // The release can run a destructor that calls exit(): for the post hooks that one is not dropped either.
+        if (pendingExit == PendingExit::keep && EG(exception) && zend_is_unwind_exit(EG(exception))) {
+            keepPendingExit(savedException);
+            return;
+        }
+    }
+    if (EG(exception) && EG(exception) != savedException.exception) {
+        if (pendingExit == PendingExit::keep && zend_is_unwind_exit(EG(exception))) {
+            keepPendingExit(savedException);
+            return;
+        }
+        // the destructors keep throwing: drop the rest, it would be overwritten below and leaked
+        dropPendingExceptions();
+    }
     EG(exception) = savedException.exception;
 #if PHP_VERSION_ID < 80600
     EG(prev_exception) = savedException.prev_exception;
