@@ -48,7 +48,7 @@ services:
     ports:
       - "5672:5672/tcp"
   kafka:
-    image: confluentinc/cp-kafka:7.9.11@sha256:46c6fadd440e686d88c00f281ff09975e78e3fb71b0c05fdea729c7f52151567
+    image: confluentinc/cp-kafka:7.9.11@sha256:f7a89f291c0e151783240d3a87f1469b0cdbffd32a18330d5a0ecd3efb120305
     hostname: kafka
     ports:
       - "9092:9092/tcp"
@@ -72,7 +72,7 @@ services:
       - "27017:27017/tcp"
 
   mysql:
-    image: mysql:8.4.13@sha256:cd05748e60471137face0ba0a256c9c48669198aee1f12132f413fc91fd8948f
+    image: mysql:8.4.13@sha256:8c233bad33d520a7aae1c1e619c3a9775f4a1ba2d463d692fada04ec7f40be00
     hostname: mysql
     ports:
       - "3306:3306/tcp"
@@ -90,7 +90,7 @@ services:
       - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   postgresql:
-    image: postgres:17.12@sha256:223efeb196329b55b3b9a13db144956411dbc18e727e59f681c3e0aede6475cf
+    image: postgres:17.12@sha256:97fb53376be3e4fb1a8a61421daa69dcc3bf2fa39bda3259f5245f9a455af1a9
     hostname: postgresql
     ports:
       - "5432:5432/tcp"
