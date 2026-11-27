@@ -38,7 +38,7 @@ services:
       - ./files/collector/otel-collector-config.yml:/etc/otel-collector-config.yml
 
   rabbitmq:
-    image: rabbitmq:3.13.7
+    image: rabbitmq:3.13.7@sha256:87178a0ee3e2f52980ba356d38646ed1056705ff2d5ff281f8965456eaa0c1e3
     hostname: rabbitmq
     healthcheck:
       test: rabbitmq-diagnostics -q ping
@@ -66,7 +66,7 @@ services:
       - ./docker/kafka/update_run.sh:/tmp/update_run.sh
 
   mongodb:
-    image: mongo:4.4.30
+    image: mongo:4.4.30@sha256:4be76f674fc4b27859816811b8baa3c51830eb1dbf4ca81a51e26b79edd662ef
     hostname: mongodb
     ports:
       - "27017:27017/tcp"
