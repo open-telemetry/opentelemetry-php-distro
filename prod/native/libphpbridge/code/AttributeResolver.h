@@ -28,6 +28,14 @@ std::optional<ResolvedAttribute> findWithSpanAttribute(zend_function *func);
 /// of the same name in an implemented interface.
 std::optional<ResolvedAttribute> findSpanAttributeOnParameter(zend_function *func, uint32_t paramIndex);
 
+/// Number of declared parameters (a variadic one counts as one) of the function.
+uint32_t declaredParameterCount(zend_function const *func);
+
+/// The largest declared parameter count among the function and the methods of the same name in the implemented
+/// interfaces. An attribute inherited from an interface can sit at an index the implementation never declares
+/// (e.g. a variadic implementation of a fixed-arity interface method).
+uint32_t maxDeclaredParameterCount(zend_function *func);
+
 /// Owns a zval produced by attribute argument evaluation.
 class OwnedZval {
 public:

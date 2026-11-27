@@ -1,4 +1,5 @@
 #include "WithSpanAttributes.h"
+#include "PhpBridge.h"
 
 #include <Zend/zend_API.h>
 #include <Zend/zend_attributes.h>
@@ -25,12 +26,13 @@ std::optional<std::string> evaluateToString(AttributeArgEvaluator &evaluator, Re
 }
 
 /// Attribute key for a #[SpanAttribute]: its `name` argument, or `defaultName` when there is none (a bare
-/// #[SpanAttribute] is *defined* to key on the parameter/property name, as is an explicit null).
+/// #[SpanAttribute] is *defined* to key on the parameter/property name, as is an explicit null). There is no default
+/// for a parameter the function does not declare (inherited from an interface), such an attribute needs a name.
 ///
 /// Any other name that cannot be used - not evaluable, not a non-empty string, a different named argument - yields
 /// no key at all: falling back to the default would publish a plausible-looking wrong key nobody queries, while a
 /// missing attribute is diagnosable. After exit() nothing more is evaluated, so nothing more is keyed either.
-std::optional<std::string> resolveSpanAttributeKey(AttributeArgEvaluator &evaluator, ResolvedAttribute const &attribute, std::string defaultName) {
+std::optional<std::string> resolveSpanAttributeKey(AttributeArgEvaluator &evaluator, ResolvedAttribute const &attribute, std::optional<std::string> defaultName) {
     if (evaluator.stopped()) {
         return std::nullopt;
     }
@@ -54,6 +56,42 @@ std::optional<std::string> resolveSpanAttributeKey(AttributeArgEvaluator &evalua
         return std::string{Z_STRVAL_P(value.get()), Z_STRLEN_P(value.get())};
     }
     return std::nullopt;
+}
+
+/// OpenTelemetry attribute values may only be of limited types.
+bool isValidAttributeValue(zval const *value) {
+    switch (Z_TYPE_P(value)) {
+        case IS_STRING:
+        case IS_LONG:
+        case IS_DOUBLE:
+        case IS_TRUE:
+        case IS_FALSE:
+        case IS_ARRAY:
+            return true;
+        default:
+            return false;
+    }
+}
+
+/// Adds a copy of the (dereferenced) value if it is a valid attribute value; later keys replace earlier ones.
+void addAttributeValue(zval *out, std::string const &key, zval *value) {
+    ZVAL_DEREF(value);
+    if (!isValidAttributeValue(value)) {
+        return;
+    }
+    zval copy;
+    ZVAL_COPY(&copy, value);
+    zend_hash_str_update(Z_ARR_P(out), key.c_str(), key.length(), &copy);
+}
+
+/// The zval of the call argument with 0-based index `index`. Arguments beyond the declared parameters of a user
+/// function are not stored next to the declared ones but after the compiled variables and temporaries.
+zval *callArgument(zend_execute_data *ex, uint32_t index) {
+    uint32_t declared = ex->func->op_array.num_args;
+    if (index < declared) {
+        return ZEND_CALL_ARG(ex, index + 1);
+    }
+    return ZEND_CALL_VAR_NUM(ex, ex->func->op_array.last_var + ex->func->op_array.T) + (index - declared);
 }
 
 } // namespace
@@ -89,6 +127,32 @@ void readWithSpanStaticAttributes(zend_function *func, AttributeArgEvaluator &ev
     } ZEND_HASH_FOREACH_END();
 }
 
+void addParameterAttributeValues(zend_execute_data *executeData, WithSpanMetadata const &metadata, zval *out) {
+    uint32_t argCount = ZEND_CALL_NUM_ARGS(executeData);
+    for (auto const &p : metadata.paramAttributes) {
+        if (p.argIndex >= argCount) {
+            continue;
+        }
+        zval *arg = callArgument(executeData, p.argIndex);
+        if (Z_TYPE_P(arg) != IS_UNDEF) {
+            addAttributeValue(out, p.attrKey, arg);
+        }
+    }
+}
+
+void addPropertyAttributeValues(zend_execute_data *executeData, WithSpanMetadata const &metadata, zval *out) {
+    if (metadata.propAttributes.empty() || Z_TYPE(executeData->This) != IS_OBJECT) {
+        return;
+    }
+    zend_class_entry *ce = Z_OBJCE(executeData->This);
+    for (auto const &p : metadata.propAttributes) {
+        zval *prop = getClassPropertyValue(ce, Z_OBJ(executeData->This), p.propName);
+        if (prop && Z_TYPE_P(prop) != IS_UNDEF) {
+            addAttributeValue(out, p.attrKey, prop);
+        }
+    }
+}
+
 std::optional<WithSpanMetadata> readWithSpanMetadata(zend_function *func, AttributeArgEvaluator &evaluator) {
     auto withSpan = findWithSpanAttribute(func);
     if (!withSpan) {
@@ -107,14 +171,22 @@ std::optional<WithSpanMetadata> readWithSpanMetadata(zend_function *func, Attrib
     }
 
     // #[SpanAttribute] on parameters, own or inherited from the interface method
-    for (uint32_t i = 0; i < func->common.num_args; i++) {
+    // The range covers parameters only an implemented interface declares, and the variadic parameter.
+    uint32_t declared = declaredParameterCount(func);
+    uint32_t paramCount = maxDeclaredParameterCount(func);
+    for (uint32_t i = 0; i < paramCount; i++) {
         auto paramAttr = findSpanAttributeOnParameter(func, i);
         if (!paramAttr) {
             continue;
         }
 
-        auto &argInfo = func->op_array.arg_info[i];
-        auto attrKey = resolveSpanAttributeKey(evaluator, *paramAttr, std::string{ZSTR_VAL(argInfo.name), ZSTR_LEN(argInfo.name)});
+        // vars[] holds the declared parameters first, the variadic one last
+        std::optional<std::string> paramName;
+        if (i < declared) {
+            zend_string *name = func->op_array.vars[i];
+            paramName = std::string{ZSTR_VAL(name), ZSTR_LEN(name)};
+        }
+        auto attrKey = resolveSpanAttributeKey(evaluator, *paramAttr, std::move(paramName));
         if (attrKey) {
             metadata.paramAttributes.push_back({i, std::move(*attrKey)});
         }

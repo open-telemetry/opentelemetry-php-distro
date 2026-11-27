@@ -1,7 +1,5 @@
 --TEST--
 Check SpanAttribute with null value is filtered out
---XFAIL--
-values that are not valid OTel attribute values (null, objects, closures) are not filtered out
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80100) die('skip requires PHP >= 8.1'); ?>
 --ENV--

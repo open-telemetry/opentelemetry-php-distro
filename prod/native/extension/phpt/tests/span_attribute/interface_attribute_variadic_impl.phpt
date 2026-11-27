@@ -7,8 +7,6 @@ so the lookup must not be bounded by the implementation's num_args.
 
 A bare attribute at such an index has no parameter name to key on, so it is
 dropped rather than given an invented key.
---XFAIL--
-#[WithSpan]/#[SpanAttribute] declared on an interface method is not inherited by the implementing method (instrumentation-ext looks it up through the implemented interfaces)
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80100) die('skip requires PHP >= 8.1'); ?>
 --ENV--

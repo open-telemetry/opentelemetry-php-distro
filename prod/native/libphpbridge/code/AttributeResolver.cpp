@@ -7,6 +7,8 @@
 #include <Zend/zend_globals.h>
 #include <Zend/zend_hash.h>
 
+#include <algorithm>
+
 namespace opentelemetry::php {
 
 using namespace std::string_view_literals;
@@ -61,6 +63,26 @@ std::optional<ResolvedAttribute> findOnFunctionOrInterfaces(zend_function *func,
 }
 
 } // namespace
+
+uint32_t declaredParameterCount(zend_function const *func) {
+    return func->common.num_args + ((func->common.fn_flags & ZEND_ACC_VARIADIC) ? 1 : 0);
+}
+
+uint32_t maxDeclaredParameterCount(zend_function *func) {
+    uint32_t count = declaredParameterCount(func);
+    zend_class_entry *ce = func->common.scope;
+    if (!ce || !func->common.function_name) {
+        return count;
+    }
+    for (uint32_t i = 0; i < ce->num_interfaces; ++i) {
+        if (ce->interfaces[i]) {
+            if (zend_function *m = findMethodInInterface(ce->interfaces[i], func->common.function_name)) {
+                count = std::max(count, declaredParameterCount(m));
+            }
+        }
+    }
+    return count;
+}
 
 std::optional<ResolvedAttribute> findWithSpanAttribute(zend_function *func) {
     return findOnFunctionOrInterfaces(func, [](zend_function *f) -> zend_attribute * {

@@ -109,30 +109,8 @@ static void callWithSpanHandlerPre(zend_execute_data *execute_data, WithSpanMeta
         reportAttributeEvaluationFailure(evaluator, execute_data, meta);
     }
 
-    // Append parameter attribute values: read actual arg at call time
-    for (auto const &p : meta.paramAttributes) {
-        if (p.argIndex < ZEND_CALL_NUM_ARGS(execute_data)) {
-            zval *arg = ZEND_CALL_ARG(execute_data, p.argIndex + 1);
-            if (arg && Z_TYPE_P(arg) != IS_UNDEF) {
-                zval copy;
-                ZVAL_COPY(&copy, arg);
-                add_assoc_zval_ex(params[7].get(), p.attrKey.c_str(), p.attrKey.length(), &copy);
-            }
-        }
-    }
-
-    // Append property attribute values: read from $this
-    if (!meta.propAttributes.empty() && Z_TYPE(execute_data->This) == IS_OBJECT) {
-        auto ce = Z_OBJCE(execute_data->This);
-        for (auto const &p : meta.propAttributes) {
-            auto *prop = getClassPropertyValue(ce, Z_OBJ(execute_data->This), p.propName);
-            if (prop && Z_TYPE_P(prop) != IS_UNDEF) {
-                zval copy;
-                ZVAL_COPY(&copy, prop);
-                add_assoc_zval_ex(params[7].get(), p.attrKey.c_str(), p.attrKey.length(), &copy);
-            }
-        }
-    }
+    addParameterAttributeValues(execute_data, meta, params[7].get());
+    addPropertyAttributeValues(execute_data, meta, params[7].get());
 
     constexpr std::string_view handlerPreUnscoped = "OpenTelemetry\\API\\Instrumentation\\WithSpanHandler::pre"sv;
     auto handlerName = scoped ? PHP_SCOPER_PREFIX "OpenTelemetry\\API\\Instrumentation\\WithSpanHandler::pre"sv : handlerPreUnscoped;

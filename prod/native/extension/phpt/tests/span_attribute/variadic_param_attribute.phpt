@@ -4,8 +4,6 @@ Check SpanAttribute on a variadic parameter is still found
 op_array.num_args excludes the variadic, so a bound of `i < num_args` on the
 parameter name drops an attribute declared on the variadic itself. Both keys
 are asserted: key_a comes from the first arg loop and key_rest from the second.
---XFAIL--
-#[SpanAttribute] on a variadic parameter is not found (only num_args parameters are scanned)
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80100) die('skip requires PHP >= 8.1'); ?>
 --ENV--

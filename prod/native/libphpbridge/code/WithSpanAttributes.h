@@ -13,7 +13,7 @@ namespace opentelemetry::php {
 
 /// Describes a function parameter annotated with #[SpanAttribute].
 struct SpanAttributeParam {
-    uint32_t argIndex; ///< 0-based parameter index
+    uint32_t argIndex; ///< 0-based argument index (for a variadic parameter: the index of its first argument)
     std::string attrKey;  ///< span attribute key (from SpanAttribute::$name, or parameter name)
 };
 
@@ -49,6 +49,14 @@ std::optional<WithSpanMetadata> readWithSpanMetadata(zend_function *func, Attrib
 /// Evaluates WithSpan::$attributes (positional 2 / named 'attributes') and stores its string-keyed entries in `out`
 /// (an initialised PHP array zval). Does nothing when the attribute has no such argument.
 void readWithSpanStaticAttributes(zend_function *func, AttributeArgEvaluator &evaluator, zval *out);
+
+/// Adds to `out` (an initialised PHP array zval) the values of the arguments of the current call that belong to
+/// #[SpanAttribute] parameters, keyed by the attribute key. Only values that are valid OTel attribute values
+/// (string, int, float, bool, array) are added; references are dereferenced.
+void addParameterAttributeValues(zend_execute_data *executeData, WithSpanMetadata const &metadata, zval *out);
+
+/// Same for #[SpanAttribute] properties, read from $this.
+void addPropertyAttributeValues(zend_execute_data *executeData, WithSpanMetadata const &metadata, zval *out);
 
 /// true if the #[WithSpan] attribute of the function has an `attributes` argument.
 bool withSpanHasStaticAttributes(zend_function *func);

@@ -5,8 +5,6 @@ A by-reference parameter's slot holds an IS_REFERENCE, not the value. It has to
 be dereferenced before the value type is checked, or the attribute is dropped.
 Extra args are passed so the declared parameter goes through the first arg loop
 in func_get_args() and the variadic through the second.
---XFAIL--
-by-reference parameter value is passed to the handler as a PHP reference instead of being dereferenced
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80100) die('skip requires PHP >= 8.1'); ?>
 --ENV--
