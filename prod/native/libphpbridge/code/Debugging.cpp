@@ -58,7 +58,7 @@ static void phpInfoToStringOutputHandler(char *output, size_t output_len, char *
 // be aware that this function can be only called in request scope and can contain request and process metadata and secrets
 // function is not thread safe - use static global buffer pointer
 std::string PhpBridge::getPhpInfo() const {
-    if (php_output_start_internal(ZEND_STRL("otel_phpinfo_dump"), phpInfoToStringOutputHandler, 0, PHP_OUTPUT_HANDLER_STDFLAGS) != ZEND_RESULT_CODE::SUCCESS) {
+    if (php_output_start_internal(ZEND_STRL("otel_phpinfo_dump"), phpInfoToStringOutputHandler, 0, PHP_OUTPUT_HANDLER_STDFLAGS) != SUCCESS) {
         return {};
     }
 

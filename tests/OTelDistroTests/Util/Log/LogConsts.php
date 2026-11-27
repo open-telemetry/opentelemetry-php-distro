@@ -33,7 +33,6 @@ final class LogConsts
     public const ARRAY_COUNT_KEY = 'count';
 
     public const OBJECT_ID_KEY = 'object_ID';
-    public const OBJECT_HASH_KEY = 'object_hash';
 
     public const MAX_DEPTH_REACHED = 'Max depth reached';
 

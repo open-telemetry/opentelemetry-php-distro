@@ -6,14 +6,14 @@ show_help() {
     echo "Usage: $0 --build_architecture <architecture> --php_versions <versions> --results_path <path> --deb_package <package.deb> "
     echo
     echo "Arguments:"
-    echo "  --php_versions           Required. List of PHP versions separated by spaces (e.g., '82 83 84 85')."
+    echo "  --php_versions           Required. List of PHP versions separated by spaces (e.g., '82 83 84 85 86')."
     echo "  --results_path           Optional. The path where the results will be saved if a test failure occurs. (default is '${RESULTS_PATH}')"
     echo "  --deb_package            Optional. The path to debian package to install inside container."
     echo "  --hook_bridge            Optional. Path to hook bridge PHP file (generated in /tmp if not provided)."
     echo "  --quiet                  Optional. Quiet composer."
     echo
     echo "Example:"
-    echo "  $0 --php_versions '82 83 84 85'"
+    echo "  $0 --php_versions '82 83 84 85 86'"
 }
 
 parse_args() {
@@ -76,6 +76,9 @@ export COMPOSER_VERSION="${_PROJECT_PROPERTIES_COMPOSER_VERSION:?}"
 
 for PHP_VERSION in "${PHP_VERSIONS[@]}"; do
     export PHP_VERSION="${PHP_VERSION:0:1}.${PHP_VERSION:1}"
+    # The default official php:8.6 images are ZTS, which the distro does not support. Sourced in a subshell because shared.sh sets shell options.
+    PHP_BASE_IMAGE=$(source "${PWD}/tools/shared.sh" && get_nts_php_docker_image "${PHP_VERSION}" glibc "php:${PHP_VERSION}-cli")
+    export PHP_BASE_IMAGE
 
     echo "::group::Building docker images"
     docker compose -f ${COMPOSE_FILE} build php

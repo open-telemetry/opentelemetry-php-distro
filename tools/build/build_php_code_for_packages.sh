@@ -15,7 +15,7 @@ show_help() {
     echo "Usage: $0 --php_versions <versions>"
     echo
     echo "Arguments:"
-    echo "  --php_versions             Required. List of PHP versions separated by spaces (e.g., '82 83 84 85')."
+    echo "  --php_versions             Required. List of PHP versions separated by spaces (e.g., '82 83 84 85 86')."
     echo "  --skip_notice              Optional. Skip notice file generator. Default: false (i.e., NOTICE file is generated)."
     echo "  --skip_verify              Optional. Skip verify step. Default: false (i.e., verify step is executed)."
     echo "  --dev_only_rescope_distro  Optional. Only re-scope distro code (prod/php/OpenTelemetry). Skips composer install and notice."
@@ -24,7 +24,7 @@ show_help() {
     echo "                             See .local-repos.json.example. Default: none (packages installed from Packagist)."
     echo
     echo "Example:"
-    echo "  $0 --php_versions '82 83 84 85' --skip_notice"
+    echo "  $0 --php_versions '82 83 84 85 86' --skip_notice"
     echo "  $0 --php_versions '84' --dev_only_rescope_distro"
 }
 

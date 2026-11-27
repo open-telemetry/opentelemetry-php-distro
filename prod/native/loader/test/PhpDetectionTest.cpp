@@ -45,6 +45,7 @@ TEST(PhpDetectionTest, supportedVersionsMapToTheirModuleApi) {
         Expected{"4.3"sv, 83, 20230831},
         Expected{"4.4"sv, 84, 20240924},
         Expected{"4.5"sv, 85, 20250925},
+        Expected{"4.6"sv, 86, 20261112},
     };
 
     for (auto const &entry : supported) {
@@ -90,7 +91,7 @@ TEST(PhpDetectionTest, knownButUnsupportedVersionsAreRejected) {
 // A PHP newer than anything in the table -- the situation on the day after a PHP release -- must
 // fail closed rather than fall through to a nearby entry.
 TEST(PhpDetectionTest, unknownVersionsAreRejectedAndYieldNoModuleApi) {
-    for (auto const &zendVersion : {"4.6"sv, "5.0"sv, "9.9"sv, ""sv, "garbage"sv}) {
+    for (auto const &zendVersion : {"4.7"sv, "5.0"sv, "9.9"sv, ""sv, "garbage"sv}) {
         auto const [reported, phpVersion, moduleApi, isSupported] =
             getZendModuleApiVersion(zendVersion);
         EXPECT_EQ(reported, zendVersion);

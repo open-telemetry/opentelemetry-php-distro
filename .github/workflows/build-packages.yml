@@ -32,7 +32,7 @@ jobs:
 
   build-packages:
     name: build-packages
-    runs-on: 'ubuntu-latest'
+    runs-on: ${{ matrix.goarch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     needs: setup-build-matrix
     timeout-minutes: 300
     strategy:
@@ -44,10 +44,6 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
-      - if: ${{ matrix.goarch == 'arm64' }}
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
-        with:
-          platforms: arm64
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: build-native-${{ matrix.arch }}

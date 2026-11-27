@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
       args:
         - PHP_VERSION
+        - PHP_BASE_IMAGE=${PHP_BASE_IMAGE:-php:${PHP_VERSION}-cli}
         - COMPOSER_VERSION
     volumes:
     - ./:/usr/src/myapp

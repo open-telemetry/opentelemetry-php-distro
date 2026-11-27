@@ -27,8 +27,8 @@ PHP_RSHUTDOWN_FUNCTION(phpbridge) {
     return SUCCESS;
 }
 
-ZEND_RESULT_CODE  PhpBridgePostDeactivate(void) {
-    return ZEND_RESULT_CODE::SUCCESS;
+zend_result  PhpBridgePostDeactivate(void) {
+    return SUCCESS;
 }
 
 PHP_MINFO_FUNCTION(phpbridge) {

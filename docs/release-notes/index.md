@@ -1,3 +1,9 @@
+## Unreleased
+
+### What's changed
+
+- feat: support PHP 8.6. Supported PHP versions are now 8.2 to 8.6.
+
 ## 0.8.0
 
 ### This release is based on the following OpenTelemetry PHP packages:

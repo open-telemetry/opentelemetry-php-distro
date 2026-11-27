@@ -6,10 +6,12 @@
 # Without it, the build fails on the FROM below.
 ARG COMPOSER_VERSION
 ARG PHP_VERSION
+# Override for PHP versions without an official NTS image, see get_nts_php_docker_image() in tools/shared.sh
+ARG PHP_BASE_IMAGE=php:${PHP_VERSION}-cli-alpine
 
 FROM composer:${COMPOSER_VERSION} AS composer_bin
 
-FROM php:${PHP_VERSION}-cli-alpine
+FROM ${PHP_BASE_IMAGE}
 
 RUN ls -1 /etc/*release | xargs -i sh -c 'echo {} && cat {}'
 
@@ -31,6 +33,9 @@ RUN docker-php-ext-install \
 
 # OPcache is built into PHP core since 8.5
 RUN if [ "$(php -r 'echo PHP_VERSION_ID;')" -lt 80500 ]; then docker-php-ext-install opcache; fi
+
+# mbstring (required by PHPUnit) is not enabled in the official PHP 8.6 images
+RUN if ! php -m | grep -qx mbstring; then apk add --no-cache oniguruma-dev $PHPIZE_DEPS && docker-php-ext-install mbstring; fi
 
 COPY --from=composer_bin /usr/bin/composer /usr/bin/composer
 

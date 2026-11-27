@@ -13,11 +13,15 @@ using namespace std::literals;
 SavedException saveExceptionState() {
     SavedException savedException;
     savedException.exception = EG(exception);
+#if PHP_VERSION_ID < 80600
     savedException.prev_exception = EG(prev_exception);
+#endif
     savedException.opline_before_exception = EG(opline_before_exception);
 
     EG(exception) = nullptr;
+#if PHP_VERSION_ID < 80600
     EG(prev_exception) = nullptr;
+#endif
     EG(opline_before_exception) = nullptr;
 
     if (EG(current_execute_data)) {
@@ -28,7 +32,9 @@ SavedException saveExceptionState() {
 
 void restoreExceptionState(SavedException savedException) {
     EG(exception) = savedException.exception;
+#if PHP_VERSION_ID < 80600
     EG(prev_exception) = savedException.prev_exception;
+#endif
     EG(opline_before_exception) = savedException.opline_before_exception;
 
     if (EG(current_execute_data) && savedException.opline.has_value()) {

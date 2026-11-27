@@ -203,6 +203,14 @@ void handleAndReleaseHookException(zend_object *exception) {
 
 uint32_t getFunctionArgumentIndex(zend_string *name, zend_function *function) {
 	uint32_t numArgs = function->common.num_args;
+#if PHP_VERSION_ID >= 80600
+    // since PHP 8.6 arg_info is always zend_arg_info (names are zend_string), also for internal functions
+    for (uint32_t i = 0; i < numArgs; i++) {
+        if (zend_string_equals(name, function->common.arg_info[i].name)) {
+            return i;
+        }
+    }
+#else
 	if (function->type == ZEND_USER_FUNCTION || (function->common.fn_flags & ZEND_ACC_USER_ARG_INFO)) {
 		for (uint32_t i = 0; i < numArgs; i++) {
 			if (zend_string_equals(name, function->op_array.arg_info[i].name)) {
@@ -218,6 +226,7 @@ uint32_t getFunctionArgumentIndex(zend_string *name, zend_function *function) {
             }
 		}
 	}
+#endif
     throw std::runtime_error("argument not found");
 }
 
@@ -295,7 +304,7 @@ void callPreHook(AutoZval &prehook) {
     zend_fcall_info fci = empty_fcall_info;
     zend_fcall_info_cache fcc = empty_fcall_info_cache;
 
-    if (zend_fcall_info_init(const_cast<zval *>(prehook.get()), 0, &fci, &fcc, nullptr, nullptr) == ZEND_RESULT_CODE::FAILURE) {
+    if (zend_fcall_info_init(const_cast<zval *>(prehook.get()), 0, &fci, &fcc, nullptr, nullptr) == FAILURE) {
         throw std::runtime_error("Unable to initialize prehook fcall");
     }
 
@@ -323,7 +332,7 @@ void callPostHook(AutoZval &hook, zval *return_value, zend_object *exception, ze
     zend_fcall_info fci = empty_fcall_info;
     zend_fcall_info_cache fcc = empty_fcall_info_cache;
 
-    if (zend_fcall_info_init(const_cast<zval *>(hook.get()), 0, &fci, &fcc, nullptr, nullptr) == ZEND_RESULT_CODE::FAILURE) {
+    if (zend_fcall_info_init(const_cast<zval *>(hook.get()), 0, &fci, &fcc, nullptr, nullptr) == FAILURE) {
         throw std::runtime_error("Unable to initialize posthook fcall");
     }
 

@@ -6,11 +6,11 @@ show_help() {
     echo "Usage: $0 --php_versions <versions>"
     echo
     echo "Arguments:"
-    echo "  --php_versions      Required. List of PHP versions separated by spaces (e.g., '82 83 84 85')."
+    echo "  --php_versions      Required. List of PHP versions separated by spaces (e.g., '82 83 84 85 86')."
     echo "  --logs_dir          Required. Full path to the directory where generated logs will be stored. NOTE: All existing files in this directory will be deleted"
     echo
     echo "Example:"
-    echo "  $0 --php_versions '82 83 84 85' --logs_dir '/directory/to/store/logs'"
+    echo "  $0 --php_versions '82 83 84 85 86' --logs_dir '/directory/to/store/logs'"
 }
 
 # Function to parse arguments
@@ -106,6 +106,7 @@ main() {
             "${PHP_docker_image}" \
             sh -c "\
                 apk update && apk add bash git \
+                && if ! php -m | grep -qx mbstring; then apk add oniguruma-dev \$PHPIZE_DEPS && docker-php-ext-install mbstring; fi \
                 && curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/usr/local/bin --version=${_PROJECT_PROPERTIES_COMPOSER_VERSION:?} \
                 && echo 'Running static check on prod (without dev only dependencies); PHP_version_no_dot:' ${PHP_version_no_dot} \
                 && mkdir -p /tmp/repo \

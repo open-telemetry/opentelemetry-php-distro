@@ -10,11 +10,20 @@
 #include "ext/opcache/ZendAccelerator.h"
 
 
+#if PHP_VERSION_ID >= 80600
+// INI_BOOL/INI_STR were removed in PHP 8.6
+#define OTEL_INI_BOOL(name) zend_ini_bool_literal(name)
+#define OTEL_INI_STR(name) zend_ini_string_literal(name)
+#else
+#define OTEL_INI_BOOL(name) INI_BOOL(name)
+#define OTEL_INI_STR(name) INI_STR(name)
+#endif
+
 namespace opentelemetry::php {
 
 bool PhpBridge::isOpcacheEnabled() const {
     using namespace std::string_view_literals;
-    return getPhpSapiName() == "cli"sv ? INI_BOOL("opcache.enable_cli") : INI_BOOL("opcache.enable");
+    return getPhpSapiName() == "cli"sv ? OTEL_INI_BOOL("opcache.enable_cli") : OTEL_INI_BOOL("opcache.enable");
 }
 
 
@@ -23,7 +32,7 @@ bool PhpBridge::detectOpcachePreload() const {
         return false;
     }
 
-    const char *preloadValue = INI_STR("opcache.preload");
+    const char *preloadValue = OTEL_INI_STR("opcache.preload");
     if (!preloadValue || strlen(preloadValue) == 0) {
         return false;
     }
@@ -37,7 +46,7 @@ bool PhpBridge::isScriptRestricedByOpcacheAPI() const {
         return false;
     }
 
-    char *restrict_api = INI_STR("opcache.restrict_api");
+    const char *restrict_api = OTEL_INI_STR("opcache.restrict_api");
     if (!restrict_api || strlen(restrict_api) == 0) {
         return false;
     }

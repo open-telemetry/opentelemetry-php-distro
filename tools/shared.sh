@@ -252,3 +252,30 @@ function build_docker_env_vars_command_line_part () {
         result_var+=(-e "${env_var_name}=${env_var_value}")
     done < <(env)
 }
+
+# The default official php:8.6 docker images (php:8.6-cli, php:8.6-alpine, ...) are ZTS builds (docker-library/php#1686)
+# and the distro does not support ZTS. NTS images for 8.6 are published as separate variants (php:8.6-nts, php:8.6-nts-alpine),
+# they come without php-fpm.
+#
+# Prints the docker image to use for running the distro with the given PHP version.
+#   $1 - PHP version, dot separated (e.g. 8.6)
+#   $2 - libc: glibc | musl
+#   $3 - official image to use when it is NTS (e.g. php:8.4-cli-alpine)
+function get_nts_php_docker_image() {
+    local PHP_version_dot_separated="${1:?}"
+    local libc="${2:?}"
+    local official_image="${3:?}"
+
+    case "${PHP_version_dot_separated}" in
+        8.6)
+            if [[ "${libc}" == "musl" ]]; then
+                echo "php:${PHP_version_dot_separated}-nts-alpine"
+            else
+                echo "php:${PHP_version_dot_separated}-nts"
+            fi
+            ;;
+        *)
+            echo "${official_image}"
+            ;;
+    esac
+}
