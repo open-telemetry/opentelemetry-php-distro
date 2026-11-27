@@ -6,7 +6,7 @@ instrumentation code manually.
 
 ## Prerequisites
 
-- PHP 8.0 or later (PHP attributes require PHP 8+).
+- PHP 8.2 or later.
 - `open-telemetry/api` package installed in your application.
 - `OTEL_PHP_ATTR_HOOKS_ENABLED=true` set in the environment (disabled by default).
 
@@ -167,7 +167,8 @@ function computeResult(#[SpanAttribute] int $input): int
   `attributes` of `#[WithSpan]` on every call. An exception or `exit()` in the code this runs never reaches the
   application, it is logged and the attribute is skipped.
 - **Properties.** `#[SpanAttribute]` on a property is read from `$this` when the method is called, static properties
-  are not recorded.
+  are not recorded, and neither is a private property of a parent class when the method is declared in a subclass. Reading
+  runs `__get()` or a property `get` hook, so what they do (output, logging) happens on every call of the method.
 - **Handlers.** An exception thrown by the `#[WithSpan]` handlers is logged and does not reach the application.
 - **Together with `hook()`.** A function can have `#[WithSpan]` and hooks registered with `hook()`. The `#[WithSpan]` span
   is created after the pre hooks and ended before the post hooks, post hooks run in reverse order of their registration.

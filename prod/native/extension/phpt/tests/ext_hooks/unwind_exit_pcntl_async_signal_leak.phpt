@@ -1,5 +1,6 @@
 --TEST--
 Test UnwindExit caused by async pcntl handler does not leak otel_exception_state memory
+--EXTENSIONS--
 pcntl
 --SKIPIF--
 <?php if (!extension_loaded("pcntl")) die("skip requires pcntl"); ?>

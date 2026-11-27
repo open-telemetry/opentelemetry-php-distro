@@ -11,6 +11,7 @@ stay refcounted: hence eval() (opcache does not persist eval'd code), opcache
 enabled (otherwise the name is interned request-locally), and a name built at
 run time rather than a literal (a literal would be interned with this file, and
 eval() would reuse it).
+--EXTENSIONS--
 opcache
 --INI--
 extension=/otel/opentelemetry_php_distro.so

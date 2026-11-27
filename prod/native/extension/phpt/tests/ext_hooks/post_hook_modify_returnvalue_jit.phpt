@@ -10,6 +10,7 @@ post hook replaces that object with another one. A scalar return also exposes
 the incorrect result, but an object exposes the memory-safety failure to tools
 such as AddressSanitizer and Valgrind. This failure is not specific to tracing
 JIT; other JIT modes would fail too.
+--EXTENSIONS--
 opcache
 --INI--
 extension=/otel/opentelemetry_php_distro.so

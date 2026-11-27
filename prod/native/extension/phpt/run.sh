@@ -88,6 +88,15 @@ PHP_VERSION_DOTTED="${PHP_VERSION:0:1}.${PHP_VERSION:1:1}"
 OFFICIAL_PHP_DOCKER_IMAGE="php:${PHP_VERSION_DOTTED}-cli${ALPINE_IMAGE}"
 PHP_DOCKER_IMAGE=$(source "${REPO_ROOT_DIR}/tools/shared.sh" && get_nts_php_docker_image "${PHP_VERSION_DOTTED}" "${PHP_LIBC}" "${OFFICIAL_PHP_DOCKER_IMAGE}") || exit 1
 
+# the official image with the extensions that the tests need (pcntl), the layers are cached by docker
+PHPT_DOCKER_IMAGE="otel-php-distro-phpt:${PHP_VERSION_DOTTED}-${PHP_LIBC}-${DOCKER_PLATFORM#linux/}"
+docker build --quiet \
+    --platform ${DOCKER_PLATFORM} \
+    --build-arg PHP_BASE_IMAGE="${PHP_DOCKER_IMAGE}" \
+    -t "${PHPT_DOCKER_IMAGE}" \
+    -f "${SCRIPT_DIR}/docker/Dockerfile" \
+    "${SCRIPT_DIR}/docker" > /dev/null || { echo "Unable to build the docker image for the tests"; rm -rf "${LOCAL_TMP_DIR}"; exit 1; }
+
 docker run --rm \
     --platform ${DOCKER_PLATFORM} \
     -v ${LOCAL_TMP_DIR}/tests:/phpt-tests/tests \
@@ -97,7 +106,7 @@ docker run --rm \
     -v ${OTEL_AGENT_SO_PATH}:/otel/opentelemetry_php_distro.so \
     -e OTEL_PHP_SCOPER_PREFIX=${_PROJECT_PROPERTIES_PHP_SCOPER_PREFIX} \
     -w /phpt-tests \
-    "${PHP_DOCKER_IMAGE}" sh -c "php -n ${RUN_TESTS} -s ${LOG_TEST_RUN} -w ${LOG_FAILED_TESTS} ${TESTS_TO_RUN}"
+    "${PHPT_DOCKER_IMAGE}" sh -c "php -n ${RUN_TESTS} -s ${LOG_TEST_RUN} -w ${LOG_FAILED_TESTS} ${TESTS_TO_RUN}"
 
 if [ $? -ne 0 ]; then
     echo "Test failed"

@@ -199,6 +199,11 @@ std::optional<WithSpanMetadata> readWithSpanMetadata(zend_function *func, Attrib
             if (propInfo->flags & ZEND_ACC_STATIC) {
                 continue;
             }
+            // A private property of a parent class is not accessible from the method of the child: reading it would call
+            // __get() of the child (user code) and record what that returns.
+            if ((propInfo->flags & ZEND_ACC_PRIVATE) && propInfo->ce != scope) {
+                continue;
+            }
 
             zend_attribute *propAttr = zend_get_attribute_str(propInfo->attributes, spanAttrLcName.data(), spanAttrLcName.size());
             if (!propAttr) {
