@@ -60,6 +60,12 @@ static std::optional<InferredSpans::SamplingSuspension> notifyInferredSpansHooke
     return suspension;
 }
 
+/// true if exit() was called since `pendingBefore` was the pending exception: by a hook, not by the observed function
+/// (that one is pending already when its post hooks run and they still have to run).
+static bool exitRaisedSince(zend_object *pendingBefore) {
+    return EG(exception) && EG(exception) != pendingBefore && zend_is_unwind_exit(EG(exception));
+}
+
 /// Logs a failure recorded by `evaluator`. With `oncePerFunction` it is logged only the first time for the function
 /// (the declaration is the same on every call, so a hot function would otherwise flood the log); the flag lives in the
 /// metadata, which is re-created on the first call of the function in every request.
@@ -106,7 +112,7 @@ static void callWithSpanHandlerPre(zend_execute_data *execute_data, WithSpanMeta
     params[7].arrayInit();
 
     // Static attributes from WithSpan::$attributes. Evaluating them can run userland code, see AttributeArgEvaluator.
-    if (!meta.evaluationStopped && withSpanHasStaticAttributes(execute_data->func)) {
+    if (!meta.evaluationStopped && meta.hasStaticAttributes) {
         AttributeArgEvaluator evaluator;
         readWithSpanStaticAttributes(execute_data->func, evaluator, params[7].get());
         reportAttributeEvaluationFailure(evaluator, execute_data, meta, true);
@@ -148,7 +154,9 @@ static void callWithSpanHandlerPost(zend_execute_data *execute_data, zval *retva
 
     AutoZval rv;
     try {
-        AutomaticExceptionStateRestorer restorer;
+        // like for the post hooks, exit() ends the script (it cannot be honoured in the pre phase, where the VM does
+        // not accept a pending exception)
+        AutomaticExceptionStateRestorer restorer{PendingExit::keep};
         callMethod(nullptr, handlerName, params[0].get(), static_cast<int32_t>(params.size()), rv.get());
         handleAndReleaseHookException(EG(exception));
     } catch (std::exception const &e) {
@@ -228,14 +236,17 @@ void argsPostProcessing(AutoZval &functionArgs, AutoZval &returnValue) {
 
     ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing declaredArgs: %d initialCallNumArgs: %d", declaredArgs, initialCallNumArgs);
 
+    // arguments are added only for positional keys, without one the call keeps the arguments it had
+    bool hasPositionalKey = false;
     uint32_t highestArgIdx = 0;
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARR_P(returnValue.get()), argIndex, argStrKey, argValue) {
         if (!argStrKey) {
+            hasPositionalKey = true;
             highestArgIdx = std::max(highestArgIdx, (uint32_t)argIndex);
         }
     } ZEND_HASH_FOREACH_END();
 
-    uint32_t newCallNumArgs = std::max(initialCallNumArgs, highestArgIdx + 1);
+    uint32_t newCallNumArgs = hasPositionalKey ? std::max(initialCallNumArgs, highestArgIdx + 1) : initialCallNumArgs;
     bool mayHaveUndef = false;
 
     if (newCallNumArgs > initialCallNumArgs) {
@@ -481,6 +492,7 @@ void ZEND_FASTCALL internal_function_handler(INTERNAL_FUNCTION_PARAMETERS) {
     auto samplingSuspension = notifyInferredSpansHookedFunction(true);
 
     // post hooks run in reverse order of registration (LIFO), so that hooks wrapping the same function nest properly
+    zend_object *pendingBeforePostHooks = EG(exception);
     for (auto it = callbacks->rbegin(); it != callbacks->rend(); ++it) {
         auto &callback = *it;
         if (callback.second.isNull() || callback.second.isUndef()) {
@@ -496,7 +508,7 @@ void ZEND_FASTCALL internal_function_handler(INTERNAL_FUNCTION_PARAMETERS) {
             auto [cls, func] = getClassAndFunctionName(execute_data);
             ELOGF_CRITICAL(OTEL_GL(logger_), INSTRUMENTATION, "%s hash: 0x%X " PRsv "::" PRsv, e.what(), hash, PRsvArg(cls), PRsvArg(func));
         }
-        if (EG(exception) && zend_is_unwind_exit(EG(exception))) {
+        if (exitRaisedSince(pendingBeforePostHooks)) {
             break; // exit() called by a hook terminates the script, no more hooks
         }
     }
@@ -566,7 +578,7 @@ void observerFcallBeginHandler(zend_execute_data *execute_data) {
     notifyInferredSpansHookedFunction(false);
 
     auto callbacks = reinterpret_cast<InstrumentedFunctionHooksStorage_t *>(OTEL_GL(hooksStorage_).get())->find(hash);
-    auto const *attrMeta = AttrHooksStorage::getInstance().find(execute_data->func);
+    auto attrMeta = AttrHooksStorage::getInstance().find(execute_data->func);
 
     if (callbacks) {
         for (auto &callback : *callbacks) {
@@ -601,15 +613,19 @@ void observerFcallEndHandler(zend_execute_data *execute_data, zval *retval) {
 
     auto callbacks = reinterpret_cast<InstrumentedFunctionHooksStorage_t *>(OTEL_GL(hooksStorage_).get())->find(hash);
     // Attribute-based WithSpan hook. Its pre ran after the pre hooks, so its post runs before their posts (LIFO).
-    auto const *attrMeta = AttrHooksStorage::getInstance().find(execute_data->func);
+    zend_object *pendingBeforePostHooks = EG(exception);
+    auto attrMeta = AttrHooksStorage::getInstance().find(execute_data->func);
     if (attrMeta) {
-        AutomaticExceptionStateRestorer restorer;
+        AutomaticExceptionStateRestorer restorer{PendingExit::keep};
         callWithSpanHandlerPost(execute_data, retval, restorer.getException());
     }
 
     if (callbacks) {
         // post hooks run in reverse order of registration (LIFO), so that hooks wrapping the same function nest properly
         for (auto it = callbacks->rbegin(); it != callbacks->rend(); ++it) {
+            if (exitRaisedSince(pendingBeforePostHooks)) {
+                break; // exit() called by the WithSpan handler terminates the script
+            }
             auto &callback = *it;
             if (callback.second.isNull() || callback.second.isUndef()) {
                 continue;
@@ -622,7 +638,7 @@ void observerFcallEndHandler(zend_execute_data *execute_data, zval *retval) {
                 auto [cls, func] = getClassAndFunctionName(execute_data);
                 ELOGF_CRITICAL(OTEL_GL(logger_), INSTRUMENTATION, "observerFcallEndHandler. Unable to call posthook for 0x%X " PRsv "::" PRsv ": '%s'", hash, PRsvArg(cls), PRsvArg(func), e.what());
             }
-            if (EG(exception) && zend_is_unwind_exit(EG(exception))) {
+            if (exitRaisedSince(pendingBeforePostHooks)) {
                 break; // exit() called by a hook terminates the script, no more hooks
             }
         }

@@ -31,6 +31,8 @@ struct WithSpanMetadata {
     std::optional<int64_t>     spanKind;        ///< from WithSpan::$span_kind
     std::vector<SpanAttributeParam> paramAttributes; ///< from #[SpanAttribute] on params
     std::vector<SpanAttributeProp>  propAttributes;  ///< from #[SpanAttribute] on properties
+    /// The #[WithSpan] attribute has an `attributes` argument.
+    bool hasStaticAttributes = false;
     /// exit() was called while the attribute arguments were evaluated; nothing may be evaluated for this function after that.
     bool evaluationStopped = false;
     /// Set once an evaluation failure was reported for this function, to not repeat it on every call.
@@ -58,7 +60,5 @@ void addParameterAttributeValues(zend_execute_data *executeData, WithSpanMetadat
 /// Same for #[SpanAttribute] properties, read from $this.
 void addPropertyAttributeValues(zend_execute_data *executeData, WithSpanMetadata const &metadata, zval *out);
 
-/// true if the #[WithSpan] attribute of the function has an `attributes` argument.
-bool withSpanHasStaticAttributes(zend_function *func);
 
 } // namespace opentelemetry::php

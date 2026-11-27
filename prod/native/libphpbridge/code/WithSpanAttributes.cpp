@@ -100,11 +100,6 @@ bool hasWithSpanAttribute(zend_function *func) {
     return findWithSpanAttribute(func).has_value();
 }
 
-bool withSpanHasStaticAttributes(zend_function *func) {
-    auto resolved = findWithSpanAttribute(func);
-    return resolved && findAttributeArgIndex(resolved->attr, 2, "attributes").has_value();
-}
-
 void readWithSpanStaticAttributes(zend_function *func, AttributeArgEvaluator &evaluator, zval *out) {
     auto resolved = findWithSpanAttribute(func);
     if (!resolved) {
@@ -160,6 +155,7 @@ std::optional<WithSpanMetadata> readWithSpanMetadata(zend_function *func, Attrib
     }
 
     WithSpanMetadata metadata;
+    metadata.hasStaticAttributes = findAttributeArgIndex(withSpan->attr, 2, "attributes").has_value();
 
     metadata.spanName = evaluateToString(evaluator, *withSpan, 0, "span_name"sv);
 
