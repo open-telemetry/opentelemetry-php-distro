@@ -3,7 +3,7 @@ Check that WithSpan on a method still runs when the method is also hooked
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80100) die('skip requires PHP >= 8.1'); ?>
 --DESCRIPTION--
-opentelemetry-php-instrumentation applies the WithSpan handler only if no manual hook exists for the method. Distro runs both: manual pre, WithSpan pre, the method, manual post, WithSpan post.
+opentelemetry-php-instrumentation applies the WithSpan handler only if no manual hook exists for the method. Distro runs both: manual pre, WithSpan pre, the method, WithSpan post, manual post.
 --ENV--
 OTEL_PHP_SCOPED_DEPS_ENABLED=false
 --INI--
@@ -46,5 +46,5 @@ class Foo
 string(3) "pre"
 string(12) "withspan pre"
 string(3) "foo"
-string(4) "post"
 string(13) "withspan post"
+string(4) "post"

@@ -23,14 +23,11 @@ constexpr int maxChainedDiscards = 64;
 
 /// The method of the same name in `iface`, or nullptr.
 zend_function *findMethodInInterface(zend_class_entry *iface, zend_string *name) {
-    zval *zv = nullptr;
-    ZEND_HASH_FOREACH_VAL(&iface->function_table, zv) {
-        auto *method = static_cast<zend_function *>(Z_PTR_P(zv));
-        if (method->common.function_name && zend_string_equals_ci(method->common.function_name, name)) {
-            return method;
-        }
-    } ZEND_HASH_FOREACH_END();
-    return nullptr;
+    // function_table keys are lowercase. zend_hash_find_ptr_lc() is not exported by PHP 8.2.
+    zend_string *lcName = zend_string_tolower(name);
+    auto *method = static_cast<zend_function *>(zend_hash_find_ptr(&iface->function_table, lcName));
+    zend_string_release(lcName);
+    return method;
 }
 
 template <typename Lookup>

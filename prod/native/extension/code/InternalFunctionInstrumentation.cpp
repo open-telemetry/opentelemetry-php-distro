@@ -60,13 +60,16 @@ static std::optional<InferredSpans::SamplingSuspension> notifyInferredSpansHooke
     return suspension;
 }
 
-/// Logs a failure recorded by `evaluator`, once per function and request: the declaration is the same on every call,
-/// so a hot function would otherwise flood the log.
-static void reportAttributeEvaluationFailure(AttributeArgEvaluator const &evaluator, zend_execute_data *execute_data, WithSpanMetadata const &meta) {
-    if (!evaluator.failure() || meta.evalFailureReported) {
+/// Logs a failure recorded by `evaluator`. With `oncePerFunction` it is logged only the first time for the function
+/// (the declaration is the same on every call, so a hot function would otherwise flood the log); the flag lives in the
+/// metadata, which is re-created on the first call of the function in every request.
+static void reportAttributeEvaluationFailure(AttributeArgEvaluator const &evaluator, zend_execute_data *execute_data, WithSpanMetadata const &meta, bool oncePerFunction) {
+    if (!evaluator.failure() || (oncePerFunction && meta.evalFailureReported)) {
         return;
     }
-    meta.evalFailureReported = true;
+    if (oncePerFunction) {
+        meta.evalFailureReported = true;
+    }
 
     auto [cls, fn] = getClassAndFunctionName(execute_data);
     ELOGF_WARNING(OTEL_GL(logger_), INSTRUMENTATION, "#[WithSpan]/#[SpanAttribute] argument evaluation failed for " PRsv "::" PRsv ": %s", PRsvArg(cls), PRsvArg(fn), evaluator.failure()->message.c_str());
@@ -106,7 +109,7 @@ static void callWithSpanHandlerPre(zend_execute_data *execute_data, WithSpanMeta
     if (!meta.evaluationStopped && withSpanHasStaticAttributes(execute_data->func)) {
         AttributeArgEvaluator evaluator;
         readWithSpanStaticAttributes(execute_data->func, evaluator, params[7].get());
-        reportAttributeEvaluationFailure(evaluator, execute_data, meta);
+        reportAttributeEvaluationFailure(evaluator, execute_data, meta, true);
     }
 
     addParameterAttributeValues(execute_data, meta, params[7].get());
@@ -281,19 +284,50 @@ void argsPostProcessing(AutoZval &functionArgs, AutoZval &returnValue) {
     } ZEND_HASH_FOREACH_END();
 
     if (mayHaveUndef) {
-        // Parameters that were skipped over get their default values (or null if there is none).
-        zend_object *pending = EG(exception);
-        EG(exception) = reinterpret_cast<zend_object *>(static_cast<uintptr_t>(-1));
-        if (zend_handle_undef_args(execute_data) == FAILURE) {
-            uint32_t numArgs = ZEND_CALL_NUM_ARGS(execute_data);
-            for (uint32_t idx = 0; idx < numArgs; ++idx) {
-                zval *arg = slotFor(idx);
-                if (Z_ISUNDEF_P(arg)) {
-                    ZVAL_NULL(arg);
-                }
+        // Parameters that were skipped over get their default values (or null if there is none). The engine looks at
+        // the first ZEND_CALL_NUM_ARGS arguments as if they were declared parameters, so for a user function only
+        // the declared ones may be counted: the rest are extra arguments, stored elsewhere.
+        const uint32_t numArgs = ZEND_CALL_NUM_ARGS(execute_data);
+        if (!isInternal) {
+            ZEND_CALL_NUM_ARGS(execute_data) = std::min(numArgs, declaredArgs);
+        }
+        // The engine does this before the callee frame becomes the current one, so an exception from evaluating a
+        // default is raised in the caller. Do the same, and put the caller's state back afterwards.
+        zend_execute_data *currentFrame = EG(current_execute_data);
+        zend_execute_data *callerFrame = currentFrame->prev_execute_data;
+        const zend_op *callerOpline = callerFrame ? callerFrame->opline : nullptr;
+        const zend_op *opLineBeforeException = EG(opline_before_exception);
+        if (callerFrame) {
+            EG(current_execute_data) = callerFrame;
+        }
+        bool failed = zend_handle_undef_args(execute_data) == FAILURE;
+        EG(current_execute_data) = currentFrame;
+        ZEND_CALL_NUM_ARGS(execute_data) = numArgs;
+
+        // Evaluating a default can throw (constant that does not exist, class that cannot be loaded) or call exit().
+        // Neither may reach the observed function, the hook already ran.
+        if (EG(exception)) {
+            zend_object *thrown = EG(exception);
+            EG(exception) = nullptr;
+#if PHP_VERSION_ID < 80600
+            EG(prev_exception) = nullptr;
+#endif
+            OBJ_RELEASE(thrown);
+            failed = true;
+        }
+        if (callerFrame) {
+            callerFrame->opline = callerOpline;
+        }
+        EG(opline_before_exception) = opLineBeforeException;
+
+        // Slots that are still undefined: all of them if the defaults could not be applied, otherwise the gaps in
+        // the extra arguments, which have no default.
+        for (uint32_t idx = failed ? 0 : declaredArgs; idx < numArgs; ++idx) {
+            zval *arg = slotFor(idx);
+            if (Z_ISUNDEF_P(arg)) {
+                ZVAL_NULL(arg);
             }
         }
-        EG(exception) = pending;
     }
 }
 
@@ -557,6 +591,13 @@ void observerFcallEndHandler(zend_execute_data *execute_data, zval *retval) {
     auto samplingSuspension = notifyInferredSpansHookedFunction(true);
 
     auto callbacks = reinterpret_cast<InstrumentedFunctionHooksStorage_t *>(OTEL_GL(hooksStorage_).get())->find(hash);
+    // Attribute-based WithSpan hook. Its pre ran after the pre hooks, so its post runs before their posts (LIFO).
+    auto const *attrMeta = AttrHooksStorage::getInstance().find(hash);
+    if (attrMeta) {
+        AutomaticExceptionStateRestorer restorer;
+        callWithSpanHandlerPost(execute_data, retval, restorer.getException());
+    }
+
     if (callbacks) {
         // post hooks run in reverse order of registration (LIFO), so that hooks wrapping the same function nest properly
         for (auto it = callbacks->rbegin(); it != callbacks->rend(); ++it) {
@@ -578,12 +619,7 @@ void observerFcallEndHandler(zend_execute_data *execute_data, zval *retval) {
         }
     }
 
-    // Attribute-based WithSpan hook
-    auto const *attrMeta = AttrHooksStorage::getInstance().find(hash);
-    if (attrMeta) {
-        AutomaticExceptionStateRestorer restorer;
-        callWithSpanHandlerPost(execute_data, retval, restorer.getException());
-    } else if (!callbacks) {
+    if (!attrMeta && !callbacks) {
         auto [cls, func] = getClassAndFunctionName(execute_data);
         ELOGF_ERROR(OTEL_GL(logger_), INSTRUMENTATION, "Unable to find posthook handler for 0x%X " PRsv "::" PRsv, hash, PRsvArg(cls), PRsvArg(func));
     }
@@ -649,7 +685,7 @@ zend_observer_fcall_handlers registerObserverHandlers(zend_execute_data *execute
             AttributeArgEvaluator evaluator;
             auto metaOpt = readWithSpanMetadata(func, evaluator);
             if (metaOpt) {
-                reportAttributeEvaluationFailure(evaluator, execute_data, *metaOpt);
+                reportAttributeEvaluationFailure(evaluator, execute_data, *metaOpt, false);
                 AttrHooksStorage::getInstance().store(hash, std::move(*metaOpt));
                 haveAttrHook = true;
                 ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "registerObserverHandlers hash: 0x%X registered attribute hook (#[WithSpan])", hash);

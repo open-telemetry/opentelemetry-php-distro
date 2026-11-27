@@ -3,6 +3,12 @@
 ### What's changed
 
 - feat: support PHP 8.6. Supported PHP versions are now 8.2 to 8.6.
+- **Post hooks run in reverse order of registration** (LIFO), as in opentelemetry-php-instrumentation, so hooks wrapping the same function nest properly. When several post hooks replace the return value, the first registered one now wins. The `#[WithSpan]` post runs before the post hooks of the function.
+- fix: `exit()` called from a post hook terminates the script instead of being dropped when the function threw.
+- fix: a pre hook that returns more arguments than the caller passed no longer crashes PHP, skipped parameters get their default values.
+- fix: `hook('\\Some\\Class', '\\Some\\func')` is the same hook as `hook('Some\\Class', 'Some\\func')`.
+- fix: the called class name passed to hooks of static methods is no longer over-freed, and hooks of internal methods called through a closure receive the bound object.
+- fix: `#[WithSpan]` and `#[SpanAttribute]`: exceptions and `exit()` raised while evaluating attribute arguments no longer reach the application, attributes declared on interface methods are applied to the implementation, variadic, extra and by-reference arguments are supported, values that are not valid attribute values (null, objects) are skipped, and an invalid `SpanAttribute` name drops the attribute instead of renaming it.
 
 ## 0.8.0
 

@@ -49,5 +49,5 @@ namespace {
 string(10) "manual_pre"
 string(12) "withspan_pre"
 string(4) "test"
-string(11) "manual_post"
 string(13) "withspan_post"
+string(11) "manual_post"
