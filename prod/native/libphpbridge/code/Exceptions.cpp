@@ -30,7 +30,20 @@ SavedException saveExceptionState() {
     return savedException;
 }
 
-void restoreExceptionState(SavedException savedException) {
+void restoreExceptionState(SavedException savedException, PendingExit pendingExit) {
+    if (pendingExit == PendingExit::keep && EG(exception) && zend_is_unwind_exit(EG(exception))) {
+        // exit() called by the isolated code wins over whatever was pending before it
+        if (savedException.exception) {
+            OBJ_RELEASE(savedException.exception);
+        }
+#if PHP_VERSION_ID < 80600
+        if (savedException.prev_exception) {
+            OBJ_RELEASE(savedException.prev_exception);
+        }
+#endif
+        return;
+    }
+
     EG(exception) = savedException.exception;
 #if PHP_VERSION_ID < 80600
     EG(prev_exception) = savedException.prev_exception;

@@ -1,7 +1,5 @@
 --TEST--
 Check hooking namespaced class with and without leading slash
---XFAIL--
-leading backslash in the class name passed to hook() is not normalized, so the hook is registered under a different key
 --INI--
 extension=/otel/opentelemetry_php_distro.so
 opentelemetry_distro.bootstrap_php_part_file={PWD}/../includes/bootstrap_mock.inc
@@ -51,7 +49,7 @@ array(6) {
   [5]=>
   int(23)
 }
-array(8) {
+array(6) {
   [0]=>
   string(25) "Some\Namespace\HelloWorld"
   [1]=>
@@ -65,10 +63,4 @@ array(8) {
   string(%d) "%s012.php"
   [5]=>
   int(23)
-  [6]=>
-  array(0) {
-  }
-  [7]=>
-  array(0) {
-  }
 }

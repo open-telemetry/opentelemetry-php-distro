@@ -204,11 +204,22 @@ void argsPostProcessing(AutoZval &functionArgs, AutoZval &returnValue) {
     zval *argValue = nullptr;
 
     zend_execute_data *execute_data = EG(current_execute_data);
+    zend_function *func = execute_data->func;
+    const bool isInternal = func->type == ZEND_INTERNAL_FUNCTION;
+    const uint32_t initialCallNumArgs = ZEND_CALL_NUM_ARGS(execute_data);
+    // Arguments of an internal function are all stored right after the frame header. A user function has slots for
+    // its declared parameters there, followed by compiled variables and temporaries, and only after those come the
+    // arguments passed beyond the declared ones ("extra" arguments).
+    const uint32_t declaredArgs = isInternal ? initialCallNumArgs : func->op_array.num_args;
 
-    uint32_t requiredArgsCount = execute_data->func->type == ZEND_INTERNAL_FUNCTION ? ZEND_CALL_NUM_ARGS(execute_data) : execute_data->func->op_array.last_var;
-    uint32_t initalCallNumArgs = ZEND_CALL_NUM_ARGS(execute_data);
+    auto slotFor = [&](uint32_t index) -> zval * {
+        if (isInternal || index < declaredArgs) {
+            return ZEND_CALL_ARG(execute_data, index + 1);
+        }
+        return ZEND_CALL_VAR_NUM(execute_data, func->op_array.last_var + func->op_array.T) + (index - declaredArgs);
+    };
 
-    ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing requiredArgsCount: %d initialCallNumArgs: %d", requiredArgsCount, initalCallNumArgs);
+    ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing declaredArgs: %d initialCallNumArgs: %d", declaredArgs, initialCallNumArgs);
 
     uint32_t highestArgIdx = 0;
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARR_P(returnValue.get()), argIndex, argStrKey, argValue) {
@@ -217,22 +228,37 @@ void argsPostProcessing(AutoZval &functionArgs, AutoZval &returnValue) {
         }
     } ZEND_HASH_FOREACH_END();
 
-    ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing highestArgIdx: %d vm_stack free: %d", highestArgIdx, EG(vm_stack_end) - EG(vm_stack_top));
+    uint32_t newCallNumArgs = std::max(initialCallNumArgs, highestArgIdx + 1);
+    bool mayHaveUndef = false;
 
-    // extending stack and undefining potential gaps
-    if (highestArgIdx + 1 > initalCallNumArgs) {
-        uint32_t howManyArgsToAdd = highestArgIdx + 1 - initalCallNumArgs;
-        ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "postProcessing trying extend stack frame with %d arguments", howManyArgsToAdd);
+    if (newCallNumArgs > initialCallNumArgs) {
+        // Only arguments that do not fit into the already reserved slots need new room at the end of the frame.
+        uint32_t reservedBefore = isInternal ? initialCallNumArgs : std::max(initialCallNumArgs, declaredArgs);
+        uint32_t reservedAfter = isInternal ? newCallNumArgs : std::max(newCallNumArgs, declaredArgs);
+        uint32_t slotsToAdd = reservedAfter - reservedBefore;
 
-        zend_vm_stack_extend_call_frame(&execute_data, initalCallNumArgs, howManyArgsToAdd);
+        size_t freeSlots = EG(vm_stack_end) - EG(vm_stack_top);
+        ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing highestArgIdx: %d slotsToAdd: %d vm_stack free: %zu", highestArgIdx, slotsToAdd, freeSlots);
 
-        for (uint32_t idx = 0; idx < howManyArgsToAdd; ++idx) {
-            zval *target = ZEND_CALL_ARG(execute_data, execute_data->func->type == ZEND_INTERNAL_FUNCTION ? initalCallNumArgs + idx + 1 :  initalCallNumArgs + idx + 1 + execute_data->func->op_array.T);
-            ZVAL_UNDEF(target);
+        if (slotsToAdd >= freeSlots) {
+            // The frame is the last one on the stack; growing it past the end of the page would mean moving it.
+            ELOGF_WARNING(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing: not enough room left in the stack page to add %d arguments", slotsToAdd);
+            return;
         }
-        ZEND_CALL_NUM_ARGS(execute_data) += howManyArgsToAdd;
-        ZEND_ADD_CALL_FLAG(execute_data, ZEND_CALL_FREE_EXTRA_ARGS);
+        EG(vm_stack_top) += slotsToAdd;
+
+        // undefine all new slots, those not assigned below stay undefined and get their defaults afterwards
+        for (uint32_t idx = initialCallNumArgs; idx < newCallNumArgs; ++idx) {
+            ZVAL_UNDEF(slotFor(idx));
+        }
+        ZEND_CALL_NUM_ARGS(execute_data) = newCallNumArgs;
         ZEND_ADD_CALL_FLAG(execute_data, ZEND_CALL_MAY_HAVE_UNDEF);
+        mayHaveUndef = true;
+
+        // The flag makes the engine release the extra arguments on return, and it assumes there is at least one.
+        if (!isInternal && newCallNumArgs > declaredArgs) {
+            ZEND_ADD_CALL_FLAG(execute_data, ZEND_CALL_FREE_EXTRA_ARGS);
+        }
     }
 
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARR_P(returnValue.get()), argIndex, argStrKey, argValue) {
@@ -248,17 +274,27 @@ void argsPostProcessing(AutoZval &functionArgs, AutoZval &returnValue) {
         }
         ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing idx: %d", argIndex);
 
-        zval *target = nullptr;
-        if (argIndex < requiredArgsCount) {
-            target = ZEND_CALL_ARG(execute_data, argIndex + 1);
-        } else {
-            target = ZEND_CALL_ARG(execute_data, execute_data->func->type == ZEND_INTERNAL_FUNCTION ? argIndex + 1 : argIndex + 1 + execute_data->func->op_array.T);
-
-        }
+        zval *target = slotFor(argIndex);
         //TODO consider refs
         zval_ptr_dtor(target);
         ZVAL_COPY(target, argValue);
     } ZEND_HASH_FOREACH_END();
+
+    if (mayHaveUndef) {
+        // Parameters that were skipped over get their default values (or null if there is none).
+        zend_object *pending = EG(exception);
+        EG(exception) = reinterpret_cast<zend_object *>(static_cast<uintptr_t>(-1));
+        if (zend_handle_undef_args(execute_data) == FAILURE) {
+            uint32_t numArgs = ZEND_CALL_NUM_ARGS(execute_data);
+            for (uint32_t idx = 0; idx < numArgs; ++idx) {
+                zval *arg = slotFor(idx);
+                if (Z_ISUNDEF_P(arg)) {
+                    ZVAL_NULL(arg);
+                }
+            }
+        }
+        EG(exception) = pending;
+    }
 }
 
 void callPreHook(AutoZval &prehook) {
@@ -401,19 +437,24 @@ void ZEND_FASTCALL internal_function_handler(INTERNAL_FUNCTION_PARAMETERS) {
 
     auto samplingSuspension = notifyInferredSpansHookedFunction(true);
 
-    for (auto &callback : *callbacks) {
+    // post hooks run in reverse order of registration (LIFO), so that hooks wrapping the same function nest properly
+    for (auto it = callbacks->rbegin(); it != callbacks->rend(); ++it) {
+        auto &callback = *it;
         if (callback.second.isNull() || callback.second.isUndef()) {
             continue;
         }
 
         try {
-            AutomaticExceptionStateRestorer restorer;
+            AutomaticExceptionStateRestorer restorer{PendingExit::keep};
             callPostHook(callback.second, return_value, restorer.getException(), execute_data);
 
             handleAndReleaseHookException(EG(exception));
         } catch (std::exception const &e) {
             auto [cls, func] = getClassAndFunctionName(execute_data);
             ELOGF_CRITICAL(OTEL_GL(logger_), INSTRUMENTATION, "%s hash: 0x%X " PRsv "::" PRsv, e.what(), hash, PRsvArg(cls), PRsvArg(func));
+        }
+        if (EG(exception) && zend_is_unwind_exit(EG(exception))) {
+            break; // exit() called by a hook terminates the script, no more hooks
         }
     }
 
@@ -423,6 +464,14 @@ void ZEND_FASTCALL internal_function_handler(INTERNAL_FUNCTION_PARAMETERS) {
 bool instrumentFunction(LoggerInterface *log, std::string_view cName, std::string_view fName, zval *callableOnEntry, zval *callableOnExit) {
     //TODO if called from other place that MINIT - make it thread safe in ZTS
     //TODO use hash struct instead of combined to prevent collisions
+
+    // hook('\\Some\\Class', '\\Some\\func') is the same function as hook('Some\\Class', 'Some\\func')
+    if (!cName.empty() && cName.front() == '\\') {
+        cName.remove_prefix(1);
+    }
+    if (!fName.empty() && fName.front() == '\\') {
+        fName.remove_prefix(1);
+    }
 
     std::string className{cName.data(), cName.length()};
     std::string functionName{fName.data(), fName.length()};
@@ -509,17 +558,22 @@ void observerFcallEndHandler(zend_execute_data *execute_data, zval *retval) {
 
     auto callbacks = reinterpret_cast<InstrumentedFunctionHooksStorage_t *>(OTEL_GL(hooksStorage_).get())->find(hash);
     if (callbacks) {
-        for (auto &callback : *callbacks) {
+        // post hooks run in reverse order of registration (LIFO), so that hooks wrapping the same function nest properly
+        for (auto it = callbacks->rbegin(); it != callbacks->rend(); ++it) {
+            auto &callback = *it;
             if (callback.second.isNull() || callback.second.isUndef()) {
                 continue;
             }
             try {
-                AutomaticExceptionStateRestorer restorer;
+                AutomaticExceptionStateRestorer restorer{PendingExit::keep};
                 callPostHook(callback.second, retval, restorer.getException(), execute_data);
                 handleAndReleaseHookException(EG(exception));
             } catch (std::exception const &e) {
                 auto [cls, func] = getClassAndFunctionName(execute_data);
                 ELOGF_CRITICAL(OTEL_GL(logger_), INSTRUMENTATION, "observerFcallEndHandler. Unable to call posthook for 0x%X " PRsv "::" PRsv ": '%s'", hash, PRsvArg(cls), PRsvArg(func), e.what());
+            }
+            if (EG(exception) && zend_is_unwind_exit(EG(exception))) {
+                break; // exit() called by a hook terminates the script, no more hooks
             }
         }
     }

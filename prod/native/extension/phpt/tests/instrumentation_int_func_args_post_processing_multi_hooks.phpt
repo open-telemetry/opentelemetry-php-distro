@@ -107,8 +107,6 @@ array(6) {
   [5]=>
   NULL
 }
-*** posthook 1()
-*** posthook 2()
 *** posthook 3()
 args:
 array(8) {
@@ -122,7 +120,7 @@ array(8) {
     string(6) "search"
   }
   [2]=>
-  string(18) "modified_rv_in_1st"
+  bool(true)
   [3]=>
   NULL
   [4]=>
@@ -134,5 +132,7 @@ array(8) {
   [7]=>
   NULL
 }
-string(53) "this is insane - we're returning bool isntead of bool"
+*** posthook 2()
+*** posthook 1()
+string(18) "modified_rv_in_1st"
 Test completed

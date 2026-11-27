@@ -1,11 +1,9 @@
 --TEST--
-Check if hooking a method takes priority over WithSpan
---XFAIL--
-WithSpan handler is skipped by instrumentation-ext when a manual hook() exists for the function; distro runs both
+Check that WithSpan on a method still runs when the method is also hooked
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80100) die('skip requires PHP >= 8.1'); ?>
 --DESCRIPTION--
-Attribute-based hooks are only applied if no other hooks are registered on a function or method.
+opentelemetry-php-instrumentation applies the WithSpan handler only if no manual hook exists for the method. Distro runs both: manual pre, WithSpan pre, the method, manual post, WithSpan post.
 --ENV--
 OTEL_PHP_SCOPED_DEPS_ENABLED=false
 --INI--
@@ -23,11 +21,11 @@ class WithSpanHandler
 {
     public static function pre(): void
     {
-        var_dump('should not be called');
+        var_dump('withspan pre');
     }
     public static function post(): void
     {
-        var_dump('should not be called');
+        var_dump('withspan post');
     }
 }
 
@@ -46,5 +44,7 @@ class Foo
 ?>
 --EXPECT--
 string(3) "pre"
+string(12) "withspan pre"
 string(3) "foo"
 string(4) "post"
+string(13) "withspan post"

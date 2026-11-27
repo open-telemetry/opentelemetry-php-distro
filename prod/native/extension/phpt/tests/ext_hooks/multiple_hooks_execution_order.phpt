@@ -1,7 +1,5 @@
 --TEST--
 Check multiple hooks execute in correct order (pre: FIFO, post: LIFO)
---XFAIL--
-post hooks run in registration order; instrumentation-ext runs them in reverse (LIFO)
 --INI--
 extension=/otel/opentelemetry_php_distro.so
 opentelemetry_distro.bootstrap_php_part_file={PWD}/../includes/bootstrap_mock.inc

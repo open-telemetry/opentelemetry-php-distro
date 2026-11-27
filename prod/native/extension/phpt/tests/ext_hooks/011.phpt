@@ -1,7 +1,5 @@
 --TEST--
 Check hooking namespaced function
---XFAIL--
-leading backslash in the function name passed to hook() is not normalized, so the hook is registered under a different key
 --INI--
 extension=/otel/opentelemetry_php_distro.so
 opentelemetry_distro.bootstrap_php_part_file={PWD}/../includes/bootstrap_mock.inc
@@ -48,7 +46,7 @@ array(6) {
   [5]=>
   int(21)
 }
-array(8) {
+array(6) {
   [0]=>
   NULL
   [1]=>
@@ -62,10 +60,4 @@ array(8) {
   string(%d) "%s011.php"
   [5]=>
   int(21)
-  [6]=>
-  array(0) {
-  }
-  [7]=>
-  array(0) {
-  }
 }

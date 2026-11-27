@@ -1,7 +1,5 @@
 --TEST--
 Check if pre hook can modify params of function
---XFAIL--
-CRASH (SIGSEGV): pre hook returning more args than the caller passed
 --INI--
 extension=/otel/opentelemetry_php_distro.so
 opentelemetry_distro.bootstrap_php_part_file={PWD}/../includes/bootstrap_mock.inc

@@ -1,5 +1,5 @@
 --TEST--
-instrumentation - user func - return value replacement in multiple hooks - last takes effect
+instrumentation - user func - return value replacement in multiple hooks - post hooks run in reverse order, first registered takes effect
 --ENV--
 OTEL_PHP_LOG_LEVEL_STDERR=INFO
 --INI--
@@ -44,8 +44,8 @@ echo "Test completed\n";
 *** second prehook userspace()
 *** third prehook userspace()
 * userspace() body.
-*** posthook userspace()
-*** second posthook userspace()
 *** third posthook userspace()
-string(8) "third_rv"
+*** second posthook userspace()
+*** posthook userspace()
+string(8) "first_rv"
 Test completed

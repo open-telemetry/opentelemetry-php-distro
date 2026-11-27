@@ -16,22 +16,32 @@ struct SavedException {
     std::optional<const zend_op *> opline;
 };
 
+/// What to do when the isolated code (a hook) left an exit() pending.
+enum class PendingExit {
+    /// restore the saved state, the exit is dropped
+    discard,
+    /// keep the exit pending so that it terminates the script; the saved exception is released then, exit wins
+    keep,
+};
+
 SavedException saveExceptionState();
-void restoreExceptionState(SavedException savedException);
+void restoreExceptionState(SavedException savedException, PendingExit pendingExit = PendingExit::discard);
+
 
 
 class AutomaticExceptionStateRestorer {
 public:
-    AutomaticExceptionStateRestorer() : savedException(saveExceptionState()) {
+    explicit AutomaticExceptionStateRestorer(PendingExit pendingExit = PendingExit::discard) : pendingExit(pendingExit), savedException(saveExceptionState()) {
     }
     ~AutomaticExceptionStateRestorer() {
-        restoreExceptionState(savedException);
+        restoreExceptionState(savedException, pendingExit);
     }
     auto getException() {
         return savedException.exception;
     }
 
 private:
+    PendingExit pendingExit;
     SavedException savedException;
 };
 
