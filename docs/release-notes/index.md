@@ -8,6 +8,7 @@
 - fix: a pre hook that returns more arguments than the caller passed no longer crashes PHP, skipped parameters get their default values.
 - fix: `hook('\\Some\\Class', '\\Some\\func')` is the same hook as `hook('Some\\Class', 'Some\\func')`.
 - fix: the called class name passed to hooks of static methods is no longer over-freed, and hooks of internal methods called through a closure receive the bound object.
+- fix: closures with different `#[WithSpan]` attributes no longer share metadata (span name, kind, attributes) on PHP before 8.4, where all closures are named `{closure}`.
 - fix: `#[WithSpan]` and `#[SpanAttribute]`: exceptions and `exit()` raised while evaluating attribute arguments no longer reach the application, attributes declared on interface methods are applied to the implementation, variadic, extra and by-reference arguments are supported, values that are not valid attribute values (null, objects) are skipped, and an invalid `SpanAttribute` name drops the attribute instead of renaming it.
 
 ## 0.8.0

@@ -557,7 +557,7 @@ void observerFcallBeginHandler(zend_execute_data *execute_data) {
     notifyInferredSpansHookedFunction(false);
 
     auto callbacks = reinterpret_cast<InstrumentedFunctionHooksStorage_t *>(OTEL_GL(hooksStorage_).get())->find(hash);
-    auto const *attrMeta = AttrHooksStorage::getInstance().find(hash);
+    auto const *attrMeta = AttrHooksStorage::getInstance().find(execute_data->func);
 
     if (callbacks) {
         for (auto &callback : *callbacks) {
@@ -592,7 +592,7 @@ void observerFcallEndHandler(zend_execute_data *execute_data, zval *retval) {
 
     auto callbacks = reinterpret_cast<InstrumentedFunctionHooksStorage_t *>(OTEL_GL(hooksStorage_).get())->find(hash);
     // Attribute-based WithSpan hook. Its pre ran after the pre hooks, so its post runs before their posts (LIFO).
-    auto const *attrMeta = AttrHooksStorage::getInstance().find(hash);
+    auto const *attrMeta = AttrHooksStorage::getInstance().find(execute_data->func);
     if (attrMeta) {
         AutomaticExceptionStateRestorer restorer;
         callWithSpanHandlerPost(execute_data, retval, restorer.getException());
@@ -679,6 +679,11 @@ zend_observer_fcall_handlers registerObserverHandlers(zend_execute_data *execute
     // Attribute-based hooks: register if attr_hooks_enabled and #[WithSpan] is present.
     // Works independently of user hooks registered via hook().
     bool haveAttrHook = false;
+    {
+        auto *func = execute_data->func;
+        // the address of a freed function can be reused, make sure that nothing of its predecessor is left
+        AttrHooksStorage::getInstance().erase(func);
+    }
     if (OTEL_GL(config_)->get().attr_hooks_enabled) {
         auto *func = execute_data->func;
         if (hasWithSpanAttribute(func)) {
@@ -686,7 +691,7 @@ zend_observer_fcall_handlers registerObserverHandlers(zend_execute_data *execute
             auto metaOpt = readWithSpanMetadata(func, evaluator);
             if (metaOpt) {
                 reportAttributeEvaluationFailure(evaluator, execute_data, *metaOpt, false);
-                AttrHooksStorage::getInstance().store(hash, std::move(*metaOpt));
+                AttrHooksStorage::getInstance().store(func, std::move(*metaOpt));
                 haveAttrHook = true;
                 ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "registerObserverHandlers hash: 0x%X registered attribute hook (#[WithSpan])", hash);
             }

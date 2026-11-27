@@ -35,7 +35,7 @@ public:
         return &found->second;
     }
 
-    void clear() final {
+    void clear() override {
         callbacks_.clear();
     }
 

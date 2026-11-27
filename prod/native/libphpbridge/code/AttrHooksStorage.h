@@ -7,23 +7,20 @@
 
 namespace opentelemetry::php {
 
-// Per-process singleton mapping function hash → WithSpanMetadata for
-// attribute-based (#[WithSpan]) instrumentation.
+// Per-process singleton mapping a function to the WithSpanMetadata of its #[WithSpan] attribute (attribute-based
+// instrumentation).
 //
-// Lifecycle: populated from registerObserverHandlers(), which re-runs on the first call of a
-// given function within each request (zend_activate() resets the map-pointer-backed run_time_cache,
-// including the observer install slot, at the start of every request - it is NOT a once-per-process
-// thing). Unlike hooksStorage_, this is never cleared at request shutdown: WithSpanMetadata holds
-// no PHP-owned memory (every field is a deep copy into std::string/std::vector, see
-// WithSpanAttributes.cpp) so nothing here depends on PHP's per-request memory pool - it's safe to
-// keep across requests purely as a cache to avoid re-parsing attributes every time.
+// The key is the zend_function itself, not the name of the class and function. Names are not unique: before PHP 8.4
+// every closure is called {closure} and has no class, so all of them would share one entry.
 //
-// store() unconditionally overwrites rather than no-op'ing on an existing key: the hash depends
-// only on the (lowercased) class+function name, not on which compiled version of the code defined
-// it. Live code deploys under a warm worker (opcache re-detects the changed file, recompiles a new
-// op_array, and registerObserverHandlers() re-reads the now-current #[WithSpan] attribute) must be
-// able to replace a stale cached value, not have it permanently rejected by an emplace() no-op -
-// otherwise a changed span_name/attributes would stay stuck until the worker process recycles.
+// Lifecycle: an entry is stored by registerObserverHandlers(), which runs on the first call of a function within each
+// request (zend_activate() resets the run_time_cache, including the observer install slot, at the start of every
+// request), and it is looked up by the observer handlers of that same function. A zend_function can be freed and its
+// address reused by another function, a closure object for example, so:
+//   - registerObserverHandlers() must erase() the entry of a function that has no #[WithSpan], and
+//   - the storage is cleared at the end of every request, no entry outlives the functions of the request.
+// WithSpanMetadata holds no PHP-owned memory (every field is a deep copy into std::string/std::vector, see
+// WithSpanAttributes.cpp), so clearing is just freeing C++ memory.
 //
 // TODO: ZTS — concurrent store() and find() are not thread-safe.
 //       Add std::shared_mutex when ZTS support is needed (same caveat as
@@ -36,23 +33,30 @@ public:
     }
 
     // Returns nullptr if not found.
-    const WithSpanMetadata *find(zend_ulong hash) const {
-        auto it = storage_.find(hash);
+    const WithSpanMetadata *find(const zend_function *func) const {
+        auto it = storage_.find(func);
         if (it == storage_.end()) {
             return nullptr;
         }
         return &it->second;
     }
 
-    // Always overwrites any existing entry for this hash - see class comment above for why a
-    // no-op-if-present (emplace) semantics would be wrong here.
-    void store(zend_ulong hash, WithSpanMetadata meta) {
-        storage_[hash] = std::move(meta);
+    // Always overwrites any existing entry for this function, it can only be a stale one.
+    void store(const zend_function *func, WithSpanMetadata meta) {
+        storage_[func] = std::move(meta);
+    }
+
+    void erase(const zend_function *func) {
+        storage_.erase(func);
+    }
+
+    void clear() {
+        storage_.clear();
     }
 
 private:
     AttrHooksStorage() = default;
-    std::unordered_map<zend_ulong, WithSpanMetadata> storage_;
+    std::unordered_map<const zend_function *, WithSpanMetadata> storage_;
 };
 
 } // namespace opentelemetry::php
