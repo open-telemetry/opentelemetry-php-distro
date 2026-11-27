@@ -399,7 +399,11 @@ PHP_FUNCTION(getWithSpanMetadata) {
         RETURN_NULL();
     }
 
-    auto metaOpt = opentelemetry::php::readWithSpanMetadata(func);
+    opentelemetry::php::AttributeArgEvaluator evaluator;
+    auto metaOpt = opentelemetry::php::readWithSpanMetadata(func, evaluator);
+    if (evaluator.failure()) {
+        BRIDGE_G(globals)->logger->printf(LogLevel::logLevel_warning, "getWithSpanMetadata: attribute argument evaluation failed: %s", evaluator.failure()->message.c_str());
+    }
     if (!metaOpt) {
         RETURN_NULL();
     }

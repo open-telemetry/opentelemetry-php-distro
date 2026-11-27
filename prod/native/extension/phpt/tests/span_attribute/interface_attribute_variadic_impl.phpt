@@ -1,0 +1,59 @@
+--TEST--
+Check interface SpanAttributes reach a variadic implementation
+--DESCRIPTION--
+A variadic method can implement an interface method with more parameters. The
+interface's attributes then sit at indexes the implementation never declared,
+so the lookup must not be bounded by the implementation's num_args.
+
+A bare attribute at such an index has no parameter name to key on, so it is
+dropped rather than given an invented key.
+--XFAIL--
+#[WithSpan]/#[SpanAttribute] declared on an interface method is not inherited by the implementing method (instrumentation-ext looks it up through the implemented interfaces)
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80100) die('skip requires PHP >= 8.1'); ?>
+--ENV--
+OTEL_PHP_SCOPED_DEPS_ENABLED=false
+--INI--
+extension=/otel/opentelemetry_php_distro.so
+opentelemetry_distro.bootstrap_php_part_file={PWD}/../includes/bootstrap_mock_unscoped.inc
+opentelemetry_distro.attr_hooks_enabled = On
+--FILE--
+<?php
+namespace OpenTelemetry\API\Instrumentation;
+
+include dirname(__DIR__) . '/mocks/WithSpan.php';
+include dirname(__DIR__) . '/mocks/SpanAttribute.php';
+include dirname(__DIR__) . '/mocks/WithSpanHandlerDumpAttributes.php';
+use OpenTelemetry\API\Instrumentation\WithSpan;
+use OpenTelemetry\API\Instrumentation\SpanAttribute;
+
+interface I
+{
+    #[WithSpan]
+    function m(
+        #[SpanAttribute('a')] string $x,
+        #[SpanAttribute('b')] string $y,
+        #[SpanAttribute] string $z,
+    ): void;
+}
+
+class C implements I
+{
+    function m(string ...$args): void
+    {
+        var_dump('body');
+    }
+}
+
+(new C())->m('X', 'Y', 'Z');
+?>
+--EXPECT--
+string(3) "pre"
+array(2) {
+  ["a"]=>
+  string(1) "X"
+  ["b"]=>
+  string(1) "Y"
+}
+string(4) "body"
+string(4) "post"

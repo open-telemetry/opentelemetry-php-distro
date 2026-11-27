@@ -60,6 +60,18 @@ static std::optional<InferredSpans::SamplingSuspension> notifyInferredSpansHooke
     return suspension;
 }
 
+/// Logs a failure recorded by `evaluator`, once per function and request: the declaration is the same on every call,
+/// so a hot function would otherwise flood the log.
+static void reportAttributeEvaluationFailure(AttributeArgEvaluator const &evaluator, zend_execute_data *execute_data, WithSpanMetadata const &meta) {
+    if (!evaluator.failure() || meta.evalFailureReported) {
+        return;
+    }
+    meta.evalFailureReported = true;
+
+    auto [cls, fn] = getClassAndFunctionName(execute_data);
+    ELOGF_WARNING(OTEL_GL(logger_), INSTRUMENTATION, "#[WithSpan]/#[SpanAttribute] argument evaluation failed for " PRsv "::" PRsv ": %s", PRsvArg(cls), PRsvArg(fn), evaluator.failure()->message.c_str());
+}
+
 /// Calls WithSpanHandler::pre(target, params, class, function, filename, lineno, span_args, attributes)
 /// from the observer begin handler when #[WithSpan] is present.
 static void callWithSpanHandlerPre(zend_execute_data *execute_data, WithSpanMetadata const &meta) {
@@ -90,40 +102,11 @@ static void callWithSpanHandlerPre(zend_execute_data *execute_data, WithSpanMeta
     // Parameter 7: attributes array — start with static attrs from #[WithSpan(attributes: [...])]
     params[7].arrayInit();
 
-    // Re-read WithSpan::$attributes arg (positional 2 / named 'attributes') from op_array
-    if (execute_data->func->common.attributes) {
-        constexpr std::string_view withSpanLcName = "opentelemetry\\api\\instrumentation\\withspan"sv;
-        zend_attribute *wsAttr = zend_get_attribute_str(execute_data->func->common.attributes, withSpanLcName.data(), withSpanLcName.size());
-        if (wsAttr) {
-            // Find the 'attributes' arg: positional index 2, or named 'attributes'
-            for (uint32_t i = 0; i < wsAttr->argc; i++) {
-                bool isAttrsArg = false;
-                if (!wsAttr->args[i].name && i == 2) {
-                    isAttrsArg = true;
-                } else if (wsAttr->args[i].name) {
-                    std::string_view n{ZSTR_VAL(wsAttr->args[i].name), ZSTR_LEN(wsAttr->args[i].name)};
-                    isAttrsArg = (n == "attributes");
-                }
-                if (isAttrsArg) {
-                    zval resolved;
-                    ZVAL_UNDEF(&resolved);
-                    if (zend_get_attribute_value(&resolved, wsAttr, i, execute_data->func->common.scope) == SUCCESS && Z_TYPE(resolved) == IS_ARRAY) {
-                        zend_string *attrKey = nullptr;
-                        zval *val = nullptr;
-                        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR(resolved), attrKey, val) {
-                            if (attrKey && val) {
-                                zval copy;
-                                ZVAL_COPY(&copy, val);
-                                zend_hash_update(Z_ARR_P(params[7].get()), attrKey, &copy);
-                            }
-                        }
-                        ZEND_HASH_FOREACH_END();
-                        zval_ptr_dtor(&resolved);
-                    }
-                    break;
-                }
-            }
-        }
+    // Static attributes from WithSpan::$attributes. Evaluating them can run userland code, see AttributeArgEvaluator.
+    if (!meta.evaluationStopped && withSpanHasStaticAttributes(execute_data->func)) {
+        AttributeArgEvaluator evaluator;
+        readWithSpanStaticAttributes(execute_data->func, evaluator, params[7].get());
+        reportAttributeEvaluationFailure(evaluator, execute_data, meta);
     }
 
     // Append parameter attribute values: read actual arg at call time
@@ -631,8 +614,10 @@ zend_observer_fcall_handlers registerObserverHandlers(zend_execute_data *execute
     if (OTEL_GL(config_)->get().attr_hooks_enabled) {
         auto *func = execute_data->func;
         if (hasWithSpanAttribute(func)) {
-            auto metaOpt = readWithSpanMetadata(func);
+            AttributeArgEvaluator evaluator;
+            auto metaOpt = readWithSpanMetadata(func, evaluator);
             if (metaOpt) {
+                reportAttributeEvaluationFailure(evaluator, execute_data, *metaOpt);
                 AttrHooksStorage::getInstance().store(hash, std::move(*metaOpt));
                 haveAttrHook = true;
                 ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "registerObserverHandlers hash: 0x%X registered attribute hook (#[WithSpan])", hash);
