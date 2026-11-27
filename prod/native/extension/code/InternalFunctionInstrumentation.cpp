@@ -162,6 +162,10 @@ void handleAndReleaseHookException(zend_object *exception) {
     }
 
     ELOGF_ERROR(OTEL_GL(logger_), INSTRUMENTATION, "Instrumentation hook error: %s", exceptionToString(exception).c_str());
+    // it is the pending exception, do not leave EG(exception) pointing at an object that is about to be freed
+    if (EG(exception) == exception) {
+        EG(exception) = nullptr;
+    }
     OBJ_RELEASE(exception);
 }
 
@@ -245,8 +249,10 @@ void argsPostProcessing(AutoZval &functionArgs, AutoZval &returnValue) {
 
         if (slotsToAdd >= freeSlots) {
             // The frame is the last one on the stack; growing it past the end of the page would mean moving it.
-            ELOGF_WARNING(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing: not enough room left in the stack page to add %d arguments", slotsToAdd);
-            return;
+            // Arguments that need no new slot (replaced ones, skipped declared parameters) are still applied.
+            ELOGF_WARNING(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing: not enough room left in the stack page to add %d arguments, ignoring arguments beyond the existing slots", slotsToAdd);
+            newCallNumArgs = isInternal ? initialCallNumArgs : std::max(initialCallNumArgs, std::min(newCallNumArgs, declaredArgs));
+            slotsToAdd = 0;
         }
         EG(vm_stack_top) += slotsToAdd;
 
@@ -277,6 +283,9 @@ void argsPostProcessing(AutoZval &functionArgs, AutoZval &returnValue) {
         }
         ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing idx: %d", argIndex);
 
+        if (argIndex >= std::max(newCallNumArgs, declaredArgs)) {
+            continue; // there was no room for it
+        }
         zval *target = slotFor(argIndex);
         //TODO consider refs
         zval_ptr_dtor(target);

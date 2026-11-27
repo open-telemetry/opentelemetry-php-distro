@@ -414,7 +414,13 @@ void getScopeNameOrThis(zval *zv, zend_execute_data *execute_data) {
         // the zval is released by its owner, so it needs its own reference
         ZVAL_STR_COPY(zv, zend_get_called_scope(execute_data)->name);
     } else {
-        ZVAL_OBJ_COPY(zv, zend_get_this_object(execute_data));
+        // a non-static method can be called without $this, for example a closure bound to a scope only
+        zend_object *thisObject = zend_get_this_object(execute_data);
+        if (thisObject) {
+            ZVAL_OBJ_COPY(zv, thisObject);
+        } else {
+            ZVAL_NULL(zv);
+        }
     }
 }
 
