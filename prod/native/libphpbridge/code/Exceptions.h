@@ -14,6 +14,7 @@ struct SavedException {
 #endif
     const zend_op *opline_before_exception = nullptr;
     std::optional<const zend_op *> opline;
+    int exit_status = 0;
 };
 
 /// What to do when the isolated code (a hook) left an exit() pending.

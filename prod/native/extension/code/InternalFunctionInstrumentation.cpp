@@ -60,12 +60,6 @@ static std::optional<InferredSpans::SamplingSuspension> notifyInferredSpansHooke
     return suspension;
 }
 
-/// true if exit() was called since `pendingBefore` was the pending exception: by a hook, not by the observed function
-/// (that one is pending already when its post hooks run and they still have to run).
-static bool exitRaisedSince(zend_object *pendingBefore) {
-    return EG(exception) && EG(exception) != pendingBefore && zend_is_unwind_exit(EG(exception));
-}
-
 /// Logs a failure recorded by `evaluator`. With `oncePerFunction` it is logged only the first time for the function
 /// (the declaration is the same on every call, so a hot function would otherwise flood the log); the flag lives in the
 /// metadata, which is re-created on the first call of the function in every request.
@@ -116,6 +110,10 @@ static void callWithSpanHandlerPre(zend_execute_data *execute_data, WithSpanMeta
         AttributeArgEvaluator evaluator;
         readWithSpanStaticAttributes(execute_data->func, evaluator, params[7].get());
         reportAttributeEvaluationFailure(evaluator, execute_data, meta, true);
+        // the code that called exit() would run again on every call
+        if (evaluator.stopped()) {
+            meta.evaluationStopped = true;
+        }
     }
 
     addParameterAttributeValues(execute_data, meta, params[7].get());
@@ -127,7 +125,7 @@ static void callWithSpanHandlerPre(zend_execute_data *execute_data, WithSpanMeta
     AutoZval rv;
     try {
         AutomaticExceptionStateRestorer restorer;
-        callMethod(nullptr, handlerName, params[0].get(), static_cast<int32_t>(params.size()), rv.get());
+        callMethod(nullptr, handlerName, params[0].get(), static_cast<int32_t>(params.size()), rv.get(), false);
         handleAndReleaseHookException(EG(exception));
     } catch (std::exception const &e) {
         ELOGF_CRITICAL(OTEL_GL(logger_), INSTRUMENTATION, "callWithSpanHandlerPre exception: %s", e.what());
@@ -157,7 +155,7 @@ static void callWithSpanHandlerPost(zend_execute_data *execute_data, zval *retva
         // like for the post hooks, exit() ends the script (it cannot be honoured in the pre phase, where the VM does
         // not accept a pending exception)
         AutomaticExceptionStateRestorer restorer{PendingExit::keep};
-        callMethod(nullptr, handlerName, params[0].get(), static_cast<int32_t>(params.size()), rv.get());
+        callMethod(nullptr, handlerName, params[0].get(), static_cast<int32_t>(params.size()), rv.get(), false);
         handleAndReleaseHookException(EG(exception));
     } catch (std::exception const &e) {
         ELOGF_CRITICAL(OTEL_GL(logger_), INSTRUMENTATION, "callWithSpanHandlerPost exception: %s", e.what());
@@ -255,17 +253,42 @@ void argsPostProcessing(AutoZval &functionArgs, AutoZval &returnValue) {
         uint32_t reservedAfter = isInternal ? newCallNumArgs : std::max(newCallNumArgs, declaredArgs);
         uint32_t slotsToAdd = reservedAfter - reservedBefore;
 
-        size_t freeSlots = EG(vm_stack_end) - EG(vm_stack_top);
-        ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing highestArgIdx: %d slotsToAdd: %d vm_stack free: %zu", highestArgIdx, slotsToAdd, freeSlots);
+        ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing highestArgIdx: %d slotsToAdd: %d vm_stack free: %zu", highestArgIdx, slotsToAdd, static_cast<size_t>(EG(vm_stack_end) - EG(vm_stack_top)));
 
-        if (slotsToAdd >= freeSlots) {
+        // Growing the frame, by moving the top of the VM stack, is only possible for a frame that lives on the current page
+        // of the VM stack: it is then the call that is being executed, so nothing is allocated above it. A generator
+        // resumes on a frame that lives on the heap. The top of the stack cannot be below the end of the frame. It can be above
+        // it: a call with unpacked arguments, call_user_func_array() and named arguments grow the frame while the arguments
+        // are sent, and what is left is a slack of this very frame that nothing else uses.
+        zval *frameStart = reinterpret_cast<zval *>(execute_data);
+        // see zend_vm_calc_used_stack(): the arguments, then common.T slots (for an internal function it is the slot where
+        // the observer API keeps the previously observed frame), for a user function the variables, temporaries and extra arguments
+        const zval *expectedFrameEnd = frameStart + ZEND_CALL_FRAME_SLOT
+            + (isInternal ? initialCallNumArgs + func->common.T : func->op_array.last_var + func->op_array.T + (initialCallNumArgs > declaredArgs ? initialCallNumArgs - declaredArgs : 0));
+        const bool frameOnCurrentStackPage = frameStart >= ZEND_VM_STACK_ELEMENTS(EG(vm_stack)) && frameStart < EG(vm_stack_end);
+        const bool canGrowFrame = !(func->common.fn_flags & ZEND_ACC_GENERATOR) && frameOnCurrentStackPage && EG(vm_stack_top) >= expectedFrameEnd;
+
+        const zval *newFrameEnd = expectedFrameEnd + slotsToAdd;
+        if (slotsToAdd > 0 && (!canGrowFrame || newFrameEnd >= EG(vm_stack_end))) {
             // The frame is the last one on the stack; growing it past the end of the page would mean moving it.
             // Arguments that need no new slot (replaced ones, skipped declared parameters) are still applied.
-            ELOGF_WARNING(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing: not enough room left in the stack page to add %d arguments, ignoring arguments beyond the existing slots", slotsToAdd);
+            // a generator comes here on every resume
+            ELOGF(OTEL_GL(logger_), (func->common.fn_flags & ZEND_ACC_GENERATOR) ? LogLevel::logLevel_debug : LogLevel::logLevel_warning, INSTRUMENTATION, "argsPostProcessing: cannot add %d arguments to the frame (not enough room left in the stack page or the frame cannot grow), ignoring arguments beyond the existing slots", slotsToAdd);
             newCallNumArgs = isInternal ? initialCallNumArgs : std::max(initialCallNumArgs, std::min(newCallNumArgs, declaredArgs));
             slotsToAdd = 0;
         }
-        EG(vm_stack_top) += slotsToAdd;
+        if (slotsToAdd > 0 && EG(vm_stack_top) < newFrameEnd) {
+            EG(vm_stack_top) = const_cast<zval *>(newFrameEnd);
+        }
+
+        if (isInternal && slotsToAdd > 0 && func->common.T > 0) {
+            // The observer API keeps the previously observed frame in the last of the common.T slots after the arguments, and
+            // reads it from there when the call ends, counting from the number of arguments the call has by then. Move it
+            // to where it will be looked for, the new arguments are going to be written over the old place.
+            zval *oldSlot = ZEND_CALL_VAR_NUM(execute_data, initialCallNumArgs + func->common.T - 1);
+            zval *newSlot = ZEND_CALL_VAR_NUM(execute_data, newCallNumArgs + func->common.T - 1);
+            ZVAL_COPY_VALUE(newSlot, oldSlot);
+        }
 
         // undefine all new slots, those not assigned below stay undefined and get their defaults afterwards
         for (uint32_t idx = initialCallNumArgs; idx < newCallNumArgs; ++idx) {
@@ -275,10 +298,12 @@ void argsPostProcessing(AutoZval &functionArgs, AutoZval &returnValue) {
         ZEND_ADD_CALL_FLAG(execute_data, ZEND_CALL_MAY_HAVE_UNDEF);
         mayHaveUndef = true;
 
-        // The flag makes the engine release the extra arguments on return, and it assumes there is at least one.
-        if (!isInternal && newCallNumArgs > declaredArgs) {
-            ZEND_ADD_CALL_FLAG(execute_data, ZEND_CALL_FREE_EXTRA_ARGS);
-        }
+    }
+
+    // The flag makes the engine release the extra arguments on return, and it assumes there is at least one. The engine
+    // sets it only if some of the extra arguments the call came with is refcounted, a hook can replace them with others.
+    if (!isInternal && ZEND_CALL_NUM_ARGS(execute_data) > declaredArgs) {
+        ZEND_ADD_CALL_FLAG(execute_data, ZEND_CALL_FREE_EXTRA_ARGS);
     }
 
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARR_P(returnValue.get()), argIndex, argStrKey, argValue) {
@@ -294,8 +319,10 @@ void argsPostProcessing(AutoZval &functionArgs, AutoZval &returnValue) {
         }
         ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing idx: %d", argIndex);
 
-        if (argIndex >= std::max(newCallNumArgs, declaredArgs)) {
-            continue; // there was no room for it
+        if (argIndex >= newCallNumArgs) {
+            // There was no room for it, or it is a named argument of a parameter the call did not pass: the function would
+            // overwrite the slot with the default value and the value of the hook would be lost (and leaked).
+            continue;
         }
         zval *target = slotFor(argIndex);
         //TODO consider refs
@@ -308,41 +335,56 @@ void argsPostProcessing(AutoZval &functionArgs, AutoZval &returnValue) {
         // the first ZEND_CALL_NUM_ARGS arguments as if they were declared parameters, so for a user function only
         // the declared ones may be counted: the rest are extra arguments, stored elsewhere.
         const uint32_t numArgs = ZEND_CALL_NUM_ARGS(execute_data);
-        if (!isInternal) {
-            ZEND_CALL_NUM_ARGS(execute_data) = std::min(numArgs, declaredArgs);
-        }
+        // For an internal function the engine looks up the default in the argument info (the variadic parameter comes
+        // last), there is none for a slot past it.
+        const uint32_t handledArgs = std::min(numArgs, isInternal ? func->common.num_args + ((func->common.fn_flags & ZEND_ACC_VARIADIC) ? 1 : 0) : declaredArgs);
+        ZEND_CALL_NUM_ARGS(execute_data) = handledArgs;
         // The engine does this before the callee frame becomes the current one, so an exception from evaluating a
         // default is raised in the caller. Do the same, and put the caller's state back afterwards.
         zend_execute_data *currentFrame = EG(current_execute_data);
         zend_execute_data *callerFrame = currentFrame->prev_execute_data;
-        const zend_op *callerOpline = callerFrame ? callerFrame->opline : nullptr;
-        const zend_op *opLineBeforeException = EG(opline_before_exception);
+        // Without a caller (a shutdown function, a destructor at shutdown: called from C) the fake frame of the engine would
+        // be its own predecessor and building an exception would walk it for ever. There is nobody to evaluate the
+        // defaults for, so they are not.
+        bool failed = true;
         if (callerFrame) {
+            const zend_op *callerOpline = callerFrame->opline;
+            const zend_op *opLineBeforeException = EG(opline_before_exception);
+            // evaluating a default runs the function on a fake frame, which moves its opline and unlinks it from its caller
+            const zend_op *calleeOpline = execute_data->opline;
+            zend_execute_data *calleePrevious = execute_data->prev_execute_data;
+            const int exitStatus = EG(exit_status);
             EG(current_execute_data) = callerFrame;
+            failed = zend_handle_undef_args(execute_data) == FAILURE;
+            EG(current_execute_data) = currentFrame;
+            execute_data->opline = calleeOpline;
+            execute_data->prev_execute_data = calleePrevious;
+
+            // Evaluating a default can throw (constant that does not exist, class that cannot be loaded) or call exit().
+            // Neither may reach the observed function, the hook already ran.
+            if (EG(exception)) {
+                zend_object *thrown = EG(exception);
+                if (zend_is_unwind_exit(thrown)) {
+                    EG(exit_status) = exitStatus; // exit(code) is dropped, the script goes on
+                    ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing: exit() while evaluating the default of a skipped parameter was dropped");
+                } else {
+                    ELOGF_DEBUG(OTEL_GL(logger_), INSTRUMENTATION, "argsPostProcessing: evaluating the default of a skipped parameter failed: %s", exceptionToString(thrown).c_str());
+                }
+                EG(exception) = nullptr;
+#if PHP_VERSION_ID < 80600
+                EG(prev_exception) = nullptr;
+#endif
+                OBJ_RELEASE(thrown);
+                failed = true;
+            }
+            callerFrame->opline = callerOpline;
+            EG(opline_before_exception) = opLineBeforeException;
         }
-        bool failed = zend_handle_undef_args(execute_data) == FAILURE;
-        EG(current_execute_data) = currentFrame;
         ZEND_CALL_NUM_ARGS(execute_data) = numArgs;
 
-        // Evaluating a default can throw (constant that does not exist, class that cannot be loaded) or call exit().
-        // Neither may reach the observed function, the hook already ran.
-        if (EG(exception)) {
-            zend_object *thrown = EG(exception);
-            EG(exception) = nullptr;
-#if PHP_VERSION_ID < 80600
-            EG(prev_exception) = nullptr;
-#endif
-            OBJ_RELEASE(thrown);
-            failed = true;
-        }
-        if (callerFrame) {
-            callerFrame->opline = callerOpline;
-        }
-        EG(opline_before_exception) = opLineBeforeException;
-
-        // Slots that are still undefined: all of them if the defaults could not be applied, otherwise the gaps in
-        // the extra arguments, which have no default.
-        for (uint32_t idx = failed ? 0 : declaredArgs; idx < numArgs; ++idx) {
+        // Slots that are still undefined: all of them if the defaults could not be applied (the engine stops at the first
+        // that fails, so those after it do not get theirs either), otherwise the gaps past the parameters, which have no default.
+        for (uint32_t idx = failed ? 0 : handledArgs; idx < numArgs; ++idx) {
             zval *arg = slotFor(idx);
             if (Z_ISUNDEF_P(arg)) {
                 ZVAL_NULL(arg);
@@ -492,7 +534,6 @@ void ZEND_FASTCALL internal_function_handler(INTERNAL_FUNCTION_PARAMETERS) {
     auto samplingSuspension = notifyInferredSpansHookedFunction(true);
 
     // post hooks run in reverse order of registration (LIFO), so that hooks wrapping the same function nest properly
-    zend_object *pendingBeforePostHooks = EG(exception);
     for (auto it = callbacks->rbegin(); it != callbacks->rend(); ++it) {
         auto &callback = *it;
         if (callback.second.isNull() || callback.second.isUndef()) {
@@ -507,9 +548,6 @@ void ZEND_FASTCALL internal_function_handler(INTERNAL_FUNCTION_PARAMETERS) {
         } catch (std::exception const &e) {
             auto [cls, func] = getClassAndFunctionName(execute_data);
             ELOGF_CRITICAL(OTEL_GL(logger_), INSTRUMENTATION, "%s hash: 0x%X " PRsv "::" PRsv, e.what(), hash, PRsvArg(cls), PRsvArg(func));
-        }
-        if (exitRaisedSince(pendingBeforePostHooks)) {
-            break; // exit() called by a hook terminates the script, no more hooks
         }
     }
 
@@ -613,9 +651,8 @@ void observerFcallEndHandler(zend_execute_data *execute_data, zval *retval) {
 
     auto callbacks = reinterpret_cast<InstrumentedFunctionHooksStorage_t *>(OTEL_GL(hooksStorage_).get())->find(hash);
     // Attribute-based WithSpan hook. Its pre ran after the pre hooks, so its post runs before their posts (LIFO).
-    zend_object *pendingBeforePostHooks = EG(exception);
-    auto attrMeta = AttrHooksStorage::getInstance().find(execute_data->func);
-    if (attrMeta) {
+    const bool hasAttrMeta = AttrHooksStorage::getInstance().contains(execute_data->func);
+    if (hasAttrMeta) {
         AutomaticExceptionStateRestorer restorer{PendingExit::keep};
         callWithSpanHandlerPost(execute_data, retval, restorer.getException());
     }
@@ -623,9 +660,6 @@ void observerFcallEndHandler(zend_execute_data *execute_data, zval *retval) {
     if (callbacks) {
         // post hooks run in reverse order of registration (LIFO), so that hooks wrapping the same function nest properly
         for (auto it = callbacks->rbegin(); it != callbacks->rend(); ++it) {
-            if (exitRaisedSince(pendingBeforePostHooks)) {
-                break; // exit() called by the WithSpan handler terminates the script
-            }
             auto &callback = *it;
             if (callback.second.isNull() || callback.second.isUndef()) {
                 continue;
@@ -638,13 +672,10 @@ void observerFcallEndHandler(zend_execute_data *execute_data, zval *retval) {
                 auto [cls, func] = getClassAndFunctionName(execute_data);
                 ELOGF_CRITICAL(OTEL_GL(logger_), INSTRUMENTATION, "observerFcallEndHandler. Unable to call posthook for 0x%X " PRsv "::" PRsv ": '%s'", hash, PRsvArg(cls), PRsvArg(func), e.what());
             }
-            if (exitRaisedSince(pendingBeforePostHooks)) {
-                break; // exit() called by a hook terminates the script, no more hooks
-            }
         }
     }
 
-    if (!attrMeta && !callbacks) {
+    if (!hasAttrMeta && !callbacks) {
         auto [cls, func] = getClassAndFunctionName(execute_data);
         ELOGF_ERROR(OTEL_GL(logger_), INSTRUMENTATION, "Unable to find posthook handler for 0x%X " PRsv "::" PRsv, hash, PRsvArg(cls), PRsvArg(func));
     }

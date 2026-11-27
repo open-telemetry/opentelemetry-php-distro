@@ -17,6 +17,7 @@ SavedException saveExceptionState() {
     savedException.prev_exception = EG(prev_exception);
 #endif
     savedException.opline_before_exception = EG(opline_before_exception);
+    savedException.exit_status = EG(exit_status);
 
     EG(exception) = nullptr;
 #if PHP_VERSION_ID < 80600
@@ -44,6 +45,23 @@ void restoreExceptionState(SavedException savedException, PendingExit pendingExi
         return;
     }
 
+    // Whatever the isolated code left pending is dropped now: release it, it is not referenced from anywhere else. A
+    // destructor of what is released can throw again, hence the loop.
+    for (int i = 0; EG(exception) && EG(exception) != savedException.exception && i < 64; ++i) {
+        zend_object *dropped = EG(exception);
+        if (zend_is_unwind_exit(dropped)) {
+            // an exit() that is dropped here must not leave its exit status behind: the script goes on
+            EG(exit_status) = savedException.exit_status;
+        }
+        EG(exception) = nullptr;
+        OBJ_RELEASE(dropped);
+    }
+    if (EG(exception) && EG(exception) != savedException.exception) {
+        // the destructors keep throwing: drop the rest, it would be overwritten below and leaked
+        zend_object *rest = EG(exception);
+        EG(exception) = nullptr;
+        OBJ_RELEASE(rest);
+    }
     EG(exception) = savedException.exception;
 #if PHP_VERSION_ID < 80600
     EG(prev_exception) = savedException.prev_exception;

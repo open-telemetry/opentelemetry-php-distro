@@ -291,8 +291,16 @@ bool forceSetObjectPropertyValue(zend_object *object, zend_string *propertyName,
     return true;
 }
 
-bool callMethod(zval *object, std::string_view methodName, zval arguments[], int32_t argCount, zval *returnValue) {
-    opentelemetry::utils::callOnScopeExit callOnExit([exceptionState = saveExceptionState()]() { restoreExceptionState(exceptionState); });
+bool callMethod(zval *object, std::string_view methodName, zval arguments[], int32_t argCount, zval *returnValue, bool isolateExceptionState) {
+    std::optional<SavedException> exceptionState;
+    if (isolateExceptionState) {
+        exceptionState = saveExceptionState();
+    }
+    opentelemetry::utils::callOnScopeExit callOnExit([&exceptionState]() {
+        if (exceptionState) {
+            restoreExceptionState(*exceptionState);
+        }
+    });
 
     AutoZval zMethodName;
     ZVAL_STRINGL(zMethodName.get(), methodName.data(), methodName.length());
@@ -412,7 +420,8 @@ void getScopeNameOrThis(zval *zv, zend_execute_data *execute_data) {
 
     if (isStatic) {
         // the zval is released by its owner, so it needs its own reference
-        ZVAL_STR_COPY(zv, zend_get_called_scope(execute_data)->name);
+        zend_class_entry *calledScope = zend_get_called_scope(execute_data);
+        ZVAL_STR_COPY(zv, (calledScope ? calledScope : func->common.scope)->name);
     } else {
         // a non-static method can be called without $this, for example a closure bound to a scope only
         zend_object *thisObject = zend_get_this_object(execute_data);

@@ -151,6 +151,27 @@ function computeResult(#[SpanAttribute] int $input): int
 }
 ```
 
+## Rules
+
+- **Interfaces.** `#[WithSpan]` and `#[SpanAttribute]` declared on an interface method apply to the methods that
+  implement it. An attribute inherited for a parameter the implementation does not declare (the implementation is variadic)
+  needs an explicit name, `#[SpanAttribute('name')]`.
+- **Values.** Of the values captured by `#[SpanAttribute]` only strings, integers, floats, booleans and arrays are
+  recorded, a value that is `null`, an object or a closure is skipped. The entries of `WithSpan(attributes: [...])` are
+  passed on as they are. A by-reference parameter is recorded with its value at the time of the call.
+- **Names.** The name of `#[SpanAttribute]` must be a non-empty string (or be left out, then the parameter or property
+  name is used). Any other name, for example an empty one or a constant that cannot be evaluated, drops the attribute.
+- **Variadic parameters.** `#[SpanAttribute]` on a variadic parameter records its first argument.
+- **Evaluating arguments.** Arguments of the attributes that are constant expressions (`SomeClass::CONST`, `new`) are
+  evaluated at run time: the name, the kind and the names of `#[SpanAttribute]` once for a function in a request, the
+  `attributes` of `#[WithSpan]` on every call. An exception or `exit()` in the code this runs never reaches the
+  application, it is logged and the attribute is skipped.
+- **Properties.** `#[SpanAttribute]` on a property is read from `$this` when the method is called, static properties
+  are not recorded.
+- **Handlers.** An exception thrown by the `#[WithSpan]` handlers is logged and does not reach the application.
+- **Together with `hook()`.** A function can have `#[WithSpan]` and hooks registered with `hook()`. The `#[WithSpan]` span
+  is created after the pre hooks and ended before the post hooks, post hooks run in reverse order of their registration.
+
 ## Standard span attributes
 
 Every `#[WithSpan]` span includes these attributes from the declaration site:

@@ -18,9 +18,9 @@ namespace {
 constexpr std::string_view spanAttrLcName = "opentelemetry\\api\\instrumentation\\spanattribute"sv;
 
 std::optional<std::string> evaluateToString(AttributeArgEvaluator &evaluator, ResolvedAttribute const &attribute, uint32_t position, std::string_view name) {
-    OwnedZval value;
-    if (evaluator.evaluate(attribute, position, name, value) && value.type() == IS_STRING) {
-        return std::string{Z_STRVAL_P(value.get()), Z_STRLEN_P(value.get())};
+    auto value = evaluator.evaluate(attribute, position, name);
+    if (value.ok && value.type == IS_STRING) {
+        return std::move(value.text);
     }
     return std::nullopt;
 }
@@ -44,16 +44,16 @@ std::optional<std::string> resolveSpanAttributeKey(AttributeArgEvaluator &evalua
         return std::nullopt;
     }
 
-    OwnedZval value;
-    if (!evaluator.evaluateAt(attribute, 0, value)) {
+    auto value = evaluator.evaluateAt(attribute, 0);
+    if (!value.ok) {
         return std::nullopt;
     }
-    if (value.type() == IS_NULL) {
+    if (value.type == IS_NULL) {
         return defaultName;
     }
     // not coerced: whether userland would coerce a scalar depends on strict_types in the declaring file
-    if (value.type() == IS_STRING && Z_STRLEN_P(value.get()) > 0) {
-        return std::string{Z_STRVAL_P(value.get()), Z_STRLEN_P(value.get())};
+    if (value.type == IS_STRING && !value.text.empty()) {
+        return std::move(value.text);
     }
     return std::nullopt;
 }
@@ -81,7 +81,7 @@ void addAttributeValue(zval *out, std::string const &key, zval *value) {
     }
     zval copy;
     ZVAL_COPY(&copy, value);
-    zend_hash_str_update(Z_ARR_P(out), key.c_str(), key.length(), &copy);
+    zend_symtable_str_update(Z_ARR_P(out), key.c_str(), key.length(), &copy);
 }
 
 /// The zval of the call argument with 0-based index `index`. Arguments beyond the declared parameters of a user
@@ -105,21 +105,7 @@ void readWithSpanStaticAttributes(zend_function *func, AttributeArgEvaluator &ev
     if (!resolved) {
         return;
     }
-
-    OwnedZval value;
-    if (!evaluator.evaluate(*resolved, 2, "attributes", value) || value.type() != IS_ARRAY) {
-        return;
-    }
-
-    zend_string *key = nullptr;
-    zval *item = nullptr;
-    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR_P(value.get()), key, item) {
-        if (key && item) {
-            zval copy;
-            ZVAL_COPY(&copy, item);
-            zend_hash_update(Z_ARR_P(out), key, &copy);
-        }
-    } ZEND_HASH_FOREACH_END();
+    evaluator.evaluateArrayEntries(*resolved, 2, "attributes", out);
 }
 
 void addParameterAttributeValues(zend_execute_data *executeData, WithSpanMetadata const &metadata, zval *out) {
@@ -139,12 +125,20 @@ void addPropertyAttributeValues(zend_execute_data *executeData, WithSpanMetadata
     if (metadata.propAttributes.empty() || Z_TYPE(executeData->This) != IS_OBJECT) {
         return;
     }
-    zend_class_entry *ce = Z_OBJCE(executeData->This);
+    // The properties are those of the class that declares the method, a private one is only visible from there even
+    // if the method runs on an instance of a subclass.
+    zend_class_entry *ce = executeData->func->common.scope ? executeData->func->common.scope : Z_OBJCE(executeData->This);
     for (auto const &p : metadata.propAttributes) {
-        zval *prop = getClassPropertyValue(ce, Z_OBJ(executeData->This), p.propName);
+        // Reading can call __get() or a property hook, which can throw or exit(), and the value can live in `rv` (not in
+        // the object): copy it before `rv` goes. Nothing of this may reach the observed function.
+        AutomaticExceptionStateRestorer restorer;
+        zval rv;
+        ZVAL_UNDEF(&rv);
+        zval *prop = zend_read_property(ce, Z_OBJ(executeData->This), p.propName.c_str(), p.propName.length(), 1, &rv);
         if (prop && Z_TYPE_P(prop) != IS_UNDEF) {
             addAttributeValue(out, p.attrKey, prop);
         }
+        zval_ptr_dtor(&rv);
     }
 }
 
@@ -160,9 +154,9 @@ std::optional<WithSpanMetadata> readWithSpanMetadata(zend_function *func, Attrib
     metadata.spanName = evaluateToString(evaluator, *withSpan, 0, "span_name"sv);
 
     {
-        OwnedZval kind;
-        if (evaluator.evaluate(*withSpan, 1, "span_kind"sv, kind) && kind.type() == IS_LONG) {
-            metadata.spanKind = static_cast<int64_t>(Z_LVAL_P(kind.get()));
+        auto kind = evaluator.evaluate(*withSpan, 1, "span_kind"sv);
+        if (kind.ok && kind.type == IS_LONG) {
+            metadata.spanKind = kind.number;
         }
     }
 
@@ -201,6 +195,10 @@ std::optional<WithSpanMetadata> readWithSpanMetadata(zend_function *func, Attrib
             if (!propInfo || !propInfo->attributes) {
                 continue;
             }
+            // read from $this, a static property would be looked up as an instance one (and end up in __get())
+            if (propInfo->flags & ZEND_ACC_STATIC) {
+                continue;
+            }
 
             zend_attribute *propAttr = zend_get_attribute_str(propInfo->attributes, spanAttrLcName.data(), spanAttrLcName.size());
             if (!propAttr) {
@@ -208,7 +206,7 @@ std::optional<WithSpanMetadata> readWithSpanMetadata(zend_function *func, Attrib
             }
 
             std::string propNameStr{ZSTR_VAL(propName), ZSTR_LEN(propName)};
-            auto attrKey = resolveSpanAttributeKey(evaluator, ResolvedAttribute{propAttr, scope}, propNameStr);
+            auto attrKey = resolveSpanAttributeKey(evaluator, ResolvedAttribute{propAttr, propInfo->ce ? propInfo->ce : scope}, propNameStr);
             if (attrKey) {
                 metadata.propAttributes.push_back({propNameStr, std::move(*attrKey)});
             }

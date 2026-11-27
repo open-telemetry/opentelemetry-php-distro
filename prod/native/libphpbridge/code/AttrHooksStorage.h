@@ -20,7 +20,11 @@ namespace opentelemetry::php {
 //     zend_function that shares the run-time cache of the original, so the observer handlers are chosen once for the
 //     original and the copies must find the same entry. All copies share the opcodes of their declaration;
 //   - the scope tells apart the copies of one trait method in different classes, which share the opcodes as well but
-//     can have different attributes (inherited from different interfaces) and resolve constants in their own class.
+//     can have different attributes (inherited from different interfaces) and resolve constants in their own class;
+//   - the name tells apart the aliases of one trait method in the same class (use T { foo as bar; }), which share both
+//     the opcodes and the scope. It is the hash of the name, not the string itself: an entry of a freed function
+//     stays in the map until the end of the request and must not point at memory that is gone. The copies of one
+//     function share the name, so the callable copies above still find the entry.
 //
 // Lifecycle: an entry is stored by registerObserverHandlers(), which runs on the first call of a function within each
 // request (zend_activate() resets the run_time_cache, including the observer install slot, at the start of every
@@ -51,6 +55,11 @@ public:
         return it->second;
     }
 
+    // For the callers that only need to know, it does not touch the reference count.
+    bool contains(const zend_function *func) const {
+        return storage_.find(keyOf(func)) != storage_.end();
+    }
+
     // Always overwrites any existing entry for this function, it can only be a stale one.
     void store(const zend_function *func, WithSpanMetadata meta) {
         storage_[keyOf(func)] = std::make_shared<const WithSpanMetadata>(std::move(meta));
@@ -67,20 +76,29 @@ public:
 private:
     AttrHooksStorage() = default;
 
-    using Key = std::pair<const void *, const void *>;
+    struct Key {
+        const void *opcodes;
+        const void *scope;
+        zend_ulong nameHash;
+
+        bool operator==(Key const &) const = default;
+    };
 
     struct KeyHash {
         size_t operator()(Key const &key) const {
-            return std::hash<const void *>{}(key.first) * 31 + std::hash<const void *>{}(key.second);
+            size_t h = std::hash<const void *>{}(key.opcodes);
+            h = h * 31 + std::hash<const void *>{}(key.scope);
+            return h * 31 + std::hash<zend_ulong>{}(key.nameHash);
         }
     };
 
     // user functions only, which are the only ones that carry #[WithSpan]
     static Key keyOf(const zend_function *func) {
         if (func->type != ZEND_USER_FUNCTION) {
-            return {nullptr, nullptr};
+            return {nullptr, nullptr, 0};
         }
-        return {func->op_array.opcodes, func->common.scope};
+        zend_string *name = func->common.function_name;
+        return {func->op_array.opcodes, func->common.scope, name ? ZSTR_HASH(name) : 0};
     }
 
     std::unordered_map<Key, std::shared_ptr<const WithSpanMetadata>, KeyHash> storage_;

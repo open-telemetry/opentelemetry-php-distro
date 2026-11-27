@@ -59,7 +59,9 @@ zend_class_entry *findClassEntry(std::string_view className);
 zval *getClassStaticPropertyValue(zend_class_entry *ce, std::string_view propertyName);
 zval *getClassPropertyValue(zend_class_entry *ce, zval *object, std::string_view propertyName);
 zval *getClassPropertyValue(zend_class_entry *ce, zend_object *object, std::string_view propertyName);
-bool callMethod(zval *object, std::string_view methodName, zval arguments[], int32_t argCount, zval *returnValue);
+/// Calls a method. By default the exception state is isolated: whatever the method throws is dropped. A caller that
+/// handles the outcome itself (logs the exception, lets exit() end the script) passes isolateExceptionState = false.
+bool callMethod(zval *object, std::string_view methodName, zval arguments[], int32_t argCount, zval *returnValue, bool isolateExceptionState = true);
 
 std::string_view getExceptionName(zend_object *exception);
 bool isObjectOfClass(zval *object, std::string_view className);

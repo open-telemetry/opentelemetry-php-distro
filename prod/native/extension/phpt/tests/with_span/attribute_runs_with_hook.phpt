@@ -1,5 +1,5 @@
 --TEST--
-Check what happens when a WithSpan function also has a manual hook()
+Check that a WithSpan function runs together with a manual hook()
 --DESCRIPTION--
 opentelemetry-php-instrumentation skips the WithSpan handler when a manual hook exists for the same function. Distro runs both, so this test pins the distro behaviour.
 --SKIPIF--

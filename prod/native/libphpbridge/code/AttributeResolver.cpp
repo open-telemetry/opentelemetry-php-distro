@@ -21,13 +21,10 @@ constexpr std::string_view spanAttributeLcName = "opentelemetry\\api\\instrument
 // A destructor of a discarded exception can itself throw; each throw is another exception to discard.
 constexpr int maxChainedDiscards = 64;
 
-/// The method of the same name in `iface`, or nullptr.
-zend_function *findMethodInInterface(zend_class_entry *iface, zend_string *name) {
-    // function_table keys are lowercase. zend_hash_find_ptr_lc() is not exported by PHP 8.2.
-    zend_string *lcName = zend_string_tolower(name);
-    auto *method = static_cast<zend_function *>(zend_hash_find_ptr(&iface->function_table, lcName));
-    zend_string_release(lcName);
-    return method;
+/// The method in `iface` whose lowercase name is `lcName`, or nullptr. function_table keys are lowercase.
+/// zend_hash_find_ptr_lc() is not exported by PHP 8.2.
+zend_function *findMethodInInterface(zend_class_entry *iface, zend_string *lcName) {
+    return static_cast<zend_function *>(zend_hash_find_ptr(&iface->function_table, lcName));
 }
 
 template <typename Lookup>
@@ -40,23 +37,27 @@ std::optional<ResolvedAttribute> findOnFunctionOrInterfaces(zend_function *func,
     }
 
     zend_class_entry *ce = func->common.scope;
-    if (!ce || !func->common.function_name) {
+    if (!ce || !func->common.function_name || ce->num_interfaces == 0) {
         return std::nullopt;
     }
-    for (uint32_t i = 0; i < ce->num_interfaces; ++i) {
+    // one lowercase copy of the name for all the interfaces (no allocation when it is lowercase already)
+    zend_string *lcName = zend_string_tolower(func->common.function_name);
+    std::optional<ResolvedAttribute> found;
+    for (uint32_t i = 0; i < ce->num_interfaces && !found; ++i) {
         zend_class_entry *iface = ce->interfaces[i];
         if (!iface) {
             continue;
         }
-        zend_function *ifaceMethod = findMethodInInterface(iface, func->common.function_name);
+        zend_function *ifaceMethod = findMethodInInterface(iface, lcName);
         if (!ifaceMethod) {
             continue;
         }
         if (auto *attr = lookup(ifaceMethod)) {
-            return ResolvedAttribute{attr, ifaceMethod->common.scope};
+            found = ResolvedAttribute{attr, ifaceMethod->common.scope};
         }
     }
-    return std::nullopt;
+    zend_string_release(lcName);
+    return found;
 }
 
 } // namespace
@@ -68,16 +69,18 @@ uint32_t declaredParameterCount(zend_function const *func) {
 uint32_t maxDeclaredParameterCount(zend_function *func) {
     uint32_t count = declaredParameterCount(func);
     zend_class_entry *ce = func->common.scope;
-    if (!ce || !func->common.function_name) {
+    if (!ce || !func->common.function_name || ce->num_interfaces == 0) {
         return count;
     }
+    zend_string *lcName = zend_string_tolower(func->common.function_name);
     for (uint32_t i = 0; i < ce->num_interfaces; ++i) {
         if (ce->interfaces[i]) {
-            if (zend_function *m = findMethodInInterface(ce->interfaces[i], func->common.function_name)) {
+            if (zend_function *m = findMethodInInterface(ce->interfaces[i], lcName)) {
                 count = std::max(count, declaredParameterCount(m));
             }
         }
     }
+    zend_string_release(lcName);
     return count;
 }
 
@@ -108,18 +111,19 @@ std::optional<uint32_t> findAttributeArgIndex(zend_attribute const *attr, uint32
     return std::nullopt;
 }
 
-struct AttributeArgEvaluator::SavedState {
-    SavedException exception;
-};
-
-AttributeArgEvaluator::AttributeArgEvaluator() : saved_(new SavedState{saveExceptionState()}) {
+AttributeArgEvaluator::AttributeArgEvaluator() : saved_(saveExceptionState()) {
 }
 
 AttributeArgEvaluator::~AttributeArgEvaluator() {
     // whatever is still pending (an unwind exit that stopped evaluation) must not outlive the window
-    captureAndClearPending();
-    restoreExceptionState(saved_->exception);
-    delete saved_;
+    try {
+        captureAndClearPending();
+    } catch (...) {
+        // building the description of a failure can run out of memory, a destructor must not throw
+    }
+    restoreExceptionState(saved_);
+    // exit(code) sets the exit status of the process before it unwinds. The unwind was discarded, the application goes on.
+    EG(exit_status) = saved_.exit_status;
 }
 
 void AttributeArgEvaluator::captureAndClearPending() {
@@ -150,43 +154,88 @@ void AttributeArgEvaluator::captureAndClearPending() {
     }
 
     if (EG(exception)) {
-        // destructor chain longer than the limit: drop the rest without running anything else
-        zend_clear_exception();
+        // destructor chain longer than the limit: drop the rest. Not with zend_clear_exception(), it would move the opline
+        // of the observed frame.
+        zend_object *rest = EG(exception);
         EG(exception) = nullptr;
+#if PHP_VERSION_ID < 80600
+        EG(prev_exception) = nullptr;
+#endif
+        OBJ_RELEASE(rest);
     }
 }
 
-bool AttributeArgEvaluator::evaluateAt(ResolvedAttribute const &attribute, uint32_t argIndex, OwnedZval &out) {
+AttributeArgEvaluator::Value AttributeArgEvaluator::evaluateAt(ResolvedAttribute const &attribute, uint32_t argIndex) {
+    Value result;
     if (stopped_) {
-        return false;
+        return result;
     }
 
     zval value;
     ZVAL_UNDEF(&value);
     bool ok = zend_get_attribute_value(&value, attribute.attr, argIndex, attribute.scope) == SUCCESS;
 
-    // After either outcome: a failure leaves an exception pending, and so can a success (e.g. a destructor that
-    // ran while a temporary was released). Capturing instead of clearing keeps the first one for the caller.
+    if (ok) {
+        result.type = Z_TYPE(value);
+        if (Z_TYPE(value) == IS_STRING) {
+            result.text.assign(Z_STRVAL(value), Z_STRLEN(value));
+        } else if (Z_TYPE(value) == IS_LONG) {
+            result.number = static_cast<int64_t>(Z_LVAL(value));
+        }
+        // May run a destructor, which can throw or call exit(): that is drained below, before anything else is evaluated.
+        zval_ptr_dtor(&value);
+    }
+    // else: on failure the zval has already been released
+
+    // After either outcome: a failure leaves an exception pending, and so can a success (a destructor that ran while a
+    // temporary was released). Capturing instead of clearing keeps the first one for the caller.
     captureAndClearPending();
 
-    if (!ok) {
-        // on failure the zval has already been released
-        return false;
-    }
-    if (stopped_) {
-        zval_ptr_dtor(&value);
-        return false;
-    }
-    ZVAL_COPY_VALUE(out.get(), &value);
-    return true;
+    result.ok = ok && !stopped_;
+    return result;
 }
 
-bool AttributeArgEvaluator::evaluate(ResolvedAttribute const &attribute, uint32_t position, std::string_view name, OwnedZval &out) {
+AttributeArgEvaluator::Value AttributeArgEvaluator::evaluate(ResolvedAttribute const &attribute, uint32_t position, std::string_view name) {
     auto index = findAttributeArgIndex(attribute.attr, position, name);
     if (!index) {
+        return {};
+    }
+    return evaluateAt(attribute, *index);
+}
+
+bool AttributeArgEvaluator::evaluateArrayEntries(ResolvedAttribute const &attribute, uint32_t position, std::string_view name, zval *out) {
+    auto index = findAttributeArgIndex(attribute.attr, position, name);
+    if (!index || stopped_) {
         return false;
     }
-    return evaluateAt(attribute, *index, out);
+
+    zval value;
+    ZVAL_UNDEF(&value);
+    bool ok = zend_get_attribute_value(&value, attribute.attr, *index, attribute.scope) == SUCCESS;
+
+    bool copied = false;
+    if (ok) {
+        if (Z_TYPE(value) == IS_ARRAY) {
+            zend_string *key = nullptr;
+            zval *item = nullptr;
+            ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR(value), key, item) {
+                if (key && item) {
+                    zval copy;
+                    ZVAL_COPY(&copy, item);
+                    zend_hash_update(Z_ARR_P(out), key, &copy);
+                }
+            } ZEND_HASH_FOREACH_END();
+            copied = true;
+        }
+        zval_ptr_dtor(&value);
+    }
+    captureAndClearPending();
+
+    if (stopped_ && copied) {
+        // an exit() while the array was released: the entries must not be used
+        zend_hash_clean(Z_ARR_P(out));
+    }
+    return copied && !stopped_;
 }
 
 } // namespace opentelemetry::php

@@ -6,6 +6,8 @@
 #include <Zend/zend_compile.h>
 #include <Zend/zend_types.h>
 
+#include "Exceptions.h"
+
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -36,23 +38,6 @@ uint32_t declaredParameterCount(zend_function const *func);
 /// (e.g. a variadic implementation of a fixed-arity interface method).
 uint32_t maxDeclaredParameterCount(zend_function *func);
 
-/// Owns a zval produced by attribute argument evaluation.
-class OwnedZval {
-public:
-    OwnedZval() { ZVAL_UNDEF(&zv_); }
-    OwnedZval(OwnedZval const &) = delete;
-    OwnedZval &operator=(OwnedZval const &) = delete;
-    ~OwnedZval() { zval_ptr_dtor(&zv_); }
-
-    zval *get() { return &zv_; }
-    zval const *get() const { return &zv_; }
-    int type() const { return Z_TYPE(zv_); }
-    bool isUndef() const { return Z_TYPE(zv_) == IS_UNDEF; }
-
-private:
-    zval zv_;
-};
-
 /// RAII window for evaluating attribute arguments.
 ///
 /// Evaluating an argument that could not be folded at compile time (SomeClass::CONST, enum case, `new` in a
@@ -74,13 +59,26 @@ public:
     AttributeArgEvaluator &operator=(AttributeArgEvaluator const &) = delete;
     ~AttributeArgEvaluator();
 
+    /// The outcome of evaluating one argument. Only what callers need is kept, so the PHP value itself is released
+    /// inside the evaluator, which then drains whatever its release left pending (a destructor can throw or exit()).
+    struct Value {
+        bool ok = false;           ///< evaluated, and no exit() was seen
+        int type = IS_UNDEF;       ///< PHP type of the value, valid if ok
+        std::string text;          ///< the string, if type is IS_STRING
+        int64_t number = 0;        ///< the integer, if type is IS_LONG
+    };
+
     /// Evaluates the argument of `attribute` that is passed either as positional argument number `position` or as
-    /// the named argument `name`. Returns false when the argument is absent, could not be evaluated or evaluation
-    /// was stopped by exit(). On success `out` holds the value.
-    bool evaluate(ResolvedAttribute const &attribute, uint32_t position, std::string_view name, OwnedZval &out);
+    /// the named argument `name`. ok is false when the argument is absent, could not be evaluated or evaluation
+    /// was stopped by exit().
+    Value evaluate(ResolvedAttribute const &attribute, uint32_t position, std::string_view name);
 
     /// Same, for an argument whose index in attr->args is already known.
-    bool evaluateAt(ResolvedAttribute const &attribute, uint32_t argIndex, OwnedZval &out);
+    Value evaluateAt(ResolvedAttribute const &attribute, uint32_t argIndex);
+
+    /// Evaluates an argument that is expected to be an array and copies its string-keyed entries to `out`, an
+    /// initialised PHP array zval. Returns false if the argument is absent, failed, or is not an array.
+    bool evaluateArrayEntries(ResolvedAttribute const &attribute, uint32_t position, std::string_view name, zval *out);
 
     /// true after exit() was seen; no further argument will be evaluated.
     bool stopped() const { return stopped_; }
@@ -91,8 +89,7 @@ public:
 private:
     void captureAndClearPending();
 
-    struct SavedState;
-    SavedState *saved_;
+    SavedException saved_; ///< the exception state to restore, the evaluator lives on the stack of the caller
     bool stopped_ = false;
     std::optional<Failure> failure_;
 };

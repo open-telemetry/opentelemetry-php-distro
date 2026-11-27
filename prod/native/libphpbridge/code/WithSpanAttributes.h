@@ -34,7 +34,7 @@ struct WithSpanMetadata {
     /// The #[WithSpan] attribute has an `attributes` argument.
     bool hasStaticAttributes = false;
     /// exit() was called while the attribute arguments were evaluated; nothing may be evaluated for this function after that.
-    bool evaluationStopped = false;
+    mutable bool evaluationStopped = false;
     /// Set once an evaluation failure was reported for this function, to not repeat it on every call.
     mutable bool evalFailureReported = false;
 };
